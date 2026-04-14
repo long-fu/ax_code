@@ -1,0 +1,52 @@
+preprocess:
+    batch_size:    1
+    input_channel: 3
+    yuv2rgb:
+        flag: True
+    resize:
+        flag: True
+        output_dims:   [3, 640, 640]
+        resize_mode:   "kLINEAR"	#kNEAREST, kLINEAR 
+    identify:
+        flag: True
+        type: 0     # kFLOAT = 0 kHALF = 1 kINT8 = 2 kINT32 = 3 kUINT32 = 4 kBF = 5 kUINT8 = 6 kINT16 = 7 kUINT16 = 8
+    normalization:
+        flag: True
+        min: 0
+        max: 255
+    standardization:
+        flag: False
+        mean: [0.485, 0.456, 0.406]
+        std:  [0.229, 0.224, 0.225]
+yolov5:
+    onnx_file:     "../weights/ALL_GEN_person.axmodel"
+    engine_file:   "../weights/ALL_GEN_person.trt"
+    labels_file:   "../configs/ALL_GEN_person.names"
+    BATCH_SIZE:    1
+    INPUT_CHANNEL: 3
+    IMAGE_WIDTH:   640
+    IMAGE_HEIGHT:  640
+    obj_threshold: 0.1
+    nms_threshold: 0.45
+    agnostic:      True
+    isbox:         True
+    isslice:       False
+    strides:       [8, 16, 32]
+    num_anchors:   [3,  3,  3]
+    anchors:       [[10,13], [16,30], [33,23], [30,61], [62,45], [59,119], [116,90], [156,198], [373,326]]
+
+tracker:
+    max_age:       70
+    iou_threshold: 0.3
+    sim_threshold: 0.4
+    agnostic:      True
+    labels_file:   "../configs/ALL_GEN_person.names"
+
+fastreid:
+    onnx_file:     "../weights/fast-reid_mobilenetv2.axmodel"
+    engine_file:   "../weights/fast-reid_mobilenetv2.trt"
+    BATCH_SIZE:    32
+    INPUT_CHANNEL: 3
+    IMAGE_WIDTH:   128
+    IMAGE_HEIGHT:  256
+
