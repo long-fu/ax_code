@@ -23,6 +23,7 @@ include_directories(
     3rdpart/ffmpeg/include
     3rdpart/x264/include
     include/
+    3rdpart/spdlog/include
 )
 
 link_directories(
@@ -30,10 +31,10 @@ link_directories(
     3rdpart/opencv/lib
     3rdpart/ffmpeg/lib
     3rdpart/x264/lib
-
+    3rdpart/spdlog/lib
 )
 aux_source_directory(src SRCS)
 add_executable(ax_core main.cpp ${SRCS})
 
-target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat)
+target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat spdlog ld)
 

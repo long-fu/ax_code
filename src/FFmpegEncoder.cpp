@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include "logger.hpp"
+#include "Logger.h"
 #include "FFmpegEncoder.hpp"
 
 

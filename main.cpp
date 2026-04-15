@@ -20,7 +20,7 @@ int g_resourceID;
 
 #include "sort_track.h"
 #include "utils.h"
-
+#include "Logger.h"
 struct InferData
 {
     ImageData img;

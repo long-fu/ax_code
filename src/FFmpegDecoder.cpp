@@ -1,5 +1,5 @@
 #include "FFmpegDecoder.hpp"
-#include "logger.hpp"
+#include "Logger.h"
 using namespace std;
 #define DEVICE_MAX 4
 

@@ -2,7 +2,7 @@
 #include <string.h>
 
 #include "VencHelper.hpp"
-#include "logger.hpp"
+#include "Logger.h"
 
 static const AX_U32 u32MaxPixelWidth = 16384;
 static const AX_U32 u32MaxPixelHeight = 16384;

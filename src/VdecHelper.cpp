@@ -2,7 +2,7 @@
 #include "ax_buffer_tool.h"
 #include <unistd.h>
 #include <string.h>
-#include "logger.hpp"
+#include "Logger.h"
 #define AX_COMM_ALIGN(value, n) (((value) + (n) - 1) & ~((n) - 1))
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
 
