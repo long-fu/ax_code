@@ -11,14 +11,14 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sstream>
-#include <memory>
+#include <atomic>
 
 namespace fs = std::filesystem;
 
 std::shared_ptr<spdlog::logger> Logger::g_logger = nullptr;
 bool Logger::g_initialized = false;
 bool Logger::g_crash_handler_installed = false;
-struct sigaction Logger::g_old_sig_action[6] = {0}; // 保存 SIGSEGV, SIGABRT 等
+struct sigaction Logger::g_old_sig_action[6] = {0}; 
 
 std::shared_ptr<spdlog::logger>& Logger::instance() {
     if (!g_initialized) {
@@ -41,12 +41,16 @@ void Logger::init(const std::string& log_filename,
         fs::create_directories("logs");
         std::string log_path = "logs/" + log_filename;
 
-        // 创建控制台 sink
+        // 1. 初始化全局异步线程池 (spdlog v1.17+ 推荐方式)
+        // 参数: 队列大小 (8192), 线程数 (CPU核心数或固定值如4)
+        spdlog::init_thread_pool(8192, 4);
+
+        // 2. 创建控制台 sink
         auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
         console_sink->set_level(spdlog::level::trace);
         console_sink->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [thread %t] %v");
 
-        // 创建文件 rotating sink
+        // 3. 创建文件 rotating sink
         auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
             log_path,
             max_log_size_mb * 1024 * 1024,
@@ -57,31 +61,34 @@ void Logger::init(const std::string& log_filename,
 
         std::vector<spdlog::sink_ptr> sinks{console_sink, file_sink};
         
-        auto thread_pool = std::make_shared<spdlog::thread_pool>(8, 1 << 20);
-        
+        // 4. 创建异步 logger (自动使用全局线程池)
+        // 注意：在 v1.17 中，如果调用了 init_thread_pool，这里不需要再传 thread_pool 参数
         g_logger = std::make_shared<spdlog::async_logger>(
             "ax_core_logger",
             sinks.begin(),
             sinks.end(),
-            thread_pool,
             spdlog::async_overflow_policy::block
         );
 
+        // 5. 设置全局配置
         spdlog::set_default_logger(g_logger);
         spdlog::set_level(level);
+        
+        // 6. 启用自动刷新
         spdlog::flush_on(level);
         spdlog::flush_every(std::chrono::seconds(5));
 
         g_initialized = true;
         spdlog::info("Logger initialized successfully. Log file: {}", log_path);
 
-        // 安装崩溃处理器
+        // 7. 安装崩溃处理器
         if (enable_crash_handler && !g_crash_handler_installed) {
             install_crash_handler();
         }
 
     } catch (const spdlog::spdlog_ex& ex) {
         std::cerr << "Logger initialization failed: " << ex.what() << std::endl;
+        // 降级为同步 stderr logger
         g_logger = spdlog::stderr_color_mt("fallback_logger");
         g_initialized = true;
     }
@@ -98,7 +105,8 @@ void Logger::install_crash_handler() {
         sa.sa_flags = SA_RESTART | SA_SIGINFO;
         
         if (sigaction(signals[i], &sa, &g_old_sig_action[i]) == 0) {
-            spdlog::info("Installed crash handler for {}: {}", signal_names[i], signals[i]);
+            // 可以在调试模式下打印，生产环境建议注释掉以免干扰日志
+            // spdlog::info("Installed crash handler for {}: {}", signal_names[i], signals[i]);
         } else {
             spdlog::warn("Failed to install handler for {}: {}", signal_names[i], signals[i]);
         }
@@ -107,81 +115,34 @@ void Logger::install_crash_handler() {
 }
 
 void Logger::signal_handler(int signum) {
-    // 注意：在信号处理函数中只能调用异步安全的函数
-    // 这里我们尝试直接写文件，因为 spdlog 的 async 机制可能不安全
+    // 信号处理函数必须是异步安全的
+    // 避免调用 C++ STL 非异步安全函数 (如 std::cout, std::string 等)
     
-    const char* msg = "=== CRASH DETECTED ===\n";
+    const char* msg = "\n\n=== CRASH DETECTED ===\n";
     write(STDERR_FILENO, msg, strlen(msg));
     
-    // 尝试写入日志文件（如果已初始化）
-    if (g_initialized && g_logger) {
-        // 由于 spdlog 是异步的，我们需要强制刷新并等待
-        // 但为了安全，我们只记录最基本信息
-        try {
-            g_logger->flush();
-            
-            // 生成堆栈信息
-            void* array[100];
-            int size = backtrace(array, 100);
-            
-            // 将堆栈写入 stderr 以便查看
-            fprintf(stderr, "Backtrace (%d frames):\n", size);
-            backtrace_symbols_fd(array, size, STDERR_FILENO);
-            
-            // 尝试解析符号名称（简单版）
-            char** symbols = backtrace_symbols(array, size);
-            if (symbols) {
-                for (int i = 0; i < size; i++) {
-                    // 尝试 demangle C++ 符号
-                    int status;
-                    char* demangled = abi::__cxa_demangle(symbols[i], NULL, NULL, &status);
-                    if (status == 0 && demangled) {
-                        fprintf(stderr, "%d: %s\n", i, demangled);
-                        free(demangled);
-                    } else {
-                        fprintf(stderr, "%d: %s\n", i, symbols[i]);
-                    }
-                }
-                free(symbols);
-            }
-            
-            // 再次强制刷新
-            g_logger->flush();
-            spdlog::shutdown(); // 停止异步线程
-            
-        } catch (...) {
-            // 忽略异常，防止二次崩溃
-        }
-    }
-
-    // 恢复原来的信号处理函数（如果需要）
-    // 这里直接终止程序
-    _exit(1);
-}
-
-std::string Logger::generate_stack_trace() {
+    // 尝试写入堆栈信息到 stderr
     void* array[100];
     int size = backtrace(array, 100);
-    char** symbols = backtrace_symbols(array, size);
     
-    std::ostringstream oss;
-    oss << "Stack trace (" << size << " frames):\n";
+    fprintf(stderr, "Backtrace (%d frames):\n", size);
+    backtrace_symbols_fd(array, size, STDERR_FILENO);
     
-    if (symbols) {
-        for (int i = 0; i < size; i++) {
-            int status;
-            char* demangled = abi::__cxa_demangle(symbols[i], NULL, NULL, &status);
-            if (status == 0 && demangled) {
-                oss << "  #" << i << ": " << demangled << "\n";
-                free(demangled);
-            } else {
-                oss << "  #" << i << ": " << symbols[i] << "\n";
-            }
+    // 如果 spdlog 已初始化，尝试强制刷新并关闭
+    if (g_initialized && g_logger) {
+        try {
+            // 停止异步线程池，防止新日志进入
+            spdlog::shutdown(); 
+            
+            // 再次尝试写入文件（此时 spdlog 可能已转为同步模式或已关闭）
+            // 由于 spdlog 内部状态不确定，最安全的是依赖上面的 stderr 输出
+        } catch (...) {
+            // 忽略异常
         }
-        free(symbols);
     }
-    
-    return oss.str();
+
+    // 恢复默认行为或直接退出
+    _exit(1);
 }
 
 void Logger::trigger_crash_capture(int signal_num) {

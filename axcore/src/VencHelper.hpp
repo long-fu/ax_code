@@ -6,7 +6,7 @@
 
 #include "ax_venc_api.h"
 #include "ax_global_type.h"
-#include "logger.hpp"
+#include "Logger.h"
 #include "ImageData.hpp"
 // class StreamData
 // {

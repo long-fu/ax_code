@@ -1,15 +1,20 @@
-#ifndef LOGGER_H__
-#define LOGGER_H__
+#ifndef LOGGER_H
+#define LOGGER_H
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/async.h>
+#include <spdlog/async.h> // 必须包含以使用异步日志
 #include <memory>
 #include <string>
 #include <chrono>
 #include <csignal>
 #include <vector>
+
+// 确保启用异步日志支持
+#ifndef SPDLOG_ENABLE_ASYNC_LOGGER
+#define SPDLOG_ENABLE_ASYNC_LOGGER
+#endif
 
 class Logger {
 public:
@@ -17,11 +22,11 @@ public:
     static std::shared_ptr<spdlog::logger>& instance();
 
     // 初始化日志系统
-    // @param log_filename: 日志文件名（默认 "ax_core.log"）
-    // @param max_log_size_mb: 单个日志文件最大大小（MB），默认 10MB
-    // @param max_files: 保留的最大日志文件数，默认 5
-    // @param level: 初始日志级别，默认 INFO
-    // @param enable_crash_handler: 是否启用崩溃捕获，默认 true
+    // @param log_filename: 日志文件名
+    // @param max_log_size_mb: 单个日志文件最大大小 (MB)
+    // @param max_files: 保留的最大日志文件数
+    // @param level: 初始日志级别
+    // @param enable_crash_handler: 是否启用崩溃捕获
     static void init(const std::string& log_filename = "ax_core.log",
                      size_t max_log_size_mb = 10,
                      int max_files = 5,
@@ -37,10 +42,9 @@ public:
     // 手动刷新所有日志缓冲区
     static void flush();
 
-    // 手动触发崩溃捕获（用于测试或自定义异常转崩溃）
+    // 手动触发崩溃捕获（用于测试）
     static void trigger_crash_capture(int signal_num);
-    
-    
+
 private:
     Logger() = default;
     ~Logger() = default;
@@ -48,18 +52,16 @@ private:
     // 信号处理函数
     static void signal_handler(int signum);
     
+    // 安装信号处理器
     static void install_crash_handler();
-
-    // 生成堆栈信息字符串
-    static std::string generate_stack_trace();
 
     static std::shared_ptr<spdlog::logger> g_logger;
     static bool g_initialized;
     static bool g_crash_handler_installed;
-    static struct sigaction g_old_sig_action[]; // 保存旧信号处理函数
+    static struct sigaction g_old_sig_action[]; 
 };
 
-// 便捷宏定义
+// 便捷宏定义 (兼容 spdlog v1.x)
 #define LOG_TRACE(...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::trace, __VA_ARGS__)
 #define LOG_DEBUG(...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::debug, __VA_ARGS__)
 #define LOG_INFO(...)  SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::info, __VA_ARGS__)
@@ -74,8 +76,6 @@ private:
 #define LOG_TAGGED_WARN(tag, ...)  SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::warn, "[{}] {}", tag, fmt::format(__VA_ARGS__))
 #define LOG_TAGGED_ERROR(tag, ...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::err, "[{}] {}", tag, fmt::format(__VA_ARGS__))
 #define LOG_TAGGED_CRITICAL(tag, ...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::critical, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-
-
 
 
 /**
@@ -197,5 +197,5 @@ private:
 #define TIME_HOUR_SHOW(X)                               \
     std::cout << "Func " << #X << " cost : " << TIME_HOUR(X) \
          << " h " << std::endl
-         
+             
 #endif // LOGGER_H

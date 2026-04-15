@@ -22,8 +22,10 @@ include_directories(
     3rdpart/opencv/include
     3rdpart/ffmpeg/include
     3rdpart/x264/include
-    include/
-    3rdpart/spdlog/include
+    include
+    tracker/sort
+    common
+    axcore/inc
 )
 
 link_directories(
