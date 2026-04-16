@@ -50,7 +50,8 @@ public:
 
 	int Process(const std::vector<uint8_t> &data);
 	int Process(const uint8_t *data, size_t size);
-	int Postprocess(std::vector<detection::Object> &objects);
+	// int Postprocess(std::vector<detection::Object> &objects);
+	virtual void Postprocess(int picWidth,int picHeight,std::vector<detection::Object> &objects) = 0;
 	AX_ENGINE_IO_T GetOutput() const
 	{
 		return m_sIoData;
@@ -59,6 +60,10 @@ public:
 	AX_ENGINE_IO_INFO_T *GetInfo() const
 	{
 		return m_pIoInfo;
+	}
+
+	EngineConfig GetConfig() const {
+		return m_config;
 	}
 
 private:

@@ -1,82 +1,103 @@
-#ifndef LOGGER_H
-#define LOGGER_H
-
+#pragma once
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/async.h> // 必须包含以使用异步日志
+
+#include <spdlog/async.h>
+#include <spdlog/async_logger.h>
+
 #include <memory>
 #include <string>
-#include <chrono>
 #include <csignal>
 #include <vector>
+#if 1
 
-// 确保启用异步日志支持
-#ifndef SPDLOG_ENABLE_ASYNC_LOGGER
-#define SPDLOG_ENABLE_ASYNC_LOGGER
-#endif
+#define MACRO_BLACK "\033[1;30;30m"
+#define MACRO_RED "\033[1;30;31m"
+#define MACRO_GREEN "\033[1;30;32m"
+#define MACRO_YELLOW "\033[1;30;33m"
+#define MACRO_BLUE "\033[1;30;34m"
+#define MACRO_PURPLE "\033[1;30;35m"
+#define MACRO_WHITE "\033[1;30;37m"
+#define MACRO_END "\033[0m"
+
+
+/**
+ * @brief Write acl error level log to host log
+ * @param [in]: fmt: the input format string
+ * @return none
+ */
+#define LOG_ERROR(fmt, ...)                                             \
+    do                                                                  \
+    {                                                                   \
+        fprintf(stdout, MACRO_RED "[ERROR]  " fmt "\n", ##__VA_ARGS__); \
+    } while (0)
+
+/**
+ * @brief Write acl info level log to host log
+ * @param [in]: fmt: the input format string
+ * @return none
+ */
+#define LOG_INFO(fmt, ...)                                               \
+    do                                                                   \
+    {                                                                    \
+        fprintf(stdout, MACRO_PURPLE "[INFO]  " fmt "\n", ##__VA_ARGS__); \
+    } while (0)
+
+/**
+ * @brief Write acl warining level log to host log
+ * @param [in]: fmt: the input format string
+ * @return none
+ */
+#define LOG_WARNING(fmt, ...)                                                \
+    do                                                                       \
+    {                                                                        \
+        fprintf(stdout, MACRO_YELLOW "[WARNING]  " fmt "\n", ##__VA_ARGS__); \
+    } while (0)
+
+
+#else
+宏定义：简化调用
+#define LOG_TRACE(...) spdlog::get("app_logger")->trace(__VA_ARGS__)
+#define LOG_DEBUG(...) spdlog::get("app_logger")->debug(__VA_ARGS__)
+#define LOG_INFO(...)  spdlog::get("app_logger")->info(__VA_ARGS__)
+#define LOG_WARN(...)  spdlog::get("app_logger")->warn(__VA_ARGS__)
+#define LOG_ERROR(...) spdlog::get("app_logger")->error(__VA_ARGS__)
+#define LOG_CRITICAL(...) spdlog::get("app_logger")->critical(__VA_ARGS__)
+class CrashHandler {
+public:
+    static void install();
+private:
+    static void signal_handler(int signum);
+    static void print_stack_trace();
+};
 
 class Logger {
 public:
-    // 获取单例 logger 实例
-    static std::shared_ptr<spdlog::logger>& instance();
+    // 获取单例
+    static std::shared_ptr<Logger> instance();
+    // 初始化
+    // log_path: 日志目录
+    // max_size_mb: 单个文件最大大小 (MB)
+    // max_files: 保留的文件数量
+    // enable_console: 是否输出到控制台
+    bool init(const std::string& log_path = "./logs", 
+              size_t max_size_mb = 10, 
+              int max_files = 5, 
+              bool enable_console = true);
+    std::shared_ptr<spdlog::logger> get_spdlog() const;
+    void shutdown();
 
-    // 初始化日志系统
-    // @param log_filename: 日志文件名
-    // @param max_log_size_mb: 单个日志文件最大大小 (MB)
-    // @param max_files: 保留的最大日志文件数
-    // @param level: 初始日志级别
-    // @param enable_crash_handler: 是否启用崩溃捕获
-    static void init(const std::string& log_filename = "ax_core.log",
-                     size_t max_log_size_mb = 10,
-                     int max_files = 5,
-                     spdlog::level::level_enum level = spdlog::level::info,
-                     bool enable_crash_handler = true);
-
-    // 设置全局日志级别
-    static void set_level(spdlog::level::level_enum level);
-
-    // 获取当前日志级别
-    static spdlog::level::level_enum get_level();
-
-    // 手动刷新所有日志缓冲区
-    static void flush();
-
-    // 手动触发崩溃捕获（用于测试）
-    static void trigger_crash_capture(int signal_num);
-
-private:
     Logger() = default;
-    ~Logger() = default;
+    ~Logger();
 
-    // 信号处理函数
-    static void signal_handler(int signum);
-    
-    // 安装信号处理器
-    static void install_crash_handler();
-
-    static std::shared_ptr<spdlog::logger> g_logger;
-    static bool g_initialized;
-    static bool g_crash_handler_installed;
-    static struct sigaction g_old_sig_action[]; 
+    Logger(const Logger&) = delete;
+    Logger& operator=(const Logger&) = delete;
+    std::shared_ptr<spdlog::logger> m_logger;
+    bool m_initialized = false;
 };
 
-// 便捷宏定义 (兼容 spdlog v1.x)
-#define LOG_TRACE(...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::trace, __VA_ARGS__)
-#define LOG_DEBUG(...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::debug, __VA_ARGS__)
-#define LOG_INFO(...)  SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::info, __VA_ARGS__)
-#define LOG_WARN(...)  SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::warn, __VA_ARGS__)
-#define LOG_ERROR(...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::err, __VA_ARGS__)
-#define LOG_CRITICAL(...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::critical, __VA_ARGS__)
-
-// 带标签的日志宏
-#define LOG_TAGGED_TRACE(tag, ...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::trace, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-#define LOG_TAGGED_DEBUG(tag, ...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::debug, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-#define LOG_TAGGED_INFO(tag, ...)  SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::info, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-#define LOG_TAGGED_WARN(tag, ...)  SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::warn, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-#define LOG_TAGGED_ERROR(tag, ...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::err, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-#define LOG_TAGGED_CRITICAL(tag, ...) SPDLOG_LOGGER_CALL(Logger::instance().get(), spdlog::level::critical, "[{}] {}", tag, fmt::format(__VA_ARGS__))
-
+#endif
 
 /**
  * @brief define variable record time &&
@@ -197,5 +218,4 @@ private:
 #define TIME_HOUR_SHOW(X)                               \
     std::cout << "Func " << #X << " cost : " << TIME_HOUR(X) \
          << " h " << std::endl
-             
-#endif // LOGGER_H
+ 

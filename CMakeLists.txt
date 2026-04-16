@@ -25,7 +25,8 @@ include_directories(
     include
     tracker/sort
     common
-    axcore/inc
+    axcore/include
+    detector
 )
 
 link_directories(
@@ -35,8 +36,10 @@ link_directories(
     3rdpart/x264/lib
     3rdpart/spdlog/lib
 )
+aux_source_directory(axcore/src AX_SRCS)
 aux_source_directory(src SRCS)
-add_executable(ax_core main.cpp ${SRCS})
+aux_source_directory(tracker/sort tracker)
+add_executable(ax_core main.cpp common/Logger.cpp detector/Yolov5.cpp ${AX_SRCS} ${SRCS} ${tracker})
 
-target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat spdlog ld)
+target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat spdlog dl)
 

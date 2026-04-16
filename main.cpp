@@ -15,8 +15,8 @@
 int g_resourceID;
 #include "FFmpegEncoder.hpp"
 #include "VencHelper.hpp"
-#include "Engine.hpp"
-
+// #include "Engine.hpp"
+#include "Yolov5.hpp"
 
 #include "sort_track.h"
 #include "utils.h"
@@ -36,7 +36,7 @@ struct AXContext
     VdecHelper *vdec;
     VencHelper *venc;
     IvpsHelper *ivps;
-    Engine *engine;
+    Yolov5 *engine;
     ThreadSafeQueue<std::shared_ptr<ImageData>> *imageQueue;
     ThreadSafeQueue<std::shared_ptr<InferData>> *inferQueue;
     SORT_TRACKER *sort_tracker;
@@ -108,7 +108,7 @@ void *InferCallBack(void *argv)
 
         data->inferData.clear();
         // 1.7ms
-        ctx->engine->Postprocess(data->objects);
+        ctx->engine->Postprocess(ctx->ffDecoder->GetFrameWidth(),ctx->ffDecoder->GetFrameHeight(),data->objects);
 
         printf("---------------------\n");
         for (size_t i = 0; i < data->objects.size(); i++)
@@ -127,6 +127,7 @@ void *InferCallBack(void *argv)
 
 void *ReadImageDataCallBack(void *argv)
 {
+    // std::make_shared
     pthread_setname_np(pthread_self(), "ReadImg");
     AXContext *ctx = (AXContext *)argv;
     while (true)
@@ -248,7 +249,7 @@ int main(int, char **)
     ThreadSafeQueue<std::shared_ptr<ImageData>> imageQueue(128);
     ThreadSafeQueue<std::shared_ptr<InferData>> inferQueue(128);
 
-    std::string rtsp = "rtsp://123:123@22.10.57.33:8554/live36";
+    std::string rtsp = "rtsp://123:123@22.10.54.60:8555/live21";
     FFmpegDecoder ffDecoder(rtsp);
 
     if (0 != ffDecoder.GetVideoInfo())
@@ -288,7 +289,7 @@ int main(int, char **)
         return -1;
     }
 
-    Engine engine("");
+    Yolov5 engine("");
     if (0 != engine.Init())
     {
         printf("engine init failled\n");

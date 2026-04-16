@@ -3,17 +3,19 @@
 
 # include <iostream>
 # include <string>
+#include "Engine.hpp"
 
-class Yolov5
+class Yolov5: public Engine
 {
 
 	public:
 
-		Yolov5();
-		Yolov5( Yolov5 const & src );
+		explicit Yolov5(std::string modelConfig):Engine(modelConfig){};
 		~Yolov5();
 
-		Yolov5 &		operator=( Yolov5 const & rhs );
+		void Postprocess(int picWidth,int picHeight,std::vector<detection::Object> &objects);
+		Yolov5( Yolov5 const & src ) = delete;
+		Yolov5 &		operator=( Yolov5 const & rhs ) = delete;
 
 	private:
 
