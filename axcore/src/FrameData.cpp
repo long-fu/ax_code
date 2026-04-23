@@ -251,11 +251,11 @@
 
 int FrameData::Destroy()
 {
-	
+
 	if (m_enMemID == MEM_ID_SYS)
 	{
 		LOG_INFO("Destory SYS Info\n");
-		
+
 		AX_S32 sRet = AX_SUCCESS;
 		if (m_pFrameData->stVFrame.u64PhyAddr[0] != 0)
 		{

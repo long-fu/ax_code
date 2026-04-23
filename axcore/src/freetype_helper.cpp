@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "ax_global_type.h"
-#include "utils/freetype_helper.h"
+#include "freetype_helper.h"
 
 extern "C"
 {
@@ -105,9 +105,9 @@ private:
     GlpyhContext()
     {
         std::vector<const char *> fontList{
-            "../resource/GB2312.ttf", // For CJK
-            "../resource/arial.ttf",  // For latin and
-            "../resource/simsun.ttc"  // digits
+            "./resource/GB2312.ttf", // For CJK
+            "./resource/arial.ttf",  // For latin and
+            "./resource/simsun.ttc"  // digits
         };
 
         for (const char *fontPath : fontList)

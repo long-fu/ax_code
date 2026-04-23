@@ -21,6 +21,8 @@ int g_resourceID;
 #include "sort_track.h"
 #include "utils.h"
 #include "Logger.h"
+
+#include "drawing.h"
 struct InferData
 {
     ImageData img;
@@ -30,7 +32,6 @@ struct InferData
 
 struct AXContext
 {
-
     FFmpegDecoder *ffDecoder;
     FFmpegEncoder *ffEncoder;
     VdecHelper *vdec;
@@ -61,13 +62,13 @@ void *FFmpegDecodeCallBack(void *argv)
     return nullptr;
 }
 
-void test_sort(AXContext *ctx, std::vector<detection::Object>& results) {
+void test_sort(AXContext *ctx,ImageData *imageData ,std::vector<detection::Object>& results) {
     
     TIME_START(test_sort);
 
     vector<TrackingBox> detFrameData;
     // vector<Bbox> bboxes = det_results[frame_id];
-    for (int i = 0; i < results.size(); ++i)
+    for (int i = 0; i <  static_cast<int>(results.size()); ++i)
     {
         if(results[i].label == 1) //person 
         {
@@ -87,6 +88,23 @@ void test_sort(AXContext *ctx, std::vector<detection::Object>& results) {
 	
     TIME_END(test_sort);
 	TIME_USEC_SHOW(test_sort);
+
+// void DrawText(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const std::string &text, const YUVColor &color);
+
+// void DrawRect(AX_VIDEO_FRAME_INFO_T *frame_info, int x1, int y1, int x2, int y2, const YUVColor &color, int lineWidth);
+
+    for (size_t i = 0; i < tracking_results.size(); i++)
+    {
+        /* code */
+        auto item = tracking_results[i];
+
+        DrawText(imageData->data->FrameInfo(),item.box.x,item.box.y + 5, std::to_string(item.track_id),{255,255,255});
+
+        DrawRect(imageData->data->FrameInfo(),item.box.x,item.box.y,item.box.x + item.box.width, item.box.y + item.box.height, {255,255,255}, 2);
+        
+
+    }
+    
 	// drawPic(frame, tracking_results, sort_tracker);
    
 };
@@ -117,7 +135,7 @@ void *InferCallBack(void *argv)
             printf("[%d-%f][%f,%f,%f,%f]\n",item.label,item.prob,item.rect.x,item.rect.y,item.rect.width,item.rect.height);
         }
         
-        test_sort(ctx,data->objects);
+        test_sort(ctx,&data->img,data->objects);
 
 
         ctx->venc->Write(&data->img,nullptr);
@@ -244,6 +262,9 @@ int main(int, char **)
     // 编码
     // 推流
 
+    // 初始化日志系统
+    Logger::GetInstance().Init("./logs", 10, 5, true);
+
     AX_INIT();
 
     ThreadSafeQueue<std::shared_ptr<ImageData>> imageQueue(128);
@@ -320,6 +341,6 @@ int main(int, char **)
 
     pthread_join(ffmpegThread, nullptr);
     pthread_join(readImgThread, nullptr);
-
+    pthread_join(inferThread, nullptr);
     return 0;
 }

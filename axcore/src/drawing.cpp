@@ -8,11 +8,8 @@
 #include "drawing.h"
 #include <tuple>
 #include <opencv2/opencv.hpp>
-// #include "utils/opencv.h"
 #include "freetype_helper.h"
 #include "Logger.h"
-// #include "AppUtils.h"
-// #include "utils/Utils.h"
 using namespace cv;
 
 #pragma GCC push_options
@@ -22,13 +19,14 @@ void SetPixel(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const YUVColor &c
 {
     // (frame_info=0xffffd4001490, x=751, y=1084, color=...)
     // YUV 绘制
-    if(frame_info == nullptr) {
+    if (frame_info == nullptr)
+    {
         return;
     }
 
     int _x = 0;
     int _y = 0;
-    
+
     _x = x < 0 ? 0 : x;
 
     _y = y < 0 ? 0 : y;
@@ -39,9 +37,9 @@ void SetPixel(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const YUVColor &c
 
     AX_VOID *pLumaVirAddr = (AX_VOID *)((AX_ULONG)frame_info->stVFrame.u64VirAddr[0]);
     AX_VOID *pChromaVirAddr = (AX_VOID *)((AX_ULONG)frame_info->stVFrame.u64VirAddr[1]);
-  
+
     int yStride = frame_info->stVFrame.u32PicStride[0];
-    
+
     uint8_t *yPt = static_cast<uint8_t *>(pLumaVirAddr);
     uint8_t *uvPt = static_cast<uint8_t *>(pChromaVirAddr);
 
@@ -53,11 +51,10 @@ void SetPixel(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const YUVColor &c
     uvPt += uv_offset;
     uvPt[0] = color.u; // u
     uvPt[1] = color.v; // v
-
 }
 
 void DrawText(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const std::string &text, const YUVColor &color)
-{    
+{
     RenderText(frame_info, x, y, text, &color);
 }
 
@@ -163,7 +160,7 @@ void DrawClosedLines(AX_VIDEO_FRAME_INFO_T *frame_info, std::vector<std::tuple<i
 
 void DrawRect(AX_VIDEO_FRAME_INFO_T *frame_info, int x1, int y1, int x2, int y2, const YUVColor &color, int lineWidth)
 {
-    
+
     if (x1 > x2)
     {
         std::swap(x1, x2);
@@ -233,28 +230,33 @@ void DrawRect(AX_VIDEO_FRAME_INFO_T *frame_info, int x1, int y1, int x2, int y2,
 
 void draw_horiz_line(AX_VIDEO_FRAME_INFO_T *frame_info, uint32_t x1, uint32_t x2, uint32_t y, YUVColor color)
 {
-	for (uint32_t x = x1; x <= x2; ++x)
+    for (uint32_t x = x1; x <= x2; ++x)
         SetPixel(frame_info, x, y, color);
 }
 
-void DrawCircle(AX_VIDEO_FRAME_INFO_T *frame_info, int32_t xCenter, int32_t yCenter, int32_t radius, YUVColor color) {
+void DrawCircle(AX_VIDEO_FRAME_INFO_T *frame_info, int32_t xCenter, int32_t yCenter, int32_t radius, YUVColor color)
+{
 
-    if(xCenter < 0 || xCenter >= frame_info->stVFrame.u32Width) {
+    if (xCenter < 0 || xCenter >= frame_info->stVFrame.u32Width)
+    {
         return;
     }
-    if(yCenter < 0 || yCenter >= frame_info->stVFrame.u32Height) {
+    if (yCenter < 0 || yCenter >= frame_info->stVFrame.u32Height)
+    {
         return;
     }
-    if(radius <= 0 || radius >= 30) {
+    if (radius <= 0 || radius >= 30)
+    {
         return;
     }
 
-	int32_t r2 = radius * radius;
+    int32_t r2 = radius * radius;
 
-	for (int y = -radius; y <= radius; y++) {
-		int32_t x = (int)(sqrt(r2 - y * y) + 0.5);
-		draw_horiz_line(frame_info, xCenter - x, xCenter + x, yCenter - y, color);
-	}
+    for (int y = -radius; y <= radius; y++)
+    {
+        int32_t x = (int)(sqrt(r2 - y * y) + 0.5);
+        draw_horiz_line(frame_info, xCenter - x, xCenter + x, yCenter - y, color);
+    }
 }
 
 #pragma GCC pop_options

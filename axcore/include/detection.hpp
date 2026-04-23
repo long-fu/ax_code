@@ -27,7 +27,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
-
+#include "Base.h"
 namespace detection
 {
     typedef struct
@@ -37,19 +37,20 @@ namespace detection
         int stride;
     } GridAndStride;
 
-    typedef struct Object
-    {
-        cv::Rect_<float> rect;
-        int label;
-        float prob;
-        cv::Point2f landmark[5];
-        /* for yolov5-seg */
-        cv::Mat mask;
-        std::vector<float> mask_feat;
-        std::vector<float> kps_feat;
-        /* for yolov8-obb */
-        float angle;
-    } Object;
+    // typedef struct Object
+    // {
+    //     cv::Rect_<float> rect;
+    //     int label;
+    //     float prob;
+    //     cv::Point2f landmark[5];
+    //     /* for yolov5-seg */
+    //     cv::Mat mask;
+    //     std::vector<float> mask_feat;
+    //     std::vector<float> kps_feat;
+    //     /* for yolov8-obb */
+    //     float angle;
+    // } Object;
+    typedef Object_ Object;
 
     /* for palm detection */
     typedef struct PalmObject

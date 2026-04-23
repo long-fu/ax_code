@@ -6,6 +6,7 @@ LIB_PATH="${WORK_PATH}/3rdpart/ffmpeg/lib:\
 ${WORK_PATH}/3rdpart/opencv/lib:\
 ${WORK_PATH}/3rdpart/x264/lib:\
 /home/workspace/3rdparty/gdb/lib:\
+${WORK_PATH}/3rdpart/freetype/lib:\
 /soc/lib:\
 "
 echo "${LIB_PATH}"

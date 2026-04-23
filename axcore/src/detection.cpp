@@ -145,10 +145,10 @@ namespace detection
                                   std::vector<detection::Object> &faceobjects,
                                   int letterbox_cols, int letterbox_rows)
     {
-        static float anchors[] = {-8.f, -8.f, 8.f, 8.f, -16.f, -16.f, 
-        16.f, 16.f, -32.f, -32.f, 32.f, 32.f, -64.f, -64.f,
-         64.f, 64.f, -128.f,
-         -128.f, 128.f, 128.f, -256.f, -256.f, 256.f, 256.f};
+        static float anchors[] = {-8.f, -8.f, 8.f, 8.f, -16.f, -16.f,
+                                  16.f, 16.f, -32.f, -32.f, 32.f, 32.f, -64.f, -64.f,
+                                  64.f, 64.f, -128.f,
+                                  -128.f, 128.f, 128.f, -256.f, -256.f, 256.f, 256.f};
         int feat_w = letterbox_cols / feat_stride; // 80 40 20
         int feat_h = letterbox_rows / feat_stride;
         int feat_size = feat_w * feat_h;
@@ -162,7 +162,7 @@ namespace detection
 
         // generate face proposal from bbox deltas and shifted anchors
         const int num_anchors = 2;
-        // 2 80 80 
+        // 2 80 80
         for (int q = 0; q < num_anchors; q++)
         {
             // shifted anchor
@@ -2234,7 +2234,6 @@ namespace detection
         resize_cols = int(scale_letterbox * src_cols);
         resize_rows = int(scale_letterbox * src_rows);
 
-        
         int tmp_h = (letterbox_rows - resize_rows) / 2;
         int tmp_w = (letterbox_cols - resize_cols) / 2;
         // printf("tmp %d %d\n", tmp_h, tmp_w);
