@@ -1,11 +1,7 @@
 #include "IvpsHelper.hpp"
-// #include "AppUtils.h"
 #include "ax_base_type.h"
 #include "ax_ivps_api.h"
 #include "Logger.h"
-// #include "glog/logging.h"
-
-// extern int g_channel_id;
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
 /*
 ** ------------------------------- CONSTRUCTOR --------------------------------
@@ -43,8 +39,7 @@ AX_S32 IvpsHelper::CreatePool()
 	m_nPoolId = AX_POOL_CreatePool(&stPoolConfig);
 	if (AX_INVALID_POOLID == m_nPoolId)
 	{
-		// //("AX_POOL_CreatePool Failed!! %X\n", ret);
-		// << "AX_POOL_CreatePool Failed!! " << m_nPoolId;
+		LOG_ERROR_LOC("AX_POOL_CreatePool Failed!! code:{:#x}", m_nPoolId);
 		return AX_INVALID_POOLID;
 	}
 
@@ -59,12 +54,10 @@ AX_S32 IvpsHelper::CreatePool()
 			ret = AX_POOL_DestroyPool(m_nPoolId);
 			if (IVPS_SUCC != ret)
 			{
-				// //("AX_POOL_DestroyPool(Grp: %d) failed(this grp is not started) ret=0x%x.", m_nIvpsGrp, ret);
-				// return -1;
-				// << "AX_POOL_DestroyPool failed(this grp is not started) " << m_nIvpsGrp << " " << ret;
+				LOG_ERROR_LOC("AX_POOL_DestroyPool failed! code:{:#x}", ret);
 			}
 			m_nPoolId = AX_INVALID_POOLID;
-			//("AX_POOL_GetBlock fail!\n");
+			LOG_ERROR_LOC("AX_POOL_GetBlock fail! code:{:#x}", blkId);
 			return -1;
 		}
 		else
@@ -101,8 +94,7 @@ AX_S32 IvpsHelper::CreateGrp()
 	ret = AX_IVPS_CreateGrp(m_nIvpsGrp, &m_tGrpAttr);
 	if (IVPS_SUCC != ret)
 	{
-		//("AX_IVPS_CreateGrp(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_CreateGrp failed  " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_CreateGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 		return -1;
 	}
 
@@ -110,8 +102,7 @@ AX_S32 IvpsHelper::CreateGrp()
 	ret = AX_IVPS_SetPipelineAttr(m_nIvpsGrp, &m_tPipelineAttr);
 	if (IVPS_SUCC != ret)
 	{
-		//("AX_IVPS_SetPipelineAttr(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_SetPipelineAttr failed  " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 		return -1;
 	}
 
@@ -121,16 +112,14 @@ AX_S32 IvpsHelper::CreateGrp()
 		ret = AX_IVPS_SetChnPoolAttr(m_nIvpsGrp, chn, &m_tPoolAttr);
 		if (IVPS_SUCC != ret)
 		{
-			// //("AX_IVPS_SetChnPoolAttr(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-			// << "AX_IVPS_SetChnPoolAttr failed  " << m_nIvpsGrp << " " << ret;
+			LOG_ERROR_LOC("AX_IVPS_SetChnPoolAttr failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
 			return -3;
 		}
 		// 3.
 		ret = AX_IVPS_EnableChn(m_nIvpsGrp, chn);
 		if (IVPS_SUCC != ret)
 		{
-			// //("AX_IVPS_EnableChn(Chn: %d) failed, ret=0x%x.", chn, ret);
-			// << "AX_IVPS_EnableChn failed  " << m_nIvpsGrp << " " <<  chn << " " << ret;
+			LOG_ERROR_LOC("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
 			return -1;
 		}
 	}
@@ -139,12 +128,11 @@ AX_S32 IvpsHelper::CreateGrp()
 	ret = AX_IVPS_StartGrp(m_nIvpsGrp);
 	if (IVPS_SUCC != ret)
 	{
-		// //("AX_IVPS_StartGrp(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_StartGrp failed  " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_StartGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 		return -1;
 	}
 
-	// << "IVPS Create Success!!!" << " GRP: " << m_nIvpsGrp;
+	LOG_INFO("IVPS Create Success! GRP: {}", m_nIvpsGrp);
 
 	return 0;
 }
@@ -158,24 +146,21 @@ AX_S32 IvpsHelper::Init()
 		ret = AX_IVPS_SetPipelineAttr(m_nIvpsGrp, &m_tPipelineAttr);
 		if (IVPS_SUCC != ret)
 		{
-			//("AX_IVPS_SetPipelineAttr(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-			// << "AX_IVPS_SetPipelineAttr failed  " << m_nIvpsGrp << " " << ret;
+			LOG_ERROR_LOC("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 			return -1;
 		}
 
 		ret = AX_IVPS_DisableChn(m_nIvpsGrp, chn);
 		if (IVPS_SUCC != ret)
 		{
-			//("AX_IVPS_DisableChn(Chn: %d) failed, ret=0x%x.", chn, ret);
-			// << "AX_IVPS_DisableChn failed  " << m_nIvpsGrp << " " << chn << " " << ret;
+			LOG_ERROR_LOC("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
 			return -1;
 		}
 
 		ret = AX_IVPS_EnableChn(m_nIvpsGrp, chn);
 		if (IVPS_SUCC != ret)
 		{
-			//("AX_IVPS_EnableChn(Chn: %d) failed, ret=0x%x.", chn, ret);
-			// << "AX_IVPS_EnableChn failed  " << m_nIvpsGrp << " " << chn << " " << ret;
+			LOG_ERROR_LOC("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
 			return -1;
 		}
 		// ret = 0;
@@ -186,13 +171,13 @@ AX_S32 IvpsHelper::Init()
 		ret = CreatePool();
 		if (AX_SUCCESS != ret)
 		{
-			// << "Frame IVPS CreatePool Failed";
+			LOG_ERROR_LOC("Frame IVPS CreatePool Failed! code:{:#x}", ret);
 			return -1;
 		}
 		ret = CreateGrp();
 		if (AX_SUCCESS != ret)
 		{
-			// << "Frame IVPS CreateGrp Failed";
+			LOG_ERROR_LOC("Frame IVPS CreateGrp Failed! code:{:#x}", ret);
 			return -1;
 		}
 		isInitialized = true;
@@ -221,8 +206,7 @@ AX_S32 IvpsHelper::DestroyResource()
 	ret = AX_IVPS_StopGrp(m_nIvpsGrp);
 	if (IVPS_SUCC != ret)
 	{
-		// //("AX_IVPS_StopGrp(Grp: %d) failed(this grp is not started) ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_StopGrp(Grp: ) failed(this grp is not started) ret " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_StopGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 		return -1;
 	}
 
@@ -231,8 +215,7 @@ AX_S32 IvpsHelper::DestroyResource()
 		ret = AX_IVPS_DisableChn(m_nIvpsGrp, chn);
 		if (IVPS_SUCC != ret)
 		{
-			// //("AX_IVPS_DestoryChn(Chn: %d) failed, ret=0x%x.", chn, ret);
-			// << "AX_IVPS_DestoryChn(Chn: ) failed(this grp is not started) ret " << chn << " " << ret;
+			LOG_ERROR_LOC("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
 			return -1;
 		}
 	}
@@ -240,16 +223,14 @@ AX_S32 IvpsHelper::DestroyResource()
 	ret = AX_IVPS_DestoryGrp(m_nIvpsGrp);
 	if (IVPS_SUCC != ret)
 	{
-		// //("AX_IVPS_DestoryGrp(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_DestoryGrp(Grp: ) failed ret " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_DestoryGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 		return -1;
 	}
 
 	ret = AX_POOL_DestroyPool(m_nPoolId);
 	if (IVPS_SUCC != ret)
 	{
-		// //("AX_POOL_DestroyPool(Grp: %d) failed(this grp is not started) ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_POOL_DestroyPool(Grp: ) failed(this grp is not started) ret " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_POOL_DestroyPool failed! PoolId:{}, code:{:#x}", m_nPoolId, ret);
 		return -1;
 	}
 	m_nPoolId = AX_INVALID_POOLID;
@@ -276,7 +257,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 
 	if (outCount != 1)
 	{
-		//("代码错误");
+		LOG_ERROR_LOC("IVPS outCount != 1, outCount:{}", outCount);
 		exit(-1);
 	}
 
@@ -287,8 +268,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	AX_VIDEO_FRAME_INFO_T *tDstFrame = new AX_VIDEO_FRAME_INFO_T();
 	if (IVPS_SUCC != ret)
 	{
-		//("AX_IVPS_SendFrame(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_SendFrame(Grp: ) failed, ret " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_SendFrame failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
 		return -1;
 	}
 
@@ -296,8 +276,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	ret = AX_IVPS_GetChnFrame(grp, chn, &tDstFrame->stVFrame, -1);
 	if (IVPS_SUCC != ret)
 	{
-		//("AX_IVPS_GetChnFrame(Grp: %d) failed, ret=0x%x.", m_nIvpsGrp, ret);
-		// << "AX_IVPS_GetChnFrame(Grp: ) failed, ret " << m_nIvpsGrp << " " << ret;
+		LOG_ERROR_LOC("AX_IVPS_GetChnFrame failed! Grp:{}, Chn:{}, code:{:#x}", grp, chn, ret);
 		return -1;
 	}
 	// dest_frame = SHARED_IVPS_FRAMEINFO(grp, chn, tDstFrame);
