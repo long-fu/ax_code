@@ -93,7 +93,7 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 
 	while (!self->IsExit())
 	{
-		LOG_INFO("VencRecvThreadFunc %d\n", self->m_nChn);
+		LOG_INFO("VencRecvThreadFunc {}", self->m_nChn);
 		// -1：阻塞 0：非阻塞
 		ret = AX_VENC_GetStream(self->m_nChn, &stStream, 100);
 		// stStream.stPack.u64SeqNum
@@ -105,7 +105,7 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 			ret = AX_VENC_ReleaseStream(self->m_nChn, &stStream);
 			if (AX_SUCCESS != ret)
 			{
-				LOG_ERROR("VencRecvThreadFunc chn-%d: AX_VENC_ReleaseStream failed! 0x%X\n", self->m_nChn, ret);
+				LOG_ERROR_LOC("VencRecvThreadFunc chn-{}: AX_VENC_ReleaseStream failed! {:#X}", self->m_nChn, ret);
 				return (void *)0;
 			}
 		}
@@ -119,7 +119,7 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 		}
 		else
 		{
-			LOG_ERROR("AX_VENC_GetStream failed!!! ret 0x%X %s", ret, AX_VencRetStr(ret));
+			LOG_ERROR_LOC("AX_VENC_GetStream failed!!! ret {:#X} {}", ret, AX_VencRetStr(ret));
 		}
 	}
 	LOG_INFO("AX_VENC_GetStream Exit Success");
@@ -209,7 +209,7 @@ int VencHelper::Init()
 	if (AX_SUCCESS != s32Ret)
 	{
 		// printf("VencChn [%d]: AX_VENC_CreateChn failed with %#x!", m_nChn, s32Ret);
-		LOG_ERROR_LOC("AX_VENC_CreateChn FAILED! VeChn:{},code:{}",m_nChn,s32Ret);
+		LOG_ERROR_LOC("AX_VENC_CreateChn FAILED! VeChn:{},code:{:#x}",m_nChn,s32Ret);
 		return s32Ret;
 	}
 
@@ -227,7 +227,7 @@ int VencHelper::Encode(VencProcessCallBack callback, void *user_data)
 	s32Ret = AX_VENC_StartRecvFrame(m_nChn, &stRecvParam);
 	if (AX_SUCCESS != s32Ret)
 	{
-		printf("VencChn [%d]: AX_VENC_StartRecvFrame failed with %#x!", m_nChn, s32Ret);
+		LOG_ERROR_LOC("VencChn [{}]: AX_VENC_StartRecvFrame failed with {:#x}!", m_nChn, s32Ret);
 		return s32Ret;
 	}
 
@@ -255,12 +255,12 @@ int VencHelper::Write(ImageData *imageData, void *user_data)
 	int s32Ret = AX_VENC_SendFrame(m_nChn, imageData->data->FrameInfo(), 0);
 	if (AX_SUCCESS != s32Ret)
 	{
-		// LOG_ERROR("chn-%d: AX_VENC_SendFrame failed, code:%x msg:%s\n", m_nChn, s32Ret,AX_VencRetStr(s32Ret));
-		LOG_ERROR_LOC("AX_VENC_SendFrame FAILED! VeChn:{},code:{},msg:{}", m_nChn, s32Ret, AX_VencRetStr(s32Ret));
+		// LOG_ERROR_LOC("chn-%d: AX_VENC_SendFrame failed, code:%x msg:%s\n", m_nChn, s32Ret,AX_VencRetStr(s32Ret));
+		LOG_ERROR_LOC("AX_VENC_SendFrame FAILED! VeChn:{},code:{:#x},msg:{}", m_nChn, s32Ret, AX_VencRetStr(s32Ret));
 	}
 	else
 	{
-		LOG_INFO("chn-%d: AX_VENC_SendFrame SUCCESS, code:%x msg:%s\n", m_nChn, s32Ret, AX_VencRetStr(s32Ret));
+		LOG_INFO("chn-{}: AX_VENC_SendFrame SUCCESS, code:{:#x} msg:{}", m_nChn, s32Ret, AX_VencRetStr(s32Ret));
 	}
 	TIME_END(WriteVenc);
 
@@ -278,8 +278,8 @@ int VencHelper::StopEncode()
 	s32Ret = AX_VENC_StopRecvFrame(m_nChn);
 	if (AX_SUCCESS != s32Ret)
 	{
-		// LOG_ERROR("chn-%d: AX_VENC_StopRecvFrame failed with%#x! \n", m_nChn, s32Ret);
-		LOG_ERROR_LOC("AX_VENC_StopRecvFrame FAILED! VeChn:{},code:{},msg:{}", m_nChn, s32Ret, AX_VencRetStr(s32Ret));
+		// LOG_ERROR_LOC("chn-%d: AX_VENC_StopRecvFrame failed with%#x! \n", m_nChn, s32Ret);
+		LOG_ERROR_LOC("AX_VENC_StopRecvFrame FAILED! VeChn:{},code:{:#x},msg:{}", m_nChn, s32Ret, AX_VencRetStr(s32Ret));
 		return s32Ret;
 	}
 
@@ -327,8 +327,8 @@ int VencHelper::Destroy()
 	s32Ret = AX_VENC_DestroyChn(m_nChn);
 	if (AX_SUCCESS != s32Ret)
 	{
-		// LOG_ERROR("chn-%d: AX_VENC_DestroyChn failed with%#x! \n", m_nChn, s32Ret);
-		LOG_ERROR_LOC("AX_VENC_DestroyChn FAILED! VeChn:{},code:{}",m_nChn,s32Ret);
+		// LOG_ERROR_LOC("chn-%d: AX_VENC_DestroyChn failed with%#x! \n", m_nChn, s32Ret);
+		LOG_ERROR_LOC("AX_VENC_DestroyChn FAILED! VeChn:{},code:{:#x}",m_nChn,s32Ret);
 		return s32Ret;
 	}
 	return s32Ret;

@@ -1,5 +1,6 @@
 #include "BytekalmanFilter.h"
 #include <Eigen/Cholesky>
+#include "Logger.h"
 
 namespace byte_kalman
 {
@@ -131,7 +132,7 @@ namespace byte_kalman
 	{
 		KAL_HDATA pa = this->project(mean, covariance);
 		if (only_position) {
-			printf("not implement!");
+			LOG_ERROR_LOC("gating_distance not implement!");
 			exit(0);
 		}
 		KAL_HMEAN mean1 = pa.first;

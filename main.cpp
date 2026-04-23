@@ -81,10 +81,10 @@ void test_sort(AXContext *ctx,ImageData *imageData ,std::vector<detection::Objec
     }
     ctx->frame_id++;
     // 跟踪 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    std::cout << "frame_id:" << ctx->frame_id << ", det num:" << detFrameData.size() << std::endl;
+    LOG_INFO("frame_id: {}, det num: {}", ctx->frame_id, detFrameData.size());
     ctx->sort_tracker->update(detFrameData);
-    vector<TrackingBox> tracking_results = ctx->sort_tracker->getReport();  
-    printf("trankerout: %ld\n",tracking_results.size());
+    vector<TrackingBox> tracking_results = ctx->sort_tracker->getReport();
+    LOG_INFO("tracker out: {}", tracking_results.size());
 	
     TIME_END(test_sort);
 	TIME_USEC_SHOW(test_sort);
@@ -128,11 +128,11 @@ void *InferCallBack(void *argv)
         // 1.7ms
         ctx->engine->Postprocess(ctx->ffDecoder->GetFrameWidth(),ctx->ffDecoder->GetFrameHeight(),data->objects);
 
-        printf("---------------------\n");
+        LOG_DEBUG("---------------------");
         for (size_t i = 0; i < data->objects.size(); i++)
         {
             auto item = data->objects[i];
-            printf("[%d-%f][%f,%f,%f,%f]\n",item.label,item.prob,item.rect.x,item.rect.y,item.rect.width,item.rect.height);
+            LOG_DEBUG("[{}->{}][{},{},{},{}]", item.label, item.prob, item.rect.x, item.rect.y, item.rect.width, item.rect.height);
         }
         
         test_sort(ctx,&data->img,data->objects);
@@ -162,7 +162,7 @@ void *ReadImageDataCallBack(void *argv)
         // std::shared_ptr<ImageData> dest = std::make_shared<ImageData>();
         if (ctx->ivps->Process(dest, src) != 0)
         {
-            printf("CSC 异常\n");
+            LOG_ERROR_LOC("CSC 异常");
             exit(-1);
         }
         std::shared_ptr<InferData> infer = std::make_shared<InferData>();
@@ -182,14 +182,14 @@ int AX_INIT()
     ret = AX_SYS_Init();
     if (AX_SUCCESS != ret)
     {
-        // LOG_ERROR("AX_SYS_Init Failed!! %X\n", ret);
+        // LOG_ERROR_LOC("AX_SYS_Init Failed!! %X\n", ret);
         return ret;
     }
 
     ret = AX_IVPS_Init();
     if (AX_SUCCESS != ret)
     {
-        printf("AX_IVPS_Init Failed!! %X\n", ret);
+        LOG_ERROR_LOC("AX_IVPS_Init Failed!! {:#x}", ret);
         return ret;
     }
     AX_POOL_Init();
@@ -202,7 +202,7 @@ int AX_INIT()
     ret = AX_VDEC_Init(&stModAttr);
     if (AX_SUCCESS != ret)
     {
-        // LOG_ERROR("AX_VDEC_Init Failed!! %X\n", ret);
+        // LOG_ERROR_LOC("AX_VDEC_Init Failed!! %X\n", ret);
         // LOG(ERROR) << ""
         return ret;
     }
@@ -215,11 +215,11 @@ int AX_INIT()
     ret = AX_VENC_Init(&stEncModAttr);
     if (AX_SUCCESS != ret)
     {
-        // LOG_ERROR("AX_VENC_Init Failed!! %X\n", ret);
+        // LOG_ERROR_LOC("AX_VENC_Init Failed!! %X\n", ret);
         return ret;
     }
     // LOG_INFO("SYS INIT SUCCCESS !!!");
-    fprintf(stdout, "AX SYS Init Success!!\n");
+    LOG_INFO("AX SYS Init Success!!");
     return 0;
 }
 
@@ -276,7 +276,7 @@ int main(int, char **)
 
     if (0 != ffDecoder.GetVideoInfo())
     {
-        printf("ffDecoder init error\n");
+        LOG_ERROR_LOC("FFmpeg Decoder init error");
         return -1;
     }
 
@@ -299,7 +299,7 @@ int main(int, char **)
     VencHelper venc(g_resourceID, ffDecoder.GetFrameWidth(), ffDecoder.GetFrameHeight(), 25, 25);
     if (0 != venc.Init())
     {
-        printf("venc init failled\n");
+        LOG_ERROR_LOC("VENC Init failed!");
         return -1;
     };
 
@@ -308,14 +308,14 @@ int main(int, char **)
 
     if (0 != ivps.ResizeAndCSC(AX_FORMAT_YUV420_SEMIPLANAR, 640, 640))
     {
-        printf("ivps init failled\n");
+        LOG_ERROR_LOC("IVPS Init failed!");
         return -1;
     }
 
     Yolov5 engine("");
     if (0 != engine.Init())
     {
-        printf("engine init failled\n");
+        LOG_ERROR_LOC("Yolov5 Engine Init failed!");
         return -1;
     }
     SORT_TRACKER sort_tracker; 

@@ -254,7 +254,7 @@ int FrameData::Destroy()
 
 	if (m_enMemID == MEM_ID_SYS)
 	{
-		LOG_INFO("Destory SYS Info\n");
+		LOG_INFO("Destory SYS Info");
 
 		AX_S32 sRet = AX_SUCCESS;
 		if (m_pFrameData->stVFrame.u64PhyAddr[0] != 0)
@@ -459,7 +459,7 @@ int FrameData::Destroy()
 
 	if (m_enMemID == MEM_ID_IVPS)
 	{
-		LOG_INFO("Destory IVPS Info\n");
+		LOG_INFO("Destory IVPS Info");
 		sRet = AX_IVPS_ReleaseChnFrame(m_nGrp, m_nChn, &m_pFrameData->stVFrame);
 		if (sRet)
 		{

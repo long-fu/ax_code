@@ -86,7 +86,7 @@ void FFmpegDecoder::InitVideoStreamFilter(const AVBitStreamFilter *&videoFilter)
 
 void FFmpegDecoder::SetDictForRtsp(AVDictionary *&avdic)
 {
-    LOG_INFO("Set parameters for %s\n", m_streamName.c_str());
+    LOG_INFO("Set parameters for {}", m_streamName);
 
     av_dict_set(&avdic, kRtspTransport.c_str(), m_rtspTransport.c_str(), kNoFlag);
     av_dict_set(&avdic, kBufferSize.c_str(), kMaxBufferSize.c_str(), kNoFlag);
@@ -95,7 +95,7 @@ void FFmpegDecoder::SetDictForRtsp(AVDictionary *&avdic)
     av_dict_set(&avdic, kReorderQueueSize.c_str(),
                 kReorderQueueSizeValue.c_str(), kNoFlag);
     av_dict_set(&avdic, kPktSize.c_str(), kPktSizeValue.c_str(), kNoFlag);
-    LOG_INFO("Set parameters for %s end\n", m_streamName.c_str());
+    LOG_INFO("Set parameters for {} end", m_streamName);
 }
 
 bool FFmpegDecoder::OpenVideo(AVFormatContext *&avFormatContext)
@@ -105,7 +105,7 @@ bool FFmpegDecoder::OpenVideo(AVFormatContext *&avFormatContext)
 
     // av_log_set_level(AV_LOG_DEBUG);
 
-    LOG_INFO("Open video %s ...\n", m_streamName.c_str());
+    LOG_INFO("Open video {} ...", m_streamName);
     SetDictForRtsp(avdic);
     int openRet = avformat_open_input(&avFormatContext,
                                       m_streamName.c_str(), nullptr,
@@ -115,8 +115,8 @@ bool FFmpegDecoder::OpenVideo(AVFormatContext *&avFormatContext)
         char buf_error[kErrorBufferSize];
         av_strerror(openRet, buf_error, kErrorBufferSize);
         
-        LOG_ERROR("Could not open video:%s, return :%d, error info:%s\n",
-                          m_streamName.c_str(), openRet, buf_error);
+        LOG_ERROR_LOC("Could not open video:{}, return:{}, error info:{}",
+                          m_streamName, openRet, buf_error);
         ret = false;
     }
 
@@ -136,14 +136,14 @@ bool FFmpegDecoder::InitVideoParams(int videoIndex,
     InitVideoStreamFilter(videoFilter);
     if (videoFilter == nullptr)
     { // check video fileter is nullptr
-        LOG_ERROR("Unkonw bitstream filter, videoFilter is nullptr!\n");
+        LOG_ERROR_LOC("Unkonw bitstream filter, videoFilter is nullptr!");
         return false;
     }
 
     // checke alloc bsf context result
     if (av_bsf_alloc(videoFilter, &bsfCtx) < 0)
     {
-        LOG_ERROR("Fail to call av_bsf_alloc!\n");
+        LOG_ERROR_LOC("Fail to call av_bsf_alloc!");
         return false;
     }
 
@@ -151,7 +151,7 @@ bool FFmpegDecoder::InitVideoParams(int videoIndex,
     if (avcodec_parameters_copy(bsfCtx->par_in,
                                 avFormatContext->streams[videoIndex]->codecpar) < 0)
     {
-        LOG_ERROR("Fail to call avcodec_parameters_copy!\n");
+        LOG_ERROR_LOC("Fail to call avcodec_parameters_copy!");
         return false;
     }
 
@@ -160,7 +160,7 @@ bool FFmpegDecoder::InitVideoParams(int videoIndex,
     // check initialize bsf contextreult
     if (av_bsf_init(bsfCtx) < 0)
     {
-        LOG_ERROR("Fail to call av_bsf_init!\n");
+        LOG_ERROR_LOC("Fail to call av_bsf_init!");
         return false;
     }
 
@@ -170,7 +170,7 @@ bool FFmpegDecoder::InitVideoParams(int videoIndex,
 void FFmpegDecoder::Decode(FrameProcessCallBack callback,
                            void *callbackParam)
 {
-    LOG_INFO("Start ffmpeg decode video %s ...\n", m_streamName.c_str());
+    LOG_INFO("Start ffmpeg decode video {} ...", m_streamName);
     avformat_network_init(); // init network
 
     AVFormatContext *avFormatContext = avformat_alloc_context();
@@ -184,7 +184,7 @@ void FFmpegDecoder::Decode(FrameProcessCallBack callback,
     int videoIndex = GetVideoIndex(avFormatContext);
     if (videoIndex == kInvalidVideoIndex)
     { // check video index is valid
-        LOG_ERROR("Rtsp %s index is -1\n", m_streamName.c_str());
+        LOG_ERROR_LOC("Rtsp {} index is -1", m_streamName);
         return;
     }
 
@@ -195,7 +195,7 @@ void FFmpegDecoder::Decode(FrameProcessCallBack callback,
         return;
     }
 
-    LOG_INFO("Start decode frame of video %s ...\n", m_streamName.c_str());
+    LOG_INFO("Start decode frame of video {} ...", m_streamName);
 
     AVPacket avPacket;
     int processOk = true;
@@ -207,8 +207,8 @@ void FFmpegDecoder::Decode(FrameProcessCallBack callback,
             // send video packet to ffmpeg
             if (av_bsf_send_packet(bsfCtx, &avPacket))
             {
-                LOG_ERROR("Fail to call av_bsf_send_packet, channel id:%s\n",
-                                  m_streamName.c_str());
+                LOG_ERROR_LOC("Fail to call av_bsf_send_packet, channel id:{}",
+                                  m_streamName);
             }
 
             // receive single frame from ffmpeg
@@ -229,7 +229,7 @@ void FFmpegDecoder::Decode(FrameProcessCallBack callback,
     avformat_close_input(&avFormatContext); // close input video
 
     m_isFinished = true;
-    LOG_INFO("Ffmpeg decoder %s finished\n", m_streamName.c_str());
+    LOG_INFO("Ffmpeg decoder {} finished", m_streamName);
 }
 
 int FFmpegDecoder::GetVideoInfo()
@@ -239,22 +239,21 @@ int FFmpegDecoder::GetVideoInfo()
     bool ret = OpenVideo(avFormatContext);
     if (ret == false)
     {
-        LOG_ERROR("Open %s failed\n", m_streamName.c_str());
+        LOG_ERROR_LOC("Open {} failed", m_streamName);
         return -1;
     }
 
     if (avformat_find_stream_info(avFormatContext, NULL) < 0)
     {
-        LOG_ERROR("Get stream info of %s failed\n", m_streamName.c_str());
+        LOG_ERROR_LOC("Get stream info of {} failed", m_streamName);
         return -1;
     }
 
     int videoIndex = GetVideoIndex(avFormatContext);
     if (videoIndex == kInvalidVideoIndex)
     { // check video index is valid
-        LOG_ERROR("Video index is %d, current media stream has no "
-                          "video info:%s\n",
-                          kInvalidVideoIndex, m_streamName.c_str());
+        LOG_ERROR_LOC("Video index is {}, current media stream has no video info:{}",
+                          kInvalidVideoIndex, m_streamName);
         avformat_close_input(&avFormatContext);
         return -1;
     }
@@ -277,7 +276,7 @@ int FFmpegDecoder::GetVideoInfo()
 
     avformat_close_input(&avFormatContext);
 
-    LOG_INFO("Video %s, type %d, profile %d, width:%d, height:%d, fps:%d\n",
-                     m_streamName.c_str(), m_nVideoType, m_nProfile, m_nFrameWidth, m_nFrameHeight, m_nFps);
+    LOG_INFO("Video {}, type {}, profile {}, width:{}, height:{}, fps:{}",
+                     m_streamName, m_nVideoType, m_nProfile, m_nFrameWidth, m_nFrameHeight, m_nFps);
     return 0;
 }

@@ -2,7 +2,7 @@
 // #include "AppUtils.h"
 #include "ax_base_type.h"
 #include "ax_ivps_api.h"
-#include "iostream"
+#include "Logger.h"
 // #include "glog/logging.h"
 
 // extern int g_channel_id;
@@ -15,8 +15,7 @@ IvpsHelper::IvpsHelper(IVPS_GRP IvpsGrp, AX_U64 blkSize, AX_U32 blkCnt) : m_nIvp
 																		  m_nBlkSize(blkSize),
 																		  m_nBlkCnt(blkCnt)
 {
-	// 256
-	std::cout << "Create IVPS GRP " << IvpsGrp;
+	LOG_INFO("Create IVPS GRP {}", IvpsGrp);
 }
 
 AX_S32 IvpsHelper::CreatePool()

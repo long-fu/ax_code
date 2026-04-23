@@ -1,5 +1,6 @@
 
 #include "io.hpp"
+#include "Logger.h"
 
 
 const char* AX_CMM_SESSION_NAME = "npu";
@@ -63,7 +64,7 @@ namespace middleware
             if (ret != 0)
             {
                 free_io_index(io_data->pInputs, i);
-                fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. fail \n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+                LOG_ERROR_LOC("Allocate input{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
                 return ret;
             }
             // fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. \n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
@@ -87,7 +88,7 @@ namespace middleware
             }
             if (ret != 0)
             {
-                fprintf(stderr, "Allocate output{%d} { phy: %p, vir: %p, size: %lu Bytes }. fail \n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+                LOG_ERROR_LOC("Allocate output{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
                 free_io_index(io_data->pInputs, io_data->nInputSize);
                 free_io_index(io_data->pOutputs, i);
                 return ret;
@@ -102,13 +103,13 @@ namespace middleware
     {
         if (info_t->nInputSize != 1)
         {
-            fprintf(stderr, "Only support Input size == 1 current now");
+            LOG_ERROR_LOC("Only support Input size == 1 current now");
             return -1;
         }
 
         if (data.size() != info_t->pInputs[0].nSize)
         {
-            fprintf(stderr, "The input data size is not matched with tensor {name: %s, size: %d}.\n", info_t->pInputs[0].pName, info_t->pInputs[0].nSize);
+            LOG_ERROR_LOC("The input data size is not matched with tensor {{name: {}, size: {}}}.", info_t->pInputs[0].pName, info_t->pInputs[0].nSize);
             return -1;
         }
 
@@ -122,13 +123,13 @@ namespace middleware
     {
         if (info_t->nInputSize != 1)
         {
-            fprintf(stderr, "Only support Input size == 1 current now");
+            LOG_ERROR_LOC("Only support Input size == 1 current now");
             return -1;
         }
 
         if (data_size != info_t->pInputs[0].nSize)
         {
-            fprintf(stderr, "The input data size is not matched with tensor {name: %s, size: %d}.\n", info_t->pInputs[0].pName, info_t->pInputs[0].nSize);
+            LOG_ERROR_LOC("The input data size is not matched with tensor {{name: {}, size: {}}}.", info_t->pInputs[0].pName, info_t->pInputs[0].nSize);
             return -1;
         }
 

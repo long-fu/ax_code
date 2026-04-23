@@ -1,6 +1,7 @@
 
 #include "detection.hpp"
 #include <opencv2/opencv.hpp>
+#include "Logger.h"
 
 namespace detection
 {
@@ -1867,7 +1868,7 @@ namespace detection
         {
             const Object &obj = objects[i];
 
-            fprintf(stdout, "%2d: %3.0f%%, [%4.0f, %4.0f, %4.0f, %4.0f], %s\n", obj.label, obj.prob * 100, obj.rect.x,
+            LOG_DEBUG("{}: {:.0f}%, [{}, {}, {}, {}], {}", obj.label, obj.prob * 100, obj.rect.x,
                     obj.rect.y, obj.rect.x + obj.rect.width, obj.rect.y + obj.rect.height, class_names[obj.label]);
 
             cv::rectangle(image, obj.rect, COCO_COLORS[obj.label], thickness);
@@ -1907,7 +1908,7 @@ namespace detection
         {
             const Object &obj = objects[i];
 
-            fprintf(stdout, "%2d: %3.0f%%, [%4.0f, %4.0f, %4.0f, %4.0f], person\n", obj.label, obj.prob * 100, obj.rect.x,
+            LOG_DEBUG("{}: {:.0f}%, [{}, {}, {}, {}], person", obj.label, obj.prob * 100, obj.rect.x,
                     obj.rect.y, obj.rect.x + obj.rect.width, obj.rect.y + obj.rect.height);
 
             cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
@@ -1979,7 +1980,7 @@ namespace detection
             const auto &color = colors[color_index % 80];
             color_index++;
 
-            fprintf(stdout, "%2d: %3.0f%%, [%4.0f, %4.0f, %4.0f, %4.0f], %s\n", obj.label, obj.prob * 100, obj.rect.x,
+            LOG_DEBUG("{}: {:.0f}%, [{}, {}, {}, {}], {}", obj.label, obj.prob * 100, obj.rect.x,
                     obj.rect.y, obj.rect.x + obj.rect.width, obj.rect.y + obj.rect.height, class_names[obj.label]);
 
             mask(cv::Rect((int)obj.rect.x, (int)obj.rect.y, (int)objects[i].rect.width, (int)objects[i].rect.height)).setTo(color, objects[i].mask);
@@ -2040,7 +2041,7 @@ namespace detection
         {
             const Object &obj = objects[i];
 
-            fprintf(stdout, "%2d: %3.0f%%, [%4.0f, %4.0f, %4.0f, %4.0f]\n", obj.label, obj.prob * 100, obj.rect.x,
+            LOG_DEBUG("{}: {:.0f}%, [{}, {}, {}, {}]", obj.label, obj.prob * 100, obj.rect.x,
                     obj.rect.y, obj.rect.x + obj.rect.width, obj.rect.y + obj.rect.height);
 
             cv::rectangle(image, obj.rect, cv::Scalar(0, 255, 255), 2, 8, 0);
@@ -3198,7 +3199,7 @@ namespace detection
             {
                 const Object &obj = objects[i];
 
-                fprintf(stdout, "%2d: %3.0f%%, [%4.0f, %4.0f, %4.0f, %4.0f], %s\n", obj.label, obj.prob * 100, obj.rect.x,
+                LOG_DEBUG("{}: {:.0f}%, [{}, {}, {}, {}], {}", obj.label, obj.prob * 100, obj.rect.x,
                         obj.rect.y, obj.rect.x + obj.rect.width, obj.rect.y + obj.rect.height, class_names[obj.label]);
                 {
                     float xc = obj.rect.x;

@@ -1,4 +1,5 @@
 #include "sort_track.h"
+#include "Logger.h"
 
 double SORT_TRACKER::getIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
 {
@@ -74,7 +75,7 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
     double cost_ = HungAlgo.Solve(iouMatrix, assignment);
     if (cost_ == -1.0)
     {
-        cout << "hungarian assignment error !" << endl; // 如果是因为异常值退出，则打印
+        LOG_ERROR_LOC("hungarian assignment error !");
     }
 
     // find matches, unmatched_detections and unmatched_predictions

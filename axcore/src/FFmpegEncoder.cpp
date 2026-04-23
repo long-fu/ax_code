@@ -51,7 +51,7 @@ int FFmpegEncoder::Init()
 
     if (ret < 0)
     {
-        LOG_ERROR("avformat_alloc_output_context2 failed");
+        LOG_ERROR_LOC("avformat_alloc_output_context2 failed");
         return ret;
     }
 
@@ -64,7 +64,7 @@ int FFmpegEncoder::Init()
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-            LOG_ERROR("avio_open2 failed err code: %d Reason: %s\n", ret, av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
+            LOG_ERROR_LOC("avio_open2 failed err code: {} Reason: {}", ret, av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
             return ret;
         }
     }
@@ -103,7 +103,7 @@ int FFmpegEncoder::Init()
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-        LOG_ERROR("avcodec_parameters_from_context failed err code: %d Reason: %s\n",
+        LOG_ERROR_LOC("avcodec_parameters_from_context failed err code: {} Reason: {}",
                   ret, av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
         return ret;
     }
@@ -117,7 +117,7 @@ int FFmpegEncoder::Init()
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-        LOG_ERROR("avcodec_open2 failed err code: %d Reason: %s\n", ret,
+        LOG_ERROR_LOC("avcodec_open2 failed err code: {} Reason: {}", ret,
                   av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
         return ret;
@@ -132,7 +132,7 @@ int FFmpegEncoder::Init()
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-        LOG_ERROR("avformat_write_header failed err code: %d Reason: %s\n", ret,
+        LOG_ERROR_LOC("avformat_write_header failed err code: {} Reason: {}", ret,
                   av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
         return ret;
@@ -182,7 +182,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-        LOG_ERROR("avcodec_send_frame failed err code: %d Reason: %s\n", ret,
+        LOG_ERROR_LOC("avcodec_send_frame failed err code: {} Reason: {}", ret,
                   av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
         return -1;
@@ -196,7 +196,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-            LOG_ERROR("avcodec_receive_packet failed err code: %d Reason: %s\n", ret,
+            LOG_ERROR_LOC("avcodec_receive_packet failed err code: {} Reason: {}", ret,
                       av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
             av_packet_unref(&pkt);
@@ -206,7 +206,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-            LOG_ERROR("av_interleaved_write_frame failed err code: %d Reason: %s\n", ret,
+            LOG_ERROR_LOC("av_interleaved_write_frame failed err code: {} Reason: {}", ret,
                       av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
             return -1;
@@ -245,7 +245,7 @@ int FFmpegEncoder::WritePacket(void *data, size_t data_size)
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
-        LOG_ERROR("av_write_frame failed err code: %d Reason: %s\n", ret,
+        LOG_ERROR_LOC("av_write_frame failed err code: {} Reason: {}", ret,
                   av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
         return -1;
