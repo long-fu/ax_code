@@ -17,342 +17,173 @@
 #include <cstdlib>
 #include <chrono>
 
-/**
- * @brief 日志级别枚举
- */
-enum class LogLevel
-{
-    trace = 0,
-    debug = 1,
-    info = 2,
-    warn = 3,
-    error = 4,
-    critical = 5
-};
 
-/**
- * @brief SPDLog工具类封装
- */
-class Logger
-{
-public:
-    /**
-     * @brief 获取单例实例
-     */
-    static Logger &GetInstance()
-    {
-        static Logger instance;
-        return instance;
-    }
+// Logger.h  
+#pragma once  
+  
+#include <spdlog/spdlog.h>  
+#include <spdlog/async.h>  
+#include <spdlog/sinks/stdout_color_sinks.h>  
+#include <spdlog/sinks/rotating_file_sink.h>  
+#include <memory>  
+#include <string>  
+#include <csignal>  
+#include <cstdlib>  
+  
+// ============================================================  
+//  宏接口（推荐对外使用）  
+// ============================================================  
 
-    /**
-     * @brief 初始化日志系统
-     * @param log_path 日志目录路径
-     * @param max_size_mb 单个日志文件最大大小(MB)
-     * @param max_files 保留的日志文件数量
-     * @param enable_console 是否输出到控制台
-     * @return 初始化是否成功
-     */
-    bool Init(const std::string &log_path = "./logs",
-              size_t max_size_mb = 10,
-              int max_files = 5,
-              bool enable_console = true)
-    {
-        if (m_initialized)
-        {
-            return true;
-        }
 
-        // 创建日志目录
-        mkdir(log_path.c_str(), 0755);
-
-        try
-        {
-            std::vector<spdlog::sink_ptr> sinks;
-
-            // 文件日志sink (按大小轮转)
-            auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
-                log_path + "/ax_core.log",
-                max_size_mb * 1024 * 1024,
-                max_files);
-            file_sink->set_level(spdlog::level::trace);
-            sinks.push_back(file_sink);
-
-            // 控制台日志sink (带颜色)
-            if (enable_console)
-            {
-                auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-                console_sink->set_level(spdlog::level::trace);
-                sinks.push_back(console_sink);
-            }
-
-            // 创建异步logger
-            spdlog::init_thread_pool(8192, 1);
-            auto tp = spdlog::thread_pool();
-
-            m_logger = std::make_shared<spdlog::async_logger>(
-                "ax_core",
-                sinks.begin(),
-                sinks.end(),
-                tp,
-                spdlog::async_overflow_policy::block);
-
-            // 设置日志级别
-            m_logger->set_level(spdlog::level::trace);
-
-            // 设置日志格式: [时间] [级别] [线程ID] 消息
-            m_logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [tid:%t] %v");
-
-            // 注册logger
-            spdlog::register_logger(m_logger);
-
-            // 安装崩溃捕获
-            InstallCrashHandler();
-
-            m_initialized = true;
-            Info("Logger initialized - path: {}, max_size: {}MB, max_files: {}",
-                 log_path, max_size_mb, max_files);
-            return true;
-        }
-        catch (const spdlog::spdlog_ex &ex)
-        {
-            fprintf(stderr, "Logger init failed: %s\n", ex.what());
-            return false;
-        }
-    }
-
-    /**
-     * @brief 设置日志级别
-     */
-    void SetLevel(LogLevel level)
-    {
-        if (m_logger)
-        {
-            m_logger->set_level(static_cast<spdlog::level::level_enum>(level));
-        }
-    }
-
-    /**
-     * @brief 刷新日志缓冲区
-     */
-    void Flush()
-    {
-        if (m_logger)
-        {
-            m_logger->flush();
-        }
-    }
-
-    /**
-     * @brief 关闭日志系统
-     */
-    void Shutdown()
-    {
-        if (m_initialized)
-        {
-            Flush();
-            spdlog::drop_all();
-            m_initialized = false;
-        }
-    }
-
-    /**
-     * @brief 获取spdlog指针
-     */
-    std::shared_ptr<spdlog::logger> GetSpdlog() const
-    {
-        return m_logger;
-    }
-
-    // 日志输出方法
-    void Trace(const char *fmt, ...)
-    {
-        if (!m_logger)
-            return;
-        va_list args;
-        va_start(args, fmt);
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
-        m_logger->trace("{}", buf);
-    }
-
-    void Debug(const char *fmt, ...)
-    {
-        if (!m_logger)
-            return;
-        va_list args;
-        va_start(args, fmt);
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
-        m_logger->debug("{}", buf);
-    }
-
-    void Info(const char *fmt, ...)
-    {
-        if (!m_logger)
-            return;
-        va_list args;
-        va_start(args, fmt);
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
-        m_logger->info("{}", buf);
-    }
-
-    void Warn(const char *fmt, ...)
-    {
-        if (!m_logger)
-            return;
-        va_list args;
-        va_start(args, fmt);
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
-        m_logger->warn("{}", buf);
-    }
-
-    void Error(const char *fmt, ...)
-    {
-        if (!m_logger)
-            return;
-        va_list args;
-        va_start(args, fmt);
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
-        m_logger->error("{}", buf);
-    }
-
-    void Critical(const char *fmt, ...)
-    {
-        if (!m_logger)
-            return;
-        va_list args;
-        va_start(args, fmt);
-        char buf[1024];
-        vsnprintf(buf, sizeof(buf), fmt, args);
-        va_end(args);
-        m_logger->critical("{}", buf);
-    }
-
-private:
-    Logger() : m_initialized(false) {}
-    ~Logger()
-    {
-        Shutdown();
-    }
-
-    Logger(const Logger &) = delete;
-    Logger &operator=(const Logger &) = delete;
-
-    /**
-     * @brief 安装崩溃信号处理器
-     */
-    void InstallCrashHandler()
-    {
-        std::signal(SIGSEGV, SignalHandler);
-        std::signal(SIGABRT, SignalHandler);
-        std::signal(SIGFPE, SignalHandler);
-        std::signal(SIGILL, SignalHandler);
-
-        // C++异常终止器
-        std::set_terminate([]()
-                           {
-            auto logger = spdlog::get("ax_core");
-            if (logger)
-            {
-                logger->critical("[CRASH] Unhandled C++ exception!");
-                PrintStackTrace();
-            }
-            std::abort(); });
-    }
-
-    static void SignalHandler(int signum)
-    {
-        const char *msg = nullptr;
-        switch (signum)
-        {
-        case SIGSEGV:
-            msg = "Segmentation Fault";
-            break;
-        case SIGABRT:
-            msg = "Abort Signal";
-            break;
-        case SIGFPE:
-            msg = "Floating Point Exception";
-            break;
-        case SIGILL:
-            msg = "Illegal Instruction";
-            break;
-        default:
-            msg = "Unknown Signal";
-            break;
-        }
-
-        auto logger = spdlog::get("ax_core");
-        if (logger)
-        {
-            logger->critical("[CRASH] Signal {}: {}", signum, msg);
-            PrintStackTrace();
-        }
-
-        std::signal(signum, SIG_DFL);
-        raise(signum);
-    }
-
-    static void PrintStackTrace()
-    {
-        const int MAX_FRAMES = 64;
-        void *buffer[MAX_FRAMES];
-
-        int frames = backtrace(buffer, MAX_FRAMES);
-        if (frames == 0)
-            return;
-
-        char **symbols = backtrace_symbols(buffer, frames);
-        if (!symbols)
-            return;
-
-        auto logger = spdlog::get("ax_core");
-
-        for (int i = 0; i < frames; ++i)
-        {
-            std::string symbol(symbols[i]);
-            size_t start = symbol.find('(');
-            size_t end = symbol.find('+');
-
-            std::string demangled = symbol;
-            if (start != std::string::npos && end != std::string::npos && end > start + 1)
-            {
-                std::string func = symbol.substr(start + 1, end - start - 1);
-                int status = 0;
-                char *dem = abi::__cxa_demangle(func.c_str(), nullptr, nullptr, &status);
-                if (status == 0 && dem)
-                {
-                    demangled = dem;
-                    free(dem);
-                }
-            }
-
-            if (logger)
-                logger->trace("  #{} {}", i, demangled);
-        }
-        free(symbols);
-    }
-
-    std::shared_ptr<spdlog::async_logger> m_logger;
-    bool m_initialized;
-};
-
-// 便捷宏定义
-#define LOG_TRACE(fmt, ...) Logger::GetInstance().Trace(fmt, ##__VA_ARGS__)
-#define LOG_DEBUG(fmt, ...) Logger::GetInstance().Debug(fmt, ##__VA_ARGS__)
-#define LOG_INFO(fmt, ...) Logger::GetInstance().Info(fmt, ##__VA_ARGS__)
-#define LOG_WARN(fmt, ...) Logger::GetInstance().Warn(fmt, ##__VA_ARGS__)
-#define LOG_ERROR(fmt, ...) Logger::GetInstance().Error(fmt, ##__VA_ARGS__)
-#define LOG_CRITICAL(fmt, ...) Logger::GetInstance().Critical(fmt, ##__VA_ARGS__)
+#define LOG_INIT(logFile, logLevel) \  
+    Logger::instance().init(logFile, logLevel)  
+  
+#define LOG_TRACE(...)    Logger::instance().logger()->trace(__VA_ARGS__)  
+#define LOG_DEBUG(...)    Logger::instance().logger()->debug(__VA_ARGS__)  
+#define LOG_INFO(...)     Logger::instance().logger()->info(__VA_ARGS__)  
+#define LOG_WARN(...)     Logger::instance().logger()->warn(__VA_ARGS__)  
+#define LOG_ERROR(...)    Logger::instance().logger()->error(__VA_ARGS__)  
+#define LOG_CRITICAL(...) Logger::instance().logger()->critical(__VA_ARGS__)  
+  
+// 带源码位置（文件名:行号）  
+#define LOG_INFO_LOC(...)     SPDLOG_LOGGER_INFO(Logger::instance().logger(), __VA_ARGS__)  
+#define LOG_ERROR_LOC(...)    SPDLOG_LOGGER_ERROR(Logger::instance().logger(), __VA_ARGS__)  
+  
+#define LOG_FLUSH()  Logger::instance().flush()  
+#define LOG_SHUTDOWN() Logger::instance().shutdown()  
+  
+// ============================================================  
+//  Logger 单例类  
+// ============================================================  
+class Logger {  
+public:  
+    // Meyer's Singleton：线程安全，C++11 保证  
+    static Logger& instance() {  
+        static Logger inst;  
+        return inst;  
+    }  
+  
+    // 禁止拷贝/移动  
+    Logger(const Logger&)            = delete;  
+    Logger& operator=(const Logger&) = delete;  
+    Logger(Logger&&)                 = delete;  
+    Logger& operator=(Logger&&)      = delete;  
+  
+    struct Config {  
+        std::string logFile    = "logs/app.log";  
+        std::string loggerName = "app";  
+        spdlog::level::level_enum level = spdlog::level::info;  
+        std::size_t maxFileSize  = 50 * 1024 * 1024; // 50 MB  
+        std::size_t maxFiles     = 5;  
+        std::size_t asyncQueueSize = 8192;  
+        bool        colorConsole   = true;  
+        bool        installCrashHandler = true;  
+    };  
+  
+    void init(const std::string& logFile = "logs/app.log",  
+              spdlog::level::level_enum level = spdlog::level::info) {  
+        Config cfg;  
+        cfg.logFile = logFile;  
+        cfg.level   = level;  
+        init(cfg);  
+    }  
+  
+    void init(const Config& cfg) {  
+        // 异步线程池  
+        spdlog::init_thread_pool(cfg.asyncQueueSize, 1);  
+  
+        std::vector<spdlog::sink_ptr> sinks;  
+  
+        // 控制台 sink  
+        if (cfg.colorConsole) {  
+            auto console = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();  
+            console->set_level(cfg.level);  
+            sinks.push_back(console);  
+        }  
+  
+        // 滚动文件 sink  
+        auto file = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(  
+            cfg.logFile, cfg.maxFileSize, cfg.maxFiles);  
+        file->set_level(spdlog::level::trace); // 文件记录全量  
+        sinks.push_back(file);  
+  
+        logger_ = std::make_shared<spdlog::async_logger>(  
+            cfg.loggerName,  
+            sinks.begin(), sinks.end(),  
+            spdlog::thread_pool(),  
+            spdlog::async_overflow_policy::block);  
+  
+        logger_->set_level(spdlog::level::trace);  
+        logger_->flush_on(spdlog::level::warn); // warn+ 立即 flush  
+  
+        spdlog::set_default_logger(logger_);  
+        spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] [tid:%t] %v");  
+  
+        if (cfg.installCrashHandler) {  
+            installSignalHandlers();  
+        }  
+  
+        logger_->info("Logger initialized. file={} level={}",  
+                      cfg.logFile, spdlog::level::to_string_view(cfg.level));  
+    }  
+  
+    std::shared_ptr<spdlog::logger>& logger() {  
+        return logger_;  
+    }  
+  
+    void flush() {  
+        if (logger_) logger_->flush();  
+    }  
+  
+    void shutdown() {  
+        if (logger_) {  
+            logger_->info("Logger shutting down.");  
+            logger_->flush();  
+        }  
+        spdlog::shutdown();  
+    }  
+  
+private:  
+    Logger() = default;  
+    ~Logger() { shutdown(); }  
+  
+    std::shared_ptr<spdlog::logger> logger_;  
+  
+    // ----------------------------------------------------------  
+    //  崩溃信号处理  
+    // ----------------------------------------------------------  
+    static void signalHandler(int sig) {  
+        const char* name = "UNKNOWN";  
+        switch (sig) {  
+            case SIGSEGV: name = "SIGSEGV"; break;  
+            case SIGABRT: name = "SIGABRT"; break;  
+            case SIGFPE:  name = "SIGFPE";  break;  
+            case SIGILL:  name = "SIGILL";  break;  
+            case SIGBUS:  name = "SIGBUS";  break;  
+            case SIGTERM: name = "SIGTERM"; break;  
+        }  
+  
+        // 用 critical 记录，立即 flush  
+        if (auto& l = instance().logger_) {  
+            l->critical("======== CRASH: signal {} ({}) ========", sig, name);  
+            l->flush();  
+        }  
+        spdlog::shutdown();  
+  
+        // 恢复默认行为，产生 core dump  
+        std::signal(sig, SIG_DFL);  
+        std::raise(sig);  
+    }  
+  
+    static void installSignalHandlers() {  
+        std::signal(SIGSEGV, signalHandler);  
+        std::signal(SIGABRT, signalHandler);  
+        std::signal(SIGFPE,  signalHandler);  
+        std::signal(SIGILL,  signalHandler);  
+        std::signal(SIGBUS,  signalHandler);  
+        std::signal(SIGTERM, signalHandler);  
+    }  
+};  
 
 /**
  * @brief 性能计时宏

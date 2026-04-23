@@ -126,7 +126,7 @@ int VdecHelper::Init()
 						   m_nBufSize, 0x100, (AX_S8 *)"vdec_input_stream");
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR( "AX_SYS_MemAlloc \n");
+		LOG_ERROR_LOC("AX_SYS_MemAlloc FAILED code:{}",sRet);
 		return sRet;
 	}
 
@@ -147,7 +147,7 @@ int VdecHelper::Init()
 	sRet = AX_VDEC_CreateGrp(m_nVdGrp, &pstVdGrpAttr_);
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR( "AX_VDEC_CreateGrp [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_CreateGrp FAILED VdGrp:{},code:{} ,msg:{}\n", m_nVdGrp,sRet, AX_VdecRetStr(sRet));
 		return sRet;
 	}
 
@@ -217,14 +217,14 @@ int VdecHelper::Init()
 		sRet = AX_VDEC_SetChnAttr(m_nVdGrp, VdChn, &pstVdChnAttr_[VdChn]);
 		if (sRet != AX_SUCCESS)
 		{
-			LOG_ERROR( "AX_VDEC_SetChnAttr [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+			LOG_ERROR_LOC("AX_VDEC_SetChnAttr FAILED code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 			return sRet;
 		}
 
 		sRet = AX_VDEC_EnableChn(m_nVdGrp, VdChn);
 		if (sRet != AX_SUCCESS)
 		{
-			LOG_ERROR( "AX_VDEC_EnableChn [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+			LOG_ERROR_LOC("AX_VDEC_EnableChn FAILED code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 			return sRet;
 		}
 	} // for
@@ -237,7 +237,7 @@ int VdecHelper::Init()
 	sRet = AX_VDEC_SetGrpParam(m_nVdGrp, &stGrpParam_);
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR( "AX_VDEC_SetGrpParam [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_SetGrpParam FAILED code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 		return sRet;
 	}
 
@@ -245,10 +245,9 @@ int VdecHelper::Init()
 	sRet = AX_VDEC_SetDisplayMode(m_nVdGrp, enDisplayMode);
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR( "AX_VDEC_SetDisplayMode [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_SetDisplayMode FAILED code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 		return sRet;
 	}
-
 
 	return 0;
 };
@@ -272,7 +271,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 		// frameInfo->stVFrame.u64UserData
 		if (sRet != AX_SUCCESS)
 		{
-			LOG_ERROR( "AX_VDEC_GetChnFrame {%d} [0x%x](%s)\n",VdGrp, sRet, AX_VdecRetStr(sRet));
+			LOG_ERROR_LOC("AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{}, msg:{}", VdGrp, VdChn, sRet, AX_VdecRetStr(sRet));
 			sRet = AX_VDEC_ReleaseChnFrame(VdGrp, VdChn, frameInfo);
 			delete frameInfo;
 		}
@@ -341,12 +340,12 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 			break;
 		}
 	}
-	fprintf(stdout, "Read Vdec Data Stop %s\n", AX_VdecRetStr(sRet));
+	// fprintf(stdout, "Read Vdec Data Stop %s\n", AX_VdecRetStr(sRet));
+	LOG_INFO_LOC("Read Vdec Data Stop code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 	return nullptr;
 }
 int VdecHelper::Decode(VdecProcessCallBack callbac, void *user_data)
 {
-
 
 	AX_VDEC_RECV_PIC_PARAM_T tRecvParam;
 	memset(&tRecvParam, 0, sizeof(tRecvParam));
@@ -354,7 +353,7 @@ int VdecHelper::Decode(VdecProcessCallBack callbac, void *user_data)
 	AX_S32 sRet = AX_VDEC_StartRecvStream(m_nVdGrp, &tRecvParam);
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR( "AX_VDEC_StartRecvStream [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_StartRecvStream FAILED code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 		return sRet;
 	}
 
@@ -372,7 +371,6 @@ int VdecHelper::StopDecode()
 
 	m_isStop = true;
 
-	
 	AX_S32 sRet;
 
 	sRet = AX_VDEC_StopRecvStream(m_nVdGrp);
@@ -388,14 +386,14 @@ int VdecHelper::StopDecode()
 	int joinThreadErr = pthread_join(m_thRecvTid, &res);
 	if (joinThreadErr)
 	{
-		LOG_ERROR( "Join thread failed, threadId = %lu, err = %d",
-				m_thRecvTid, joinThreadErr);
+		LOG_ERROR_LOC("Join thread failed, threadId = {}, err = {}",
+				  m_thRecvTid, joinThreadErr);
 	}
 	else
 	{
 		if ((uint64_t)res != 0)
 		{
-			LOG_ERROR( "thread run failed. ret is %lu.", (uint64_t)res);
+			LOG_ERROR_LOC("thread run failed. ret is {}", (uint64_t)res);
 		}
 	}
 	// 等待线程退出
@@ -461,7 +459,7 @@ int VdecHelper::Write(void *data, size_t data_size, void *user_data)
 	sRet = AX_SYS_GetCurPTS(&tStrInfo.u64PTS);
 	if (sRet)
 	{
-		LOG_ERROR( "AX_SYS_GetCurPTS [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_SYS_GetCurPTS FAILED code:{},msg:{}", sRet, AX_VdecRetStr(sRet));
 		// ret = sRet;
 		// goto ERR_RET;
 	}
@@ -476,7 +474,7 @@ int VdecHelper::Write(void *data, size_t data_size, void *user_data)
 	}
 	else
 	{
-		LOG_ERROR("AX_VDEC_SendStream [0x%x](%s)\n", sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_SendStream FAILED VdGrp:{},code:{},msg:{}", m_nVdGrp,sRet, AX_VdecRetStr(sRet));
 	}
 
 	if (sRet == AX_ERR_VDEC_FLOW_END)
@@ -507,11 +505,12 @@ int VdecHelper::Write(void *data, size_t data_size, void *user_data)
 	}
 	else
 	{
-		fprintf(stdout, "VdGrp=%d, AX_VDEC_SendStream FAILED! ret:0x%x %s\n",
-				m_nVdGrp, sRet, AX_VdecRetStr(sRet));
+		// fprintf(stdout, "VdGrp=%d, AX_VDEC_SendStream FAILED! ret:0x%x %s\n",
+		// 		m_nVdGrp, sRet, AX_VdecRetStr(sRet));
 		// TODO: 直接可以发送结束
 		// ret = AX_ERR_VDEC_UNKNOWN;
 		// goto ERR_RET;
+		// LOG_ERROR_LOC("AX_VDEC_SendStream FAILED VdGrp:{},code:{},msg:{}");
 	}
 	return sRet;
 }

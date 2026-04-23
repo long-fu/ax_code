@@ -263,7 +263,8 @@ int main(int, char **)
     // 推流
 
     // 初始化日志系统
-    Logger::GetInstance().Init("./logs", 10, 5, true);
+    // Logger::GetInstance().Init("./logs", 10, 5, true);
+    LOG_INIT("logs/app.log", spdlog::level::debug);
 
     AX_INIT();
 
@@ -283,14 +284,15 @@ int main(int, char **)
     FFmpegEncoder ffEncoder(rtmp, 25, ffDecoder.GetFrameWidth(), ffDecoder.GetFrameHeight(), AV_PIX_FMT_NV12, 25, "main");
     if (0 != ffEncoder.Init())
     {
-        printf("ffEncoder init failled\n");
+        LOG_ERROR_LOC("FFmpeg Encoder Init failled!");
         return -1;
     }
 
     VdecHelper vdec(g_resourceID, PT_H264, ffDecoder.GetFrameWidth(), ffDecoder.GetFrameHeight(), ffDecoder.GetFps());
     if (0 != vdec.Init())
     {
-        printf("vdec init failled\n");
+        // printf("vdec init failled\n");
+        LOG_ERROR_LOC("VDEC Init failled!");
         return -1;
     };
 
