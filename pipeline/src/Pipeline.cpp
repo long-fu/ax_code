@@ -192,7 +192,7 @@ void Pipeline::Wait(AclLiteMsgProcess msgProcess, void* param)
 
 void Pipeline::Exit()
 {
-    LOG_INFO("调用 Exit");
+    // LOG_INFO("调用 Exit");
     ReleaseThreads();
 }
 

@@ -1,6 +1,6 @@
 #ifndef INFERENCESESSION_HPP
 #define INFERENCESESSION_HPP
-
+#pragma once
 #include <iostream>
 #include <string>
 #include <ax_sys_api.h>
@@ -12,7 +12,7 @@ struct EngineConfig
 
 	// int letterbox_cols;
 	// int letterbox_rows;
-	std::string model_file = "./ALL_GEN_person.axmodel";
+	std::string model_file = "./person.axmodel";
 	std::string model_type = "yolov5"; 
 	std::vector<int> inputs = {1, 3, 640, 640};
 

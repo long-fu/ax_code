@@ -29,6 +29,7 @@ include_directories(
     detector
     3rdpart/freetype/include/freetype
     pipeline/include
+    core/inc
 )
 
 link_directories(
@@ -41,9 +42,9 @@ link_directories(
 )
 aux_source_directory(axcore/src AX_SRCS)
 aux_source_directory(pipeline/src PIP_SRCS)
-aux_source_directory(src SRCS)
-aux_source_directory(tracker/sort tracker)
-add_executable(ax_core main.cpp detector/Yolov5.cpp ${AX_SRCS} ${SRCS} ${tracker} ${PIP_SRCS})
+aux_source_directory(tracker/sort TRACKER_SRCS)
+aux_source_directory(core/src CORE_SRCS)
+add_executable(ax_core main.cpp ${AX_SRCS} ${CORE_SRCS} ${TRACKER_SRCS} ${PIP_SRCS})
 
 target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat spdlog freetype dl)
 

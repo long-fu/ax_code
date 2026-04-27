@@ -1,3 +1,5 @@
+#pragma once
+
 #include <dirent.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -6,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <thread>
+
 extern "C"
 {
 #include <libavcodec/avcodec.h>

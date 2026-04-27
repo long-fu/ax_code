@@ -1,6 +1,6 @@
 #ifndef YOLOV5_HPP
 # define YOLOV5_HPP
-
+#pragma once
 # include <iostream>
 # include <string>
 #include "Engine.hpp"
@@ -14,6 +14,7 @@ class Yolov5: public Engine
 		~Yolov5();
 
 		void Postprocess(int picWidth,int picHeight,std::vector<detection::Object> &objects);
+		
 		Yolov5( Yolov5 const & src ) = delete;
 		Yolov5 &		operator=( Yolov5 const & rhs ) = delete;
 
