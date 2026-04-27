@@ -18,7 +18,7 @@
 
 static char s_str_unknown[16] = ("Unknown code");
 
-const char *AX_VdecRetStr(AX_S32 value)
+const char* AX_VdecRetStr(AX_S32 value)
 {
 	switch (value)
 	{

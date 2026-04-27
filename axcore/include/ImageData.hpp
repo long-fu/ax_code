@@ -16,7 +16,7 @@ struct ImageData {
   AX_BOOL bEndOfStream;
   std::shared_ptr<FrameData> data;
 
-  std::chrono::_V2::steady_clock::time_point timePoint;
+  std::chrono::steady_clock::time_point timePoint;
 };
 
 int Clone(ImageData& dest, const ImageData& src);
