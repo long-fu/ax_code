@@ -4,6 +4,7 @@
 
 int FrameData::Destroy() {
   if (mem_id_ == MEM_ID_SYS) {
+
     LOG_INFO("Destory SYS Info");
 
     AX_S32 s_ret = AX_SUCCESS;
@@ -45,7 +46,7 @@ int FrameData::Destroy() {
           static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[2])));
       frame_data_->stVFrame.u64VirAddr[2] = 0;
     }
-
+    
     return s_ret;
   }
 
@@ -202,5 +203,6 @@ int FrameData::Destroy() {
   } else if (mem_id_ == MEM_ID_VDEC) {
     s_ret = AX_VDEC_ReleaseChnFrame(grp_, chn_, frame_data_);
   }
+  
   return 0;
 }

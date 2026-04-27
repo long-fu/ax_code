@@ -272,7 +272,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 		if (sRet != AX_SUCCESS)
 		{
 			LOG_ERROR_LOC("AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{:#x}, msg:{}", VdGrp, VdChn, sRet, AX_VdecRetStr(sRet));
-			sRet = AX_VDEC_ReleaseChnFrame(VdGrp, VdChn, frameInfo);
+			AX_VDEC_ReleaseChnFrame(VdGrp, VdChn, frameInfo);
 			delete frameInfo;
 		}
 		else

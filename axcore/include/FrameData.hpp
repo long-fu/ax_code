@@ -28,7 +28,10 @@ enum MemId {
 
 class FrameData {
  public:
-  ~FrameData();
+  ~FrameData(){
+    Destroy();
+    delete frame_data_;
+  };
 
   FrameData& operator=(const FrameData& rhs) = delete;
   FrameData(const FrameData& src) = delete;

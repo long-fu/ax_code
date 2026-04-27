@@ -269,6 +269,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	if (IVPS_SUCC != ret)
 	{
 		LOG_ERROR_LOC("AX_IVPS_SendFrame failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
+		delete tDstFrame;
 		return -1;
 	}
 
@@ -277,6 +278,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	if (IVPS_SUCC != ret)
 	{
 		LOG_ERROR_LOC("AX_IVPS_GetChnFrame failed! Grp:{}, Chn:{}, code:{:#x}", grp, chn, ret);
+		delete tDstFrame;
 		return -1;
 	}
 	// dest_frame = SHARED_IVPS_FRAMEINFO(grp, chn, tDstFrame);
