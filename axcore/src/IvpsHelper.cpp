@@ -7,9 +7,9 @@
 ** ------------------------------- CONSTRUCTOR --------------------------------
 */
 
-IvpsHelper::IvpsHelper(IVPS_GRP IvpsGrp, AX_U64 blkSize, AX_U32 blkCnt) : m_nIvpsGrp(IvpsGrp),
-																		  m_nBlkSize(blkSize),
-																		  m_nBlkCnt(blkCnt)
+IvpsHelper::IvpsHelper(IVPS_GRP IvpsGrp, AX_U64 blkSize, AX_U32 blkCnt) : ivps_grp_(IvpsGrp),
+																		  blk_size_(blkSize),
+																		  blk_cnt_(blkCnt)
 {
 	LOG_INFO("Create IVPS GRP {}", IvpsGrp);
 }
@@ -18,7 +18,7 @@ AX_S32 IvpsHelper::CreatePool()
 {
 	int ret;
 
-	if (m_nPoolId != AX_INVALID_POOLID)
+	if (pool_id_ != AX_INVALID_POOLID)
 	{
 		return 0;
 	}
@@ -28,46 +28,46 @@ AX_S32 IvpsHelper::CreatePool()
 	AX_POOL_CONFIG_T stPoolConfig;
 	memset(&stPoolConfig, 0, sizeof(AX_POOL_CONFIG_T));
 	stPoolConfig.MetaSize = 0;
-	stPoolConfig.BlkCnt = m_nBlkCnt;
-	stPoolConfig.BlkSize = m_nBlkSize;
+	stPoolConfig.BlkCnt = blk_cnt_;
+	stPoolConfig.BlkSize = blk_size_;
 	stPoolConfig.CacheMode = POOL_CACHE_MODE_NONCACHE;
 	memset(stPoolConfig.PartitionName, 0, sizeof(stPoolConfig.PartitionName));
 
 	// 分区名称需要固定写死
 	strcpy((AX_CHAR *)stPoolConfig.PartitionName, "anonymous");
 
-	m_nPoolId = AX_POOL_CreatePool(&stPoolConfig);
-	if (AX_INVALID_POOLID == m_nPoolId)
+	pool_id_ = AX_POOL_CreatePool(&stPoolConfig);
+	if (AX_INVALID_POOLID == pool_id_)
 	{
-		LOG_ERROR_LOC("AX_POOL_CreatePool Failed!! code:{:#x}", m_nPoolId);
+		LOG_ERROR_LOC("AX_POOL_CreatePool Failed!! code:{:#x}", pool_id_);
 		return AX_INVALID_POOLID;
 	}
 
-	for (size_t i = 0; i < m_nBlkCnt; i++)
+	for (size_t i = 0; i < blk_cnt_; i++)
 	{
-		AX_BLK blkId = AX_POOL_GetBlock(m_nPoolId, m_nBlkSize, NULL);
+		AX_BLK blkId = AX_POOL_GetBlock(pool_id_, blk_size_, NULL);
 		blks.push_back(blkId);
 
 		if (blkId == AX_INVALID_BLOCKID)
 		{
 
-			ret = AX_POOL_DestroyPool(m_nPoolId);
+			ret = AX_POOL_DestroyPool(pool_id_);
 			if (IVPS_SUCC != ret)
 			{
 				LOG_ERROR_LOC("AX_POOL_DestroyPool failed! code:{:#x}", ret);
 			}
-			m_nPoolId = AX_INVALID_POOLID;
+			pool_id_ = AX_INVALID_POOLID;
 			LOG_ERROR_LOC("AX_POOL_GetBlock fail! code:{:#x}", blkId);
 			return -1;
 		}
 		else
 		{
 			void *blockVirAddr = AX_POOL_GetBlockVirAddr(blkId);
-			memset(blockVirAddr, 0x0, m_nBlkSize);
+			memset(blockVirAddr, 0x0, blk_size_);
 		}
 	}
 
-	for (size_t i = 0; i < m_nBlkCnt; i++)
+	for (size_t i = 0; i < blk_cnt_; i++)
 	{
 		AX_BLK bklId = blks[i];
 		AX_POOL_ReleaseBlock(bklId);
@@ -82,57 +82,57 @@ AX_S32 IvpsHelper::CreateGrp()
 
 	// TODO：错误一场需要 直接停止
 
-	memset(&m_tGrpAttr, 0x0, sizeof(AX_IVPS_GRP_ATTR_T));
-	m_tGrpAttr.ePipeline = AX_IVPS_PIPELINE_DEFAULT;
-	m_tGrpAttr.nInFifoDepth = 1;
+	memset(&grp_attr_, 0x0, sizeof(AX_IVPS_GRP_ATTR_T));
+	grp_attr_.ePipeline = AX_IVPS_PIPELINE_DEFAULT;
+	grp_attr_.nInFifoDepth = 1;
 
-	memset(&m_tPoolAttr, 0x0, sizeof(AX_IVPS_POOL_ATTR_T));
-	m_tPoolAttr.ePoolSrc = POOL_SOURCE_USER;
-	m_tPoolAttr.PoolId = m_nPoolId;
+	memset(&pool_attr_, 0x0, sizeof(AX_IVPS_POOL_ATTR_T));
+	pool_attr_.ePoolSrc = POOL_SOURCE_USER;
+	pool_attr_.PoolId = pool_id_;
 
 	// 1.
-	ret = AX_IVPS_CreateGrp(m_nIvpsGrp, &m_tGrpAttr);
+	ret = AX_IVPS_CreateGrp(ivps_grp_, &grp_attr_);
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_IVPS_CreateGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+		LOG_ERROR_LOC("AX_IVPS_CreateGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 		return -1;
 	}
 
 	// 2.
-	ret = AX_IVPS_SetPipelineAttr(m_nIvpsGrp, &m_tPipelineAttr);
+	ret = AX_IVPS_SetPipelineAttr(ivps_grp_, &pipeline_attr_);
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+		LOG_ERROR_LOC("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 		return -1;
 	}
 
-	for (IVPS_CHN chn = 0; chn < m_tPipelineAttr.nOutChnNum; chn++)
+	for (IVPS_CHN chn = 0; chn < pipeline_attr_.nOutChnNum; chn++)
 	{
 		// LOG_INFO("chn id :%d", chn);
-		ret = AX_IVPS_SetChnPoolAttr(m_nIvpsGrp, chn, &m_tPoolAttr);
+		ret = AX_IVPS_SetChnPoolAttr(ivps_grp_, chn, &pool_attr_);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR_LOC("AX_IVPS_SetChnPoolAttr failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
+			LOG_ERROR_LOC("AX_IVPS_SetChnPoolAttr failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
 			return -3;
 		}
 		// 3.
-		ret = AX_IVPS_EnableChn(m_nIvpsGrp, chn);
+		ret = AX_IVPS_EnableChn(ivps_grp_, chn);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR_LOC("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
+			LOG_ERROR_LOC("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
 			return -1;
 		}
 	}
 
 	// 4.
-	ret = AX_IVPS_StartGrp(m_nIvpsGrp);
+	ret = AX_IVPS_StartGrp(ivps_grp_);
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_IVPS_StartGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+		LOG_ERROR_LOC("AX_IVPS_StartGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 		return -1;
 	}
 
-	LOG_INFO("IVPS Create Success! GRP: {}", m_nIvpsGrp);
+	LOG_INFO("IVPS Create Success! GRP: {}", ivps_grp_);
 
 	return 0;
 }
@@ -140,27 +140,27 @@ AX_S32 IvpsHelper::CreateGrp()
 AX_S32 IvpsHelper::Init()
 {
 	int ret = 0;
-	if (isInitialized)
+	if (is_initialized_)
 	{
 		int chn = 0;
-		ret = AX_IVPS_SetPipelineAttr(m_nIvpsGrp, &m_tPipelineAttr);
+		ret = AX_IVPS_SetPipelineAttr(ivps_grp_, &pipeline_attr_);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR_LOC("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+			LOG_ERROR_LOC("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 			return -1;
 		}
 
-		ret = AX_IVPS_DisableChn(m_nIvpsGrp, chn);
+		ret = AX_IVPS_DisableChn(ivps_grp_, chn);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR_LOC("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
+			LOG_ERROR_LOC("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
 			return -1;
 		}
 
-		ret = AX_IVPS_EnableChn(m_nIvpsGrp, chn);
+		ret = AX_IVPS_EnableChn(ivps_grp_, chn);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR_LOC("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
+			LOG_ERROR_LOC("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
 			return -1;
 		}
 		// ret = 0;
@@ -180,7 +180,7 @@ AX_S32 IvpsHelper::Init()
 			LOG_ERROR_LOC("Frame IVPS CreateGrp Failed! code:{:#x}", ret);
 			return -1;
 		}
-		isInitialized = true;
+		is_initialized_ = true;
 	}
 	return 0;
 }
@@ -196,45 +196,45 @@ IvpsHelper::~IvpsHelper()
 
 AX_S32 IvpsHelper::DestroyResource()
 {
-	if (isReleased)
+	if (is_released_)
 	{
 		return 0;
 	}
 
 	AX_S32 ret = IVPS_SUCC;
 
-	ret = AX_IVPS_StopGrp(m_nIvpsGrp);
+	ret = AX_IVPS_StopGrp(ivps_grp_);
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_IVPS_StopGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+		LOG_ERROR_LOC("AX_IVPS_StopGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 		return -1;
 	}
 
-	for (IVPS_CHN chn = 0; chn < m_tPipelineAttr.nOutChnNum; ++chn)
+	for (IVPS_CHN chn = 0; chn < pipeline_attr_.nOutChnNum; ++chn)
 	{
-		ret = AX_IVPS_DisableChn(m_nIvpsGrp, chn);
+		ret = AX_IVPS_DisableChn(ivps_grp_, chn);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR_LOC("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", m_nIvpsGrp, chn, ret);
+			LOG_ERROR_LOC("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
 			return -1;
 		}
 	}
 
-	ret = AX_IVPS_DestoryGrp(m_nIvpsGrp);
+	ret = AX_IVPS_DestoryGrp(ivps_grp_);
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_IVPS_DestoryGrp failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+		LOG_ERROR_LOC("AX_IVPS_DestoryGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 		return -1;
 	}
 
-	ret = AX_POOL_DestroyPool(m_nPoolId);
+	ret = AX_POOL_DestroyPool(pool_id_);
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_POOL_DestroyPool failed! PoolId:{}, code:{:#x}", m_nPoolId, ret);
+		LOG_ERROR_LOC("AX_POOL_DestroyPool failed! PoolId:{}, code:{:#x}", pool_id_, ret);
 		return -1;
 	}
-	m_nPoolId = AX_INVALID_POOLID;
-	isReleased = true;
+	pool_id_ = AX_INVALID_POOLID;
+	is_released_ = true;
 	return 0;
 }
 
@@ -253,7 +253,7 @@ AX_S32 IvpsHelper::DestroyResource()
 AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 						   ImageData const &src_frame)
 {
-	int outCount = m_tPipelineAttr.nOutChnNum;
+	int outCount = pipeline_attr_.nOutChnNum;
 
 	if (outCount != 1)
 	{
@@ -261,14 +261,14 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 		exit(-1);
 	}
 
-	int grp = m_nIvpsGrp;
+	int grp = ivps_grp_;
 	int chn = 0;
 	int ret = AX_IVPS_SendFrame(grp, &src_frame.data->FrameInfo()->stVFrame, -1);
 
 	AX_VIDEO_FRAME_INFO_T *tDstFrame = new AX_VIDEO_FRAME_INFO_T();
 	if (IVPS_SUCC != ret)
 	{
-		LOG_ERROR_LOC("AX_IVPS_SendFrame failed! Grp:{}, code:{:#x}", m_nIvpsGrp, ret);
+		LOG_ERROR_LOC("AX_IVPS_SendFrame failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
 		return -1;
 	}
 
@@ -284,7 +284,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	dest_frame.enImgFormat = tDstFrame->stVFrame.enImgFormat;
 	dest_frame.u32Width = tDstFrame->stVFrame.u32Width;
 	dest_frame.u32Height = tDstFrame->stVFrame.u32Height;
-	dest_frame.data = FrameData::Create(tDstFrame, m_nIvpsGrp, 0, MEM_ID_IVPS);
+	dest_frame.data = FrameData::Create(tDstFrame, ivps_grp_, 0, MEM_ID_IVPS);
 	return ret;
 }
 
@@ -294,31 +294,31 @@ AX_S32 IvpsHelper::Resize(AX_IVPS_ASPECT_RATIO_E eMode, AX_U32 dest_width, AX_U3
 	int ret;
 	int ch = 1;
 
-	memset(&m_tPipelineAttr, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
+	memset(&pipeline_attr_, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
 
-	m_tPipelineAttr.nOutChnNum = 1;
-	m_tPipelineAttr.tFilter[ch][0].bEngage = AX_TRUE;
-	m_tPipelineAttr.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
-	m_tPipelineAttr.tFilter[ch][0].tFRC.fDstFrameRate = 25;
+	pipeline_attr_.nOutChnNum = 1;
+	pipeline_attr_.tFilter[ch][0].bEngage = AX_TRUE;
+	pipeline_attr_.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
+	pipeline_attr_.tFilter[ch][0].tFRC.fDstFrameRate = 25;
 
 	AX_S32 frmStride = ALIGN_UP(dest_width, 16);
 	AX_S32 wAlign = ALIGN_UP(dest_width, 2);
 	AX_S32 hAlign = ALIGN_UP(dest_height, 2);
 
-	m_tPipelineAttr.tFilter[ch][0].nDstPicWidth = wAlign;
-	m_tPipelineAttr.tFilter[ch][0].nDstPicHeight = hAlign;
-	m_tPipelineAttr.tFilter[ch][0].nDstPicStride = frmStride;
-	m_tPipelineAttr.tFilter[ch][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+	pipeline_attr_.tFilter[ch][0].nDstPicWidth = wAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicHeight = hAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicStride = frmStride;
+	pipeline_attr_.tFilter[ch][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
 
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eMode = eMode;
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eMode = eMode;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
 
-	m_tPipelineAttr.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
-	m_tPipelineAttr.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
-	m_tPipelineAttr.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
-	m_tPipelineAttr.nOutFifoDepth[ch - 1] = 4;
+	pipeline_attr_.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
+	pipeline_attr_.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
+	pipeline_attr_.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+	pipeline_attr_.nOutFifoDepth[ch - 1] = 4;
 
 	ret = Init();
 	return ret;
@@ -334,17 +334,17 @@ AX_S32 IvpsHelper::CropAndCSC(
 	int ret;
 	int ch = 1;
 
-	memset(&m_tPipelineAttr, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
+	memset(&pipeline_attr_, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
 
-	m_tPipelineAttr.nOutChnNum = 1;
-	m_tPipelineAttr.tFilter[ch][0].bEngage = AX_TRUE;
-	m_tPipelineAttr.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
+	pipeline_attr_.nOutChnNum = 1;
+	pipeline_attr_.tFilter[ch][0].bEngage = AX_TRUE;
+	pipeline_attr_.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
 
-	m_tPipelineAttr.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
-	m_tPipelineAttr.tFilter[ch][0].tFRC.fDstFrameRate = 25;
+	pipeline_attr_.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
+	pipeline_attr_.tFilter[ch][0].tFRC.fDstFrameRate = 25;
 
 	// 裁剪
-	m_tPipelineAttr.tFilter[ch][0].bCrop = AX_TRUE;
+	pipeline_attr_.tFilter[ch][0].bCrop = AX_TRUE;
 
 	AX_S32 frmStride = ALIGN_UP(nCropW, 16);
 	AX_S32 wAlign = ALIGN_UP(nCropW, 2);
@@ -352,33 +352,33 @@ AX_S32 IvpsHelper::CropAndCSC(
 	AX_S32 xAlign = ALIGN_UP(nCropX, 2);
 	AX_S32 yAlign = ALIGN_UP(nCropY, 2);
 
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nX = xAlign;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nY = yAlign;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nW = wAlign;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nH = hAlign;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nX = xAlign;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nY = yAlign;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nW = wAlign;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nH = hAlign;
 
-	m_tPipelineAttr.tFilter[ch][0].nDstPicWidth = wAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicWidth = wAlign;
 
-	m_tPipelineAttr.tFilter[ch][0].nDstPicHeight = hAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicHeight = hAlign;
 
-	m_tPipelineAttr.tFilter[ch][0].nDstPicStride = frmStride;
+	pipeline_attr_.tFilter[ch][0].nDstPicStride = frmStride;
 
 	// 颜色转换
-	m_tPipelineAttr.tFilter[ch][0].eDstPicFormat = eDstPicFormat;
+	pipeline_attr_.tFilter[ch][0].eDstPicFormat = eDstPicFormat;
 
 	// // 缩放
-	// m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eMode = AX_IVPS_ASPECT_RATIO_STRETCH;
-	// m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
-	// m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
-	// m_tPipelineAttr.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
+	// pipeline_attr_.tFilter[ch][0].tAspectRatio.eMode = AX_IVPS_ASPECT_RATIO_STRETCH;
+	// pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
+	// pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
+	// pipeline_attr_.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
 
 	// 旋转
-	// m_tPipelineAttr.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
+	// pipeline_attr_.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
 
 	// 压缩等级
-	// m_tPipelineAttr.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+	// pipeline_attr_.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
 
-	m_tPipelineAttr.nOutFifoDepth[ch - 1] = 4;
+	pipeline_attr_.nOutFifoDepth[ch - 1] = 4;
 
 	ret = Init();
 	return ret;
@@ -390,46 +390,46 @@ AX_S32 IvpsHelper::ResizeAndCSC(
 	AX_U32 nDstPicHeight)
 {
 	int ch = 1;
-	memset(&m_tPipelineAttr, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
+	memset(&pipeline_attr_, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
 
-	m_tPipelineAttr.nOutChnNum = 1;
-	m_tPipelineAttr.tFilter[ch][0].bEngage = AX_TRUE;
-	m_tPipelineAttr.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
+	pipeline_attr_.nOutChnNum = 1;
+	pipeline_attr_.tFilter[ch][0].bEngage = AX_TRUE;
+	pipeline_attr_.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
 
-	m_tPipelineAttr.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
-	m_tPipelineAttr.tFilter[ch][0].tFRC.fDstFrameRate = 25;
+	pipeline_attr_.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
+	pipeline_attr_.tFilter[ch][0].tFRC.fDstFrameRate = 25;
 
 	// 裁剪
-	m_tPipelineAttr.tFilter[ch][0].bCrop = AX_FALSE;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nX = 0;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nY = 0;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nW = 0;
-	m_tPipelineAttr.tFilter[ch][0].tCropRect.nH = 0;
+	pipeline_attr_.tFilter[ch][0].bCrop = AX_FALSE;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nX = 0;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nY = 0;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nW = 0;
+	pipeline_attr_.tFilter[ch][0].tCropRect.nH = 0;
 
 	AX_S32 frmStride = ALIGN_UP(nDstPicWidth, 16);
 	AX_S32 wAlign = ALIGN_UP(nDstPicWidth, 2);
 	AX_S32 hAlign = ALIGN_UP(nDstPicHeight, 2);
 
-	m_tPipelineAttr.tFilter[ch][0].nDstPicWidth = wAlign;
-	m_tPipelineAttr.tFilter[ch][0].nDstPicHeight = hAlign;
-	m_tPipelineAttr.tFilter[ch][0].nDstPicStride = frmStride;
+	pipeline_attr_.tFilter[ch][0].nDstPicWidth = wAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicHeight = hAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicStride = frmStride;
 
 	// 颜色转换
-	m_tPipelineAttr.tFilter[ch][0].eDstPicFormat = eDstPicFormat;
+	pipeline_attr_.tFilter[ch][0].eDstPicFormat = eDstPicFormat;
 
 	// // 缩放
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eMode = AX_IVPS_ASPECT_RATIO_STRETCH;
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
-	m_tPipelineAttr.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eMode = AX_IVPS_ASPECT_RATIO_STRETCH;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
 
 	// 旋转
-	m_tPipelineAttr.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
+	pipeline_attr_.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
 
 	// 压缩等级
-	m_tPipelineAttr.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+	pipeline_attr_.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
 
-	m_tPipelineAttr.nOutFifoDepth[ch - 1] = 4;
+	pipeline_attr_.nOutFifoDepth[ch - 1] = 4;
 
 	int ret = Init();
 	return ret;

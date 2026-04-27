@@ -1,89 +1,57 @@
-#ifndef VENCHELPER_HPP
-#define VENCHELPER_HPP
+#pragma once
 
 #include <iostream>
 #include <string>
 
-#include "ax_venc_api.h"
-#include "ax_global_type.h"
-#include "Logger.h"
 #include "ImageData.hpp"
-// class StreamData
-// {
-// public:
-// 	AX_VENC_STREAM_T m_stStream;
-// 	VENC_CHN m_nVeChn;
-// 	StreamData(VENC_CHN veChn, AX_VENC_STREAM_T *pStStream) : m_nVeChn(veChn)
-// 	{
-// 		memset(&m_stStream, 0x0, sizeof(AX_VENC_STREAM_T));
-// 		memcpy(&m_stStream, pStStream, sizeof(AX_VENC_STREAM_T));
-// 	};
+#include "Logger.h"
+#include "ax_global_type.h"
+#include "ax_venc_api.h"
 
-// 	~StreamData()
-// 	{
-// 		AX_S32 ret = AX_VENC_ReleaseStream(m_nVeChn, &m_stStream);
-// 		if (AX_SUCCESS != ret)
-// 		{
-// 			LOG_ERROR("AX_VENC_ReleaseStream failed! chn-%d: 0x%X\n", m_nVeChn, ret);
-// 		}
-// 	}
-// };
+typedef int (*VencProcessCallBack)(AX_VENC_STREAM_T streamData, int chn,
+                                   void* user_data);
 
-typedef int (*VencProcessCallBack)(AX_VENC_STREAM_T streamData,
-								   int chn,
-								   void *user_data);
+class VencHelper {
+ public:
+  VencHelper(VENC_CHN ve_chn, int picture_width, int picture_height,
+             float src_frame_rate, float dst_frame_rate)
+      : chn_(ve_chn),
+        picture_width_(picture_width),
+        picture_height_(picture_height),
+        src_frame_rate_(src_frame_rate),
+        dst_frame_rate_(dst_frame_rate) {}
 
-class VencHelper
-{
-public:
-	VencHelper(VENC_CHN VeChn, int picture_width, int picture_height, float srcFrameRate, float dstFrameRate) : m_nChn(VeChn), m_nPictureWidth(picture_width), m_nPictureHeight(picture_height),
-																												m_nSrcFrameRate(srcFrameRate), m_nDstFrameRate(dstFrameRate) {
+  int Init();
+  int Encode(VencProcessCallBack callback, void* user_data);
+  int StopEncode();
 
-																												};
+  int WriteEOF() {
+    AX_VIDEO_FRAME_INFO_T pst_frame = {0};
+    memset(&pst_frame, 0x0, sizeof(AX_VIDEO_FRAME_INFO_T));
+    pst_frame.bEndOfStream = AX_TRUE;
+    int s32_ret = AX_VENC_SendFrame(chn_, &pst_frame, 0);
+    return s32_ret;
+  }
 
-	int Init();
+  int Write(ImageData* image_data, void* user_data);
+  int Destroy();
+  ~VencHelper() { Destroy(); }
 
-	int Encode(VencProcessCallBack callback, void *user_data);
+  VencHelper(const VencHelper& src) = delete;
+  VencHelper& operator=(const VencHelper& rhs) = delete;
 
-	int StopEncode();
+  bool IsExit() { return is_stop_; }
 
-	int WriteEOF(){
-		AX_VIDEO_FRAME_INFO_T pstFrame = {0};
-		memset(&pstFrame,0x0,sizeof(AX_VIDEO_FRAME_INFO_T));
-		pstFrame.bEndOfStream = AX_TRUE;
+ private:
+  static void* VencRecvThreadFunc(void* argv);
 
-		int s32Ret = AX_VENC_SendFrame(m_nChn, &pstFrame, 0);
-		return s32Ret;
-
-	};
-	int Write(ImageData *imageData, void *user_data);
-	
-	int Destroy();
-	~VencHelper()
-	{
-		Destroy();
-	};
-	VencHelper(VencHelper const &src) = delete;
-
-	VencHelper &operator=(VencHelper const &rhs) = delete;
-	bool IsExit()
-	{
-		return m_isStop;
-	}
-
-private:
-	static void *VencRecvThreadFunc(void *argv);
-	VENC_CHN m_nChn;
-	int m_nPictureWidth;
-	int m_nPictureHeight;
-	int m_nSrcFrameRate;
-	int m_nDstFrameRate;
-	bool m_isStop = false;
-	pthread_t m_recvThd;
-	void *m_pUserData;
-	VencProcessCallBack m_pCallBack = nullptr;
+  VENC_CHN chn_;
+  int picture_width_;
+  int picture_height_;
+  int src_frame_rate_;
+  int dst_frame_rate_;
+  bool is_stop_ = false;
+  pthread_t recv_thd_;
+  void* user_data_ = nullptr;
+  VencProcessCallBack callback_ = nullptr;
 };
-
-std::ostream &operator<<(std::ostream &o, VencHelper const &i) = delete;
-
-#endif /* ****************************************************** VENCHELPER_H */

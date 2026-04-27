@@ -10,10 +10,11 @@
 #include "ax_vdec_api.h"
 
 typedef int (*VdecProcessCallBack)(ImageData imageData, int grp, int chn,
-                                   void* user_data);
+                                   void *user_data);
 
-class VdecHelper {
- public:
+class VdecHelper
+{
+public:
   VdecHelper(AX_VDEC_GRP vd_grp, AX_PAYLOAD_TYPE_E codec_type,
              AX_U32 frame_width, AX_U32 frame_height, int fps = 25)
       : vd_grp_(vd_grp),
@@ -23,22 +24,22 @@ class VdecHelper {
         fps_(fps) {}
 
   VdecHelper() = delete;
-  VdecHelper(const VdecHelper& src) = delete;
-  VdecHelper& operator=(const VdecHelper& rhs) = delete;
+  VdecHelper(const VdecHelper &src) = delete;
+  VdecHelper &operator=(const VdecHelper &rhs) = delete;
   ~VdecHelper();
 
   int Init();
   int Destory();
 
-  static void* RecvStreamFunc(void* argv);
-  int Decode(VdecProcessCallBack callback, void* user_data);
+  static void *RecvStreamFunc(void *argv);
+  int Decode(VdecProcessCallBack callback, void *user_data);
   int StopDecode();
   int WriteEOF();
-  int Write(void* data, size_t data_size, void* user_data);
+  int Write(void *data, size_t data_size, void *user_data);
   AX_VDEC_GRP VdGrp() { return vd_grp_; }
 
- private:
-  void* user_data_ = nullptr;
+private:
+  void *user_data_ = nullptr;
   bool is_stop_ = false;
   bool is_finished_ = false;
 

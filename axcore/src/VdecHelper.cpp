@@ -120,34 +120,34 @@ int VdecHelper::Init()
 
 	AX_U64 streamPhyAddr = 0;
 	AX_VOID *pStreamVirAddr = NULL;
-	m_tBufAddr.pVirAddr = 0;
-	m_tBufAddr.u64PhyAddr = 0;
+	buf_addr_.pVirAddr = 0;
+	buf_addr_.u64PhyAddr = 0;
 	sRet = AX_SYS_MemAlloc(&streamPhyAddr, (AX_VOID **)&pStreamVirAddr,
-						   m_nBufSize, 0x100, (AX_S8 *)"vdec_input_stream");
+						   buf_size_, 0x100, (AX_S8 *)"vdec_input_stream");
 	if (sRet != AX_SUCCESS)
 	{
 		LOG_ERROR_LOC("AX_SYS_MemAlloc FAILED code:{:#x}",sRet);
 		return sRet;
 	}
 
-	m_tBufAddr.u64PhyAddr = streamPhyAddr;
-	m_tBufAddr.pVirAddr = pStreamVirAddr;
+	buf_addr_.u64PhyAddr = streamPhyAddr;
+	buf_addr_.pVirAddr = pStreamVirAddr;
 
 	AX_VDEC_GRP_ATTR_T pstVdGrpAttr_;
 	memset(&pstVdGrpAttr_, 0x0, sizeof(AX_VDEC_GRP_ATTR_T));
-	pstVdGrpAttr_.enCodecType = m_enCodecType;											  // 96
-	pstVdGrpAttr_.u32MaxPicWidth = AX_COMM_ALIGN(m_nFrameWidth, 16); /*Max pic width*/	  // 1920
-	pstVdGrpAttr_.u32MaxPicHeight = AX_COMM_ALIGN(m_nFrameHeight, 16); /*Max pic height*/ // 1080
+	pstVdGrpAttr_.enCodecType = codec_type_;											  // 96
+	pstVdGrpAttr_.u32MaxPicWidth = AX_COMM_ALIGN(frame_width_, 16); /*Max pic width*/	  // 1920
+	pstVdGrpAttr_.u32MaxPicHeight = AX_COMM_ALIGN(frame_height_, 16); /*Max pic height*/ // 1080
 	// pstVdGrpAttr_.u32MaxPicHeight = frameHeight; /*Max pic height*/ // 1080
-	pstVdGrpAttr_.u32StreamBufSize = m_nBufSize; // 3 * 1024 * 1024
+	pstVdGrpAttr_.u32StreamBufSize = buf_size_; // 3 * 1024 * 1024
 	pstVdGrpAttr_.enInputMode = AX_VDEC_INPUT_MODE_FRAME;
 	pstVdGrpAttr_.bSdkAutoFramePool = AX_TRUE;
 	pstVdGrpAttr_.bSkipSdkStreamPool = AX_FALSE;
 
-	sRet = AX_VDEC_CreateGrp(m_nVdGrp, &pstVdGrpAttr_);
+	sRet = AX_VDEC_CreateGrp(vd_grp_, &pstVdGrpAttr_);
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR_LOC("AX_VDEC_CreateGrp FAILED VdGrp:{},code:{:#x},msg:{}", m_nVdGrp,sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_CreateGrp FAILED VdGrp:{},code:{:#x},msg:{}", vd_grp_,sRet, AX_VdecRetStr(sRet));
 		return sRet;
 	}
 
@@ -170,12 +170,12 @@ int VdecHelper::Init()
 		if (VdChn == 0)
 		{
 			pstVdChnAttr_[VdChn].enOutputMode = AX_VDEC_OUTPUT_ORIGINAL;
-			pstVdChnAttr_[VdChn].u32PicWidth = m_nFrameWidth;
-			pstVdChnAttr_[VdChn].u32PicHeight = m_nFrameHeight;
+			pstVdChnAttr_[VdChn].u32PicWidth = frame_width_;
+			pstVdChnAttr_[VdChn].u32PicHeight = frame_height_;
 			int uPixBits = 8;
 			if (pstVdChnAttr_[VdChn].u32FrameStride == 0)
 			{
-				pstVdChnAttr_[VdChn].u32FrameStride = AX_COMM_ALIGN(m_nFrameWidth * uPixBits, AX_VDEC_WIDTH_ALIGN * 8) / 8;
+				pstVdChnAttr_[VdChn].u32FrameStride = AX_COMM_ALIGN(frame_width_ * uPixBits, AX_VDEC_WIDTH_ALIGN * 8) / 8;
 			}
 		}
 		// else if (VdChn == 1)
@@ -214,14 +214,14 @@ int VdecHelper::Init()
 
 		pstVdChnAttr_[VdChn].u32FramePadding = 0;
 
-		sRet = AX_VDEC_SetChnAttr(m_nVdGrp, VdChn, &pstVdChnAttr_[VdChn]);
+		sRet = AX_VDEC_SetChnAttr(vd_grp_, VdChn, &pstVdChnAttr_[VdChn]);
 		if (sRet != AX_SUCCESS)
 		{
 			LOG_ERROR_LOC("AX_VDEC_SetChnAttr FAILED code:{:#x}, msg:{}", sRet, AX_VdecRetStr(sRet));
 			return sRet;
 		}
 
-		sRet = AX_VDEC_EnableChn(m_nVdGrp, VdChn);
+		sRet = AX_VDEC_EnableChn(vd_grp_, VdChn);
 		if (sRet != AX_SUCCESS)
 		{
 			LOG_ERROR_LOC("AX_VDEC_EnableChn FAILED code:{:#x}, msg:{}", sRet, AX_VdecRetStr(sRet));
@@ -233,8 +233,8 @@ int VdecHelper::Init()
 	memset(&stGrpParam_, 0, sizeof(stGrpParam_));
 	stGrpParam_.stVdecVideoParam.enOutputOrder = AX_VDEC_OUTPUT_ORDER_DISP;
 	stGrpParam_.stVdecVideoParam.enVdecMode = VIDEO_DEC_MODE_IPB;
-	stGrpParam_.f32SrcFrmRate = m_nFps;
-	sRet = AX_VDEC_SetGrpParam(m_nVdGrp, &stGrpParam_);
+	stGrpParam_.f32SrcFrmRate = fps_;
+	sRet = AX_VDEC_SetGrpParam(vd_grp_, &stGrpParam_);
 	if (sRet != AX_SUCCESS)
 	{
 		LOG_ERROR_LOC("AX_VDEC_SetGrpParam FAILED code:{:#x}, msg:{}", sRet, AX_VdecRetStr(sRet));
@@ -242,7 +242,7 @@ int VdecHelper::Init()
 	}
 
 	AX_VDEC_DISPLAY_MODE_E enDisplayMode = AX_VDEC_DISPLAY_MODE_PREVIEW;
-	sRet = AX_VDEC_SetDisplayMode(m_nVdGrp, enDisplayMode);
+	sRet = AX_VDEC_SetDisplayMode(vd_grp_, enDisplayMode);
 	if (sRet != AX_SUCCESS)
 	{
 		LOG_ERROR_LOC("AX_VDEC_SetDisplayMode FAILED code:{:#x}, msg:{}", sRet, AX_VdecRetStr(sRet));
@@ -257,10 +257,10 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 	AX_S32 sRet = AX_SUCCESS;
 	VdecHelper *self = (VdecHelper *)argv;
 	AX_VDEC_CHN VdChn = 0;
-	AX_VDEC_GRP VdGrp = self->m_nVdGrp;
-	self->m_isStop = false;
+	AX_VDEC_GRP VdGrp = self->vd_grp_;
+	self->is_stop_ = false;
 	pthread_setname_np(pthread_self(), "VDECGet");
-	while (!self->m_isStop)
+	while (!self->is_stop_)
 	{
 
 		AX_VIDEO_FRAME_INFO_T *frameInfo = new AX_VIDEO_FRAME_INFO_T();
@@ -294,7 +294,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 			image.u32Width = frameInfo->stVFrame.u32Width;
 			image.u32Height = frameInfo->stVFrame.u32Height;
 
-			self->m_pCallBack(image, VdGrp, VdChn, self->m_pUserData);
+			self->callback_(image, VdGrp, VdChn, self->user_data_);
 
 			// std::shared_ptr<FrameData> data = std::make_shared<FrameData>(frameInfo, VdGrp, VdChn, MEM_ID_VDEC);
 
@@ -350,17 +350,17 @@ int VdecHelper::Decode(VdecProcessCallBack callbac, void *user_data)
 	AX_VDEC_RECV_PIC_PARAM_T tRecvParam;
 	memset(&tRecvParam, 0, sizeof(tRecvParam));
 	tRecvParam.s32RecvPicNum = -1;
-	AX_S32 sRet = AX_VDEC_StartRecvStream(m_nVdGrp, &tRecvParam);
+	AX_S32 sRet = AX_VDEC_StartRecvStream(vd_grp_, &tRecvParam);
 	if (sRet != AX_SUCCESS)
 	{
 		LOG_ERROR_LOC("AX_VDEC_StartRecvStream FAILED code:{:#x}, msg:{}", sRet, AX_VdecRetStr(sRet));
 		return sRet;
 	}
 
-	m_pCallBack = callbac;
-	m_pUserData = user_data;
+	callback_ = callbac;
+	user_data_ = user_data;
 
-	pthread_create(&m_thRecvTid, nullptr, RecvStreamFunc, this);
+	pthread_create(&recv_tid_, nullptr, RecvStreamFunc, this);
 
 	return 0;
 }
@@ -369,11 +369,11 @@ int VdecHelper::StopDecode()
 {
 	WriteEOF();
 
-	m_isStop = true;
+	is_stop_ = true;
 
 	AX_S32 sRet;
 
-	sRet = AX_VDEC_StopRecvStream(m_nVdGrp);
+	sRet = AX_VDEC_StopRecvStream(vd_grp_);
 	if (sRet)
 	{
 		if (sRet == AX_ERR_VDEC_UNEXIST)
@@ -383,11 +383,11 @@ int VdecHelper::StopDecode()
 	}
 
 	void *res = nullptr;
-	int joinThreadErr = pthread_join(m_thRecvTid, &res);
+	int joinThreadErr = pthread_join(recv_tid_, &res);
 	if (joinThreadErr)
 	{
 		LOG_ERROR_LOC("Join thread failed, threadId = {}, err = {:#x}",
-				  m_thRecvTid, joinThreadErr);
+				  recv_tid_, joinThreadErr);
 	}
 	else
 	{
@@ -404,20 +404,20 @@ int VdecHelper::StopDecode()
 		AX_VIDEO_FRAME_INFO_T pstFrameInfo;
 		AX_VDEC_GRP_STATUS_T pstGrpStatus;
 
-		sRet = AX_VDEC_GetChnFrame(m_nVdGrp, 0, &pstFrameInfo, -1);
+		sRet = AX_VDEC_GetChnFrame(vd_grp_, 0, &pstFrameInfo, -1);
 
 		if (sRet == AX_SUCCESS)
 		{
-			sRet = AX_VDEC_ReleaseChnFrame(m_nVdGrp, 0, &pstFrameInfo);
+			sRet = AX_VDEC_ReleaseChnFrame(vd_grp_, 0, &pstFrameInfo);
 		}
 
-		sRet = AX_VDEC_QueryStatus(m_nVdGrp, &pstGrpStatus);
+		sRet = AX_VDEC_QueryStatus(vd_grp_, &pstGrpStatus);
 		if (pstGrpStatus.u32LeftStreamBytes == 0 && pstGrpStatus.u32LeftPics[0] == 0)
 		{
 			break;
 		}
 	}
-	m_isFinished = true;
+	is_finished_ = true;
 	return 0;
 }
 
@@ -425,14 +425,14 @@ int VdecHelper::WriteEOF()
 {
 	AX_VDEC_STREAM_T tStrInfo = {0};
 	tStrInfo.bEndOfStream = AX_TRUE;
-	AX_S32 sRet = AX_VDEC_SendStream(m_nVdGrp, &tStrInfo, -1);
+	AX_S32 sRet = AX_VDEC_SendStream(vd_grp_, &tStrInfo, -1);
 	return sRet;
 };
 
 #if 0
 #include "vdec.h"
 int VdecHelper::Write(void *data, size_t data_size) {
-	vdec_write_frame(m_nVdGrp,&m_tBufAddr,m_nBufSize, (AX_U8*)data, data_size);
+	vdec_write_frame(vd_grp_,&buf_addr_,buf_size_, (AX_U8*)data, data_size);
 	return 0;
 }
 
@@ -443,10 +443,10 @@ int VdecHelper::Write(void *data, size_t data_size, void *user_data)
 	int sRet;
 	AX_VDEC_STREAM_T tStrInfo = {0};
 
-	memset(m_tBufAddr.pVirAddr, 0x0, data_size);
-	memcpy(m_tBufAddr.pVirAddr, data, data_size);
+	memset(buf_addr_.pVirAddr, 0x0, data_size);
+	memcpy(buf_addr_.pVirAddr, data, data_size);
 
-	tStrInfo.pu8Addr = (AX_U8 *)m_tBufAddr.pVirAddr;
+	tStrInfo.pu8Addr = (AX_U8 *)buf_addr_.pVirAddr;
 	tStrInfo.u64PhyAddr = 0;
 	tStrInfo.u32StreamPackLen = (AX_U32)data_size; /*stream len*/
 	tStrInfo.bEndOfFrame = AX_TRUE;
@@ -467,14 +467,14 @@ int VdecHelper::Write(void *data, size_t data_size, void *user_data)
 
 	// tStrInfo.u64PrivateData = 0xAFAF5A5A;
 	// 0 非阻塞
-	sRet = AX_VDEC_SendStream(m_nVdGrp, &tStrInfo, 0);
+	sRet = AX_VDEC_SendStream(vd_grp_, &tStrInfo, 0);
 	if (sRet == AX_SUCCESS)
 	{
 		return sRet;
 	}
 	else
 	{
-		LOG_ERROR_LOC("AX_VDEC_SendStream FAILED VdGrp:{},code:{:#x},msg:{}", m_nVdGrp,sRet, AX_VdecRetStr(sRet));
+		LOG_ERROR_LOC("AX_VDEC_SendStream FAILED VdGrp:{},code:{:#x},msg:{}", vd_grp_,sRet, AX_VdecRetStr(sRet));
 	}
 
 	if (sRet == AX_ERR_VDEC_FLOW_END)
@@ -506,7 +506,7 @@ int VdecHelper::Write(void *data, size_t data_size, void *user_data)
 	else
 	{
 		// fprintf(stdout, "VdGrp=%d, AX_VDEC_SendStream FAILED! ret:0x%x %s\n",
-		// 		m_nVdGrp, sRet, AX_VdecRetStr(sRet));
+		// 		vd_grp_, sRet, AX_VdecRetStr(sRet));
 		// TODO: 直接可以发送结束
 		// ret = AX_ERR_VDEC_UNKNOWN;
 		// goto ERR_RET;
@@ -521,7 +521,7 @@ int VdecHelper::Destory()
 
 	while (1)
 	{
-		sRet = AX_VDEC_DestroyGrp(m_nVdGrp);
+		sRet = AX_VDEC_DestroyGrp(vd_grp_);
 		if (sRet == AX_ERR_VDEC_BUSY)
 		{
 			usleep(10000);
@@ -530,22 +530,22 @@ int VdecHelper::Destory()
 		break;
 	}
 
-	if (m_tBufAddr.u64PhyAddr != 0)
+	if (buf_addr_.u64PhyAddr != 0)
 	{
-		sRet = AX_SYS_MemFree(m_tBufAddr.u64PhyAddr, m_tBufAddr.pVirAddr);
+		sRet = AX_SYS_MemFree(buf_addr_.u64PhyAddr, buf_addr_.pVirAddr);
 		if (sRet != AX_SUCCESS)
 		{
 		}
 		else
 		{
-			m_tBufAddr.u64PhyAddr = 0;
-			m_tBufAddr.pVirAddr = 0;
+			buf_addr_.u64PhyAddr = 0;
+			buf_addr_.pVirAddr = 0;
 		}
 	}
 	else
 	{
-		free(m_tBufAddr.pVirAddr);
-		m_tBufAddr.pVirAddr = 0;
+		free(buf_addr_.pVirAddr);
+		buf_addr_.pVirAddr = 0;
 	}
 	return sRet;
 };
