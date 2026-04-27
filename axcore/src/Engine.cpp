@@ -69,7 +69,7 @@ int Engine::Init() {
 }
 
 int Engine::Process(const std::vector<uint8_t>& input_data) {
-  TIME_START(EngineProcess);
+  // TIME_START(EngineProcess);
 
   int ret = middleware::push_input(input_data, &io_data_, io_info_);
   if (0 != ret) {
@@ -87,8 +87,8 @@ int Engine::Process(const std::vector<uint8_t>& input_data) {
     return ret;
   }
 
-  TIME_END(EngineProcess);
-  TIME_USEC_SHOW(EngineProcess);
+  // TIME_END(EngineProcess);
+  // TIME_USEC_SHOW(EngineProcess);
   return ret;
 }
 

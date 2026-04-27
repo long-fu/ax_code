@@ -24,7 +24,7 @@ int PipelineResource::Init() {
   int ret = 0;
   ret = AX_SYS_Init();
   if (AX_SUCCESS != ret) {
-    LOG_ERROR("AX_SYS_Init Failed!! {:#x}", ret);
+    LOG_ERROR_LOC("AX_SYS_Init Failed!! {:#x}", ret);
     return ret;
   }
 
@@ -36,7 +36,7 @@ int PipelineResource::Init() {
 
   ret = AX_VDEC_Init(&st_mod_attr);
   if (AX_SUCCESS != ret) {
-    LOG_ERROR("AX_VDEC_Init Failed!! {:#x}", ret);
+    LOG_ERROR_LOC("AX_VDEC_Init Failed!! {:#x}", ret);
     return ret;
   }
 
@@ -47,7 +47,7 @@ int PipelineResource::Init() {
   st_enc_mod_attr.stModThdAttr.bExplicitSched = AX_FALSE;
   ret = AX_VENC_Init(&st_enc_mod_attr);
   if (AX_SUCCESS != ret) {
-    LOG_ERROR("AX_VENC_Init Failed!! {:#x}", ret);
+    LOG_ERROR_LOC("AX_VENC_Init Failed!! {:#x}", ret);
     return ret;
   }
   LOG_INFO("SYS INIT SUCCCESS !!!");
@@ -62,17 +62,17 @@ void PipelineResource::Release() {
 
   ret = AX_VENC_Deinit();
   if (AX_SUCCESS != ret) {
-    LOG_ERROR("AX_VENC_Deinit failed! Error Code:{:#X}", ret);
+    LOG_ERROR_LOC("AX_VENC_Deinit failed! Error Code:{:#X}", ret);
   }
 
   ret = AX_VDEC_Deinit();
   if (AX_SUCCESS != ret) {
-    LOG_ERROR("AX_VDEC_Deinit failed! Error Code:{:#X}", ret);
+    LOG_ERROR_LOC("AX_VDEC_Deinit failed! Error Code:{:#X}", ret);
   }
 
   ret = AX_SYS_Deinit();
   if (AX_SUCCESS != ret) {
-    LOG_ERROR("AX_SYS_Deinit failed! Error Code:{:#X}", ret);
+    LOG_ERROR_LOC("AX_SYS_Deinit failed! Error Code:{:#X}", ret);
   }
 
   is_released_ = true;

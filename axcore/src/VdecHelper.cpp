@@ -126,7 +126,8 @@ int VdecHelper::Init()
 						   buf_size_, 0x100, (AX_S8 *)"vdec_input_stream");
 	if (sRet != AX_SUCCESS)
 	{
-		LOG_ERROR_LOC("AX_SYS_MemAlloc FAILED code:{:#x}",sRet);
+		fprintf(stderr, "%x", sRet);
+		LOG_ERROR_LOC("AX_SYS_MemAlloc FAILED size:{} code:{:#X}",buf_size_,sRet);
 		return sRet;
 	}
 
@@ -165,7 +166,7 @@ int VdecHelper::Init()
 
 		pstVdChnAttr_[VdChn].u32ScaleRatioX = 0;
 		pstVdChnAttr_[VdChn].u32ScaleRatioY = 0;
-		pstVdChnAttr_[VdChn].u32OutputFifoDepth = 8;
+		pstVdChnAttr_[VdChn].u32OutputFifoDepth = 34;
 
 		if (VdChn == 0)
 		{
@@ -271,7 +272,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 		// frameInfo->stVFrame.u64UserData
 		if (sRet != AX_SUCCESS)
 		{
-			LOG_ERROR_LOC("AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{:#x}, msg:{}", VdGrp, VdChn, sRet, AX_VdecRetStr(sRet));
+			LOG_ERROR_LOC("AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{:#x}, msg:{}", VdGrp, VdChn, (uint32_t)sRet, AX_VdecRetStr(sRet));
 			AX_VDEC_ReleaseChnFrame(VdGrp, VdChn, frameInfo);
 			delete frameInfo;
 		}

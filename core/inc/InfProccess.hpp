@@ -17,7 +17,7 @@ class InfProccess : public PipelineThread {
   ~InfProccess() = default;
 
   int Init() override {
-    m_next_thread_id_ = GetPipelineThreadIdByName("BusThread");
+    m_next_thread_id_ = GetPipelineThreadIdByName("BusProcess");
     return m_yolov5.Init();
   }
 

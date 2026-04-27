@@ -5,7 +5,7 @@
 int FrameData::Destroy() {
   if (mem_id_ == MEM_ID_SYS) {
 
-    LOG_INFO("Destory SYS Info");
+    // LOG_INFO("Destory SYS Info");
 
     AX_S32 s_ret = AX_SUCCESS;
     if (frame_data_->stVFrame.u64PhyAddr[0] != 0) {
@@ -46,7 +46,7 @@ int FrameData::Destroy() {
           static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[2])));
       frame_data_->stVFrame.u64VirAddr[2] = 0;
     }
-    
+
     return s_ret;
   }
 
@@ -198,7 +198,7 @@ int FrameData::Destroy() {
   }
 
   if (mem_id_ == MEM_ID_IVPS) {
-    LOG_INFO("Destory IVPS Info");
+    // LOG_INFO("Destory IVPS Info");
     s_ret = AX_IVPS_ReleaseChnFrame(grp_, chn_, &frame_data_->stVFrame);
   } else if (mem_id_ == MEM_ID_VDEC) {
     s_ret = AX_VDEC_ReleaseChnFrame(grp_, chn_, frame_data_);

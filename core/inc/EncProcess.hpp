@@ -70,7 +70,7 @@ class EncProcess : public PipelineThread {
       default:
         break;
     }
-    return ret;
+    return 0;
   }
 
  private:

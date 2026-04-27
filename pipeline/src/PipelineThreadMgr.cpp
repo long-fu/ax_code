@@ -33,7 +33,7 @@ void PipelineThreadMgr::ThreadEntry(void* arg) {
   auto* th_mgr = static_cast<PipelineThreadMgr*>(arg);
   PipelineThread* user_instance = th_mgr->GetUserInstance();
   if (user_instance == nullptr) {
-    LOG_ERROR("Pipeline thread exit for user thread instance is null");
+    LOG_ERROR_LOC("Pipeline thread exit for user thread instance is null");
     return;
   }
 
@@ -41,7 +41,7 @@ void PipelineThreadMgr::ThreadEntry(void* arg) {
 
   int ret = user_instance->Init();
   if (ret) {
-    LOG_ERROR("Thread {} init error {}, thread exit", inst_name, ret);
+    LOG_ERROR_LOC("Thread {} init error {}, thread exit", inst_name, ret);
     th_mgr->SetStatus(THREAD_ERROR);
     return;
   }
@@ -56,7 +56,7 @@ void PipelineThreadMgr::ThreadEntry(void* arg) {
     ret = user_instance->Process(msg->msg_id, msg->data);
     msg->data = nullptr;
     if (ret) {
-      LOG_ERROR("Thread {} process function return error {}, thread exit",
+      LOG_ERROR_LOC("Thread {} process function return error {}, thread exit",
                 inst_name, ret);
       th_mgr->SetStatus(THREAD_ERROR);
       return;
@@ -73,7 +73,7 @@ int PipelineThreadMgr::WaitThreadInitEnd() {
       break;
     } else if (status_ > THREAD_RUNNING) {
       std::string& inst_name = user_instance_->SelfInstanceName();
-      LOG_ERROR("Thread instance {} status change to {}, app start failed",
+      LOG_ERROR_LOC("Thread instance {} status change to {}, app start failed",
                 inst_name, status_);
       return -1;
     } else {
@@ -86,7 +86,7 @@ int PipelineThreadMgr::WaitThreadInitEnd() {
 int PipelineThreadMgr::PushMsgToQueue(
     std::shared_ptr<PipelineMessage>& message) {
   if (status_ != THREAD_RUNNING) {
-    LOG_ERROR("Thread instance {} status({}) is invalid, can not receive message",
+    LOG_ERROR_LOC("Thread instance {} status({}) is invalid, can not receive message",
               name_, status_);
     return -1;
   }

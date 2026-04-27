@@ -38,7 +38,7 @@ class PreProcess : public PipelineThread {
       return -2;
     }
 
-    m_next_thread_id_ = GetPipelineThreadIdByName("InferThread");
+    m_next_thread_id_ = GetPipelineThreadIdByName("InfProccess");
     return 0;
   }
 

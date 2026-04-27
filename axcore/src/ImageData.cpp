@@ -9,7 +9,7 @@ static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E 
 	AX_U32 nBpp = 0;
 	if (nW == 0 || nH == 0)
 	{
-		// LOG_ERROR("Invalid width %d or height %d!", nW, nH);
+		// LOG_ERROR_LOC("Invalid width %d or height %d!", nW, nH);
 		// LOG(ERROR) << "Invalid width or height " << nW << "x" << nH;
 		return 0;
 	}
@@ -24,7 +24,7 @@ static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E 
 		{
 			if (nStride % nAlign)
 			{
-				// LOG_ERROR("stride: %u not %u aligned.!", nStride, nAlign);
+				// LOG_ERROR_LOC("stride: %u not %u aligned.!", nStride, nAlign);
 				// LOG(ERROR) << "stride: not aligned.!" << nStride << " " << nAlign;
 				return 0;
 			}
@@ -86,7 +86,6 @@ static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E 
 
 	return nStride * nH * nBpp / 8;
 }
-
 
 #include <memory.h>
 
@@ -327,13 +326,9 @@ int Clone(ImageData &dest, ImageData const &src)
 	return 0;
 }
 
-
-
-
 #include <vector>
 #include "ax_venc_api.h"
 #include "ax_ivps_api.h"
-
 
 /// @brief 把Image编码成Jpeg格式的图片
 /// @param dest
@@ -640,3 +635,238 @@ int Copy2Mat(cv::Mat &dest, ImageData const &src)
 
 	return s32Ret || sRet;
 };
+
+/// @brief 只对解码通道出来视频帧数据进行Map
+/// @param frameInfo
+/// @return
+int Map(ImageData &img)
+{
+	AX_VIDEO_FRAME_INFO_T *frameInfo = img.data->FrameInfo();
+	AX_U32 nPixelSize;
+	AX_S32 bit_num = 0;
+	AX_U8 nStoragePlanarNum = 0;
+
+	nPixelSize = (AX_U32)frameInfo->stVFrame.u32PicStride[0] * frameInfo->stVFrame.u32Height;
+
+	switch (frameInfo->stVFrame.enImgFormat)
+	{
+	case AX_FORMAT_YUV420_PLANAR:
+	case AX_FORMAT_YUV420_SEMIPLANAR:
+	case AX_FORMAT_YUV420_SEMIPLANAR_VU:
+	case AX_FORMAT_YUV422_SEMIPLANAR: /* NV16 */
+	case AX_FORMAT_YUV422_SEMIPLANAR_VU:
+		bit_num = 8;
+		nStoragePlanarNum = 2;
+		break;
+	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P101010:
+	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P101010:
+		bit_num = 10;
+		nStoragePlanarNum = 2;
+		break;
+	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P010:
+	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P010:
+		bit_num = 16;
+		nStoragePlanarNum = 2;
+		break;
+	case AX_FORMAT_YUV444_PACKED:
+	case AX_FORMAT_RGB888:
+	case AX_FORMAT_BGR888:
+	case AX_FORMAT_RGB565:
+	case AX_FORMAT_BGR565:
+	case AX_FORMAT_RGBA8888:
+	case AX_FORMAT_ARGB8888:
+	case AX_FORMAT_ARGB4444:
+	case AX_FORMAT_ARGB1555:
+	case AX_FORMAT_ARGB8565:
+	case AX_FORMAT_RGBA5551:
+	case AX_FORMAT_RGBA4444:
+	case AX_FORMAT_RGBA5658:
+	case AX_FORMAT_ABGR4444:
+	case AX_FORMAT_ABGR1555:
+	case AX_FORMAT_ABGR8888:
+	case AX_FORMAT_ABGR8565:
+	case AX_FORMAT_BGRA8888:
+	case AX_FORMAT_BGRA5551:
+	case AX_FORMAT_BGRA4444:
+	case AX_FORMAT_BGRA5658:
+	case AX_FORMAT_YUV400:
+		nStoragePlanarNum = 1;
+		break;
+	default:
+		// LOG_ERROR("FrameInfoMap not support fromat %d", frameInfo->stVFrame.enImgFormat);
+		// LOG(ERROR) << "FrameInfoMap not support froma: " << frameInfo->stVFrame.enImgFormat;
+		return -1;
+		break;
+	}
+
+	if (frameInfo->stVFrame.u64VirAddr[0] != 0)
+	{
+		// LOG_ERROR("FrameInfoMap memery is maped ");
+		// LOG(INFO) << "FrameInfoMap memery is maped";
+		return 0;
+	}
+
+	switch (nStoragePlanarNum)
+	{
+	case 2:
+		if (!frameInfo->stVFrame.u64PhyAddr[1])
+		{
+			frameInfo->stVFrame.u64PhyAddr[1] = frameInfo->stVFrame.u64PhyAddr[0] + frameInfo->stVFrame.u32PicStride[0] * frameInfo->stVFrame.u32Height;
+		}
+		nPixelSize = nPixelSize * bit_num / 8;
+		if (AX_FORMAT_YUV422_SEMIPLANAR == frameInfo->stVFrame.enImgFormat || AX_FORMAT_YUV422_SEMIPLANAR_VU == frameInfo->stVFrame.enImgFormat || AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P101010 == frameInfo->stVFrame.enImgFormat || AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P010 == frameInfo->stVFrame.enImgFormat)
+		{
+			frameInfo->stVFrame.u64VirAddr[0] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[0], nPixelSize);
+			frameInfo->stVFrame.u64VirAddr[1] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[1], nPixelSize);
+		}
+		else
+		{
+			frameInfo->stVFrame.u64VirAddr[0] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[0], nPixelSize);
+			frameInfo->stVFrame.u64VirAddr[1] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[1], nPixelSize / 2);
+		}
+		break;
+	case 3:
+		frameInfo->stVFrame.u64VirAddr[0] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[0], nPixelSize);
+		frameInfo->stVFrame.u64VirAddr[1] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[1], nPixelSize / 2);
+		frameInfo->stVFrame.u64VirAddr[2] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[2], nPixelSize / 2);
+		break;
+	default:
+		if (frameInfo->stVFrame.u32FrameSize)
+		{
+			frameInfo->stVFrame.u64VirAddr[0] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[0], frameInfo->stVFrame.u32FrameSize);
+		}
+		else
+		{
+			frameInfo->stVFrame.u64VirAddr[0] = (AX_ULONG)AX_SYS_Mmap(frameInfo->stVFrame.u64PhyAddr[0], nPixelSize * 3);
+		}
+		break;
+	}
+
+	return 0;
+}
+
+/// @brief 只对解码通道出来视频帧数据进行unmap
+/// @param frameInfo
+/// @return
+int Unmap(ImageData &img)
+{
+	AX_VIDEO_FRAME_INFO_T *frameInfo = img.data->FrameInfo();
+	AX_U32 nPixelSize;
+	AX_S32 s32Ret1 = 0;
+	AX_S32 s32Ret2 = 0;
+	AX_S32 s32Ret3 = 0;
+	AX_S32 bit_num = 0;
+	AX_S32 sRet = 0;
+	AX_U8 nStoragePlanarNum = 0;
+	AX_MEMORY_ADDR_T tBufAddr;
+
+	nPixelSize = (AX_U32)frameInfo->stVFrame.u32PicStride[0] * frameInfo->stVFrame.u32Height;
+
+	switch (frameInfo->stVFrame.enImgFormat)
+	{
+	case AX_FORMAT_YUV420_PLANAR:
+	case AX_FORMAT_YUV420_SEMIPLANAR:
+	case AX_FORMAT_YUV420_SEMIPLANAR_VU:
+	case AX_FORMAT_YUV422_SEMIPLANAR: /* NV16 */
+	case AX_FORMAT_YUV422_SEMIPLANAR_VU:
+		bit_num = 8;
+		nStoragePlanarNum = 2;
+		break;
+	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P101010:
+	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P101010:
+		bit_num = 10;
+		nStoragePlanarNum = 2;
+		break;
+	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P010:
+	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P010:
+		bit_num = 16;
+		nStoragePlanarNum = 2;
+		break;
+	case AX_FORMAT_YUV444_PACKED:
+	case AX_FORMAT_RGB888:
+	case AX_FORMAT_BGR888:
+	case AX_FORMAT_RGB565:
+	case AX_FORMAT_BGR565:
+	case AX_FORMAT_RGBA8888:
+	case AX_FORMAT_ARGB8888:
+	case AX_FORMAT_ARGB4444:
+	case AX_FORMAT_ARGB1555:
+	case AX_FORMAT_ARGB8565:
+	case AX_FORMAT_RGBA5551:
+	case AX_FORMAT_RGBA4444:
+	case AX_FORMAT_RGBA5658:
+	case AX_FORMAT_ABGR4444:
+	case AX_FORMAT_ABGR1555:
+	case AX_FORMAT_ABGR8888:
+	case AX_FORMAT_ABGR8565:
+	case AX_FORMAT_BGRA8888:
+	case AX_FORMAT_BGRA5551:
+	case AX_FORMAT_BGRA4444:
+	case AX_FORMAT_BGRA5658:
+	case AX_FORMAT_YUV400:
+		nStoragePlanarNum = 1;
+		break;
+	default:
+		// LOG_ERROR("FrameInfoUnmap not support fromat %d", frameInfo->stVFrame.enImgFormat);
+		// LOG(ERROR) << "FrameInfoUnmap not support fromat " << frameInfo->stVFrame.enImgFormat;
+		return -1;
+	}
+
+	switch (nStoragePlanarNum)
+	{
+	case 2:
+		if (!frameInfo->stVFrame.u64PhyAddr[1])
+		{
+			frameInfo->stVFrame.u64PhyAddr[1] = frameInfo->stVFrame.u64PhyAddr[0] + frameInfo->stVFrame.u32PicStride[0] * frameInfo->stVFrame.u32Height;
+		}
+		nPixelSize = nPixelSize * bit_num / 8;
+		if (AX_FORMAT_YUV422_SEMIPLANAR == frameInfo->stVFrame.enImgFormat || AX_FORMAT_YUV422_SEMIPLANAR_VU == frameInfo->stVFrame.enImgFormat || AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P101010 == frameInfo->stVFrame.enImgFormat || AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P010 == frameInfo->stVFrame.enImgFormat)
+		{
+
+			s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[0], nPixelSize);
+			s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[1], nPixelSize);
+			frameInfo->stVFrame.u64VirAddr[0] = 0;
+			frameInfo->stVFrame.u64VirAddr[1] = 0;
+		}
+		else
+		{
+			s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[0], nPixelSize);
+			s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[1], nPixelSize / 2);
+			frameInfo->stVFrame.u64VirAddr[0] = 0;
+			frameInfo->stVFrame.u64VirAddr[1] = 0;
+		}
+		break;
+	case 3:
+	{
+		s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[0], nPixelSize);
+		s32Ret2 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[1], nPixelSize / 2);
+		s32Ret3 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[2], nPixelSize / 2);
+		frameInfo->stVFrame.u64VirAddr[0] = 0;
+		frameInfo->stVFrame.u64VirAddr[1] = 0;
+		frameInfo->stVFrame.u64VirAddr[2] = 0;
+	}
+
+	break;
+	default:
+		if (frameInfo->stVFrame.u32FrameSize)
+		{
+
+			s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[0], frameInfo->stVFrame.u32FrameSize);
+			frameInfo->stVFrame.u64VirAddr[0] = 0;
+		}
+		else
+		{
+
+			s32Ret1 = AX_SYS_Munmap((AX_VOID *)(AX_ULONG)frameInfo->stVFrame.u64VirAddr[0], nPixelSize * 3);
+			frameInfo->stVFrame.u64VirAddr[0] = 0;
+		}
+		break;
+	}
+
+	if (s32Ret1 || s32Ret2 || s32Ret3)
+	{
+		// LOG_ERROR("FrameInfoUnmap AX_SYS_Munmap s32Ret1=0x%x ,s32Ret2=0x%x ,s32Ret2=0x%x", s32Ret1, s32Ret2, s32Ret3);
+		// LOG(ERROR) << "FrameInfoUnmap AX_SYS_Munmap " << s32Ret1 << " " << s32Ret2 << " " << s32Ret3;
+	}
+	return s32Ret1 || s32Ret2 || s32Ret3;
+}

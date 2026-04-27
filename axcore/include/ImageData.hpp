@@ -23,3 +23,6 @@ int Clone(ImageData& dest, const ImageData& src);
 int JpegEncode(std::vector<uint8_t>& dest, const ImageData& src);
 int Copy2Host(std::vector<uint8_t>& dest, const ImageData& src);
 int Copy2Mat(cv::Mat& dest, const ImageData& src);
+int Map(ImageData& img);
+int Unmap(ImageData& img);
+

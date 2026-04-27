@@ -22,7 +22,7 @@
 #define LOG_DEBUG(...)    Logger::instance().logger()->debug(__VA_ARGS__)
 #define LOG_INFO(...)     Logger::instance().logger()->info(__VA_ARGS__)
 #define LOG_WARN(...)     Logger::instance().logger()->warn(__VA_ARGS__)
-#define LOG_ERROR(...)    Logger::instance().logger()->error(__VA_ARGS__)
+// #define LOG_ERROR_LOC(...)    Logger::instance().logger()->error(__VA_ARGS__)
 #define LOG_CRITICAL(...) Logger::instance().logger()->critical(__VA_ARGS__)
 
 // 带源码位置（文件名:行号）
@@ -90,7 +90,7 @@ class Logger {
     logger_->flush_on(spdlog::level::warn);
 
     spdlog::set_default_logger(logger_);
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [%^%l%$] [tid:%t] %v");
+    spdlog::set_pattern("[%m-%d %H:%M:%S.%e] [%^%l%$] [tid:%t] %v");
 
     if (cfg.install_crash_handler) {
       installSignalHandlers();

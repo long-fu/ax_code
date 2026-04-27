@@ -7,11 +7,15 @@
 #include "BusProcess.hpp"
 #include "EncProcess.hpp"
 #include "ProcessMsg.h"
+#include "Logger.h"
+#include "PipelineResource.h"
 
 int MainThreadProcess(uint32_t msg_id,
-                      std::shared_ptr<void> msg_data, void* user_data) {
-  if (msg_id == kMsgAppExit) {
-    Pipeline& app = GetPipelineInstance();
+                      std::shared_ptr<void> msg_data, void *user_data)
+{
+  if (msg_id == kMsgAppExit)
+  {
+    Pipeline &app = GetPipelineInstance();
     app.WaitEnd();
   }
 
@@ -20,9 +24,11 @@ int MainThreadProcess(uint32_t msg_id,
   return 0;
 }
 
-void ExitPipeline(Pipeline& app,
-                  std::vector<PipelineThreadParam>& thread_tbl) {
-  for (size_t i = 0; i < thread_tbl.size(); i++) {
+void ExitPipeline(Pipeline &app,
+                  std::vector<PipelineThreadParam> &thread_tbl)
+{
+  for (size_t i = 0; i < thread_tbl.size(); i++)
+  {
     delete thread_tbl[i].thread_inst;
     LOG_INFO("delete thread_inst %d", i);
   }
@@ -31,10 +37,23 @@ void ExitPipeline(Pipeline& app,
   LOG_INFO("app.Exit() ");
 }
 
-int main(int argc, char const* argv[]) {
+int main(int argc, char const *argv[])
+{
+
+  LOG_INIT("logs/app.log", spdlog::level::debug);
+  PipelineResource aclDev = PipelineResource();
+  int ret = aclDev.Init();
+  if (ret != 0)
+  {
+    // ACLLITE_LOG_ERROR("Init app failed");
+    // LOG(ERROR) << "Init app failed";
+    return -1;
+  }
+
   std::string rtsp = "rtsp://123:123@22.10.54.60:8555/live21";
   FFmpegDecoder ff_decoder(rtsp);
-  if (0 != ff_decoder.GetVideoInfo()) {
+  if (0 != ff_decoder.GetVideoInfo())
+  {
     LOG_ERROR_LOC("FFmpeg Decoder init error");
     return -1;
   }
@@ -70,17 +89,20 @@ int main(int argc, char const* argv[]) {
     thread_tbl.push_back(param);
   }
 
-  Pipeline& app = CreatePipelineInstance();
-  int ret = app.Start(thread_tbl);
-  if (ret != 0) {
+  Pipeline &app = CreatePipelineInstance();
+  ret = app.Start(thread_tbl);
+  if (ret != 0)
+  {
     LOG_ERROR_LOC("Start app failed, error {}", ret);
     ExitPipeline(app, thread_tbl);
     return -1;
   }
 
-  for (size_t i = 0; i < thread_tbl.size(); i++) {
+  for (size_t i = 0; i < thread_tbl.size(); i++)
+  {
     ret = SendMessage(thread_tbl[i].thread_inst_id, kMsgAppStart, nullptr);
-    if (ret != 0) {
+    if (ret != 0)
+    {
       LOG_ERROR_LOC("Start MSG app failed, error {} {}",
                     thread_tbl[i].thread_inst_id, ret);
     }
@@ -91,5 +113,6 @@ int main(int argc, char const* argv[]) {
 
   ExitPipeline(app, thread_tbl);
   LOG_INFO("Exit App");
+
   return 0;
 }

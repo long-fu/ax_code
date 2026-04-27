@@ -93,7 +93,7 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 
 	while (!self->IsExit())
 	{
-		LOG_INFO("VencRecvThreadFunc {}", self->chn_);
+		// LOG_INFO("VencRecvThreadFunc {}", self->chn_);
 		// -1：阻塞 0：非阻塞
 		ret = AX_VENC_GetStream(self->chn_, &stStream, 100);
 		// stStream.stPack.u64SeqNum
@@ -172,8 +172,8 @@ int VencHelper::Init()
 
 	stVencChnAttr.stVencAttr.enLinkMode = AX_VENC_UNLINK_MODE;
 
-	stVencChnAttr.stVencAttr.u8InFifoDepth = 1;
-	stVencChnAttr.stVencAttr.u8OutFifoDepth = 1;
+	stVencChnAttr.stVencAttr.u8InFifoDepth = 8;
+	stVencChnAttr.stVencAttr.u8OutFifoDepth = 8;
 	stVencChnAttr.stVencAttr.u32BufSize = strmBufSize;
 
 	/* GOP table setting */
@@ -246,7 +246,7 @@ int VencHelper::Write(ImageData *imageData, void *user_data)
 
 	// imageData->data->FrameInfo()->stVFrame.u64UserData = (AX_LONG) user_data;
 	// (AX_ULONG)user_data;
-	TIME_START(WriteVenc);
+	// TIME_START(WriteVenc);
 
 	AX_VIDEO_FRAME_INFO_T *frameInfo = imageData->data->FrameInfo();
 	frameInfo->stVFrame.u64UserData = (AX_ULONG)user_data;
@@ -256,15 +256,15 @@ int VencHelper::Write(ImageData *imageData, void *user_data)
 	if (AX_SUCCESS != s32Ret)
 	{
 		// LOG_ERROR_LOC("chn-%d: AX_VENC_SendFrame failed, code:%x msg:%s\n", chn_, s32Ret,AX_VencRetStr(s32Ret));
-		LOG_ERROR_LOC("AX_VENC_SendFrame FAILED! VeChn:{},code:{:#x},msg:{}", chn_, s32Ret, AX_VencRetStr(s32Ret));
+		LOG_ERROR_LOC("AX_VENC_SendFrame FAILED! VeChn:{},code:{:#x},msg:{}", chn_, (uint32_t)s32Ret, AX_VencRetStr(s32Ret));
 	}
 	else
 	{
-		LOG_INFO("chn-{}: AX_VENC_SendFrame SUCCESS, code:{:#x} msg:{}", chn_, s32Ret, AX_VencRetStr(s32Ret));
+		// LOG_INFO("AX_VENC_SendFrame SUCCESS, code:{:#x} msg:{}", s32Ret, AX_VencRetStr(s32Ret));
 	}
-	TIME_END(WriteVenc);
+	// TIME_END(WriteVenc);
 
-	TIME_USEC_SHOW(WriteVenc);
+	// TIME_USEC_SHOW(WriteVenc);
 
 	return s32Ret;
 };
