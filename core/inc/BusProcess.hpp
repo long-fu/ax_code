@@ -1,71 +1,55 @@
 #pragma once
 
-#include "sort_track.h"
+#include <memory>
+
+#include "Pipeline.h"
 #include "PipelineThread.h"
 #include "ProcessMsg.h"
-#include "Pipeline.h"
+#include "sort_track.h"
 
-class BusProcess : public PipelineThread
-{
-private:
-    /* data */
-    SORT_TRACKER m_tracker;
-    uint64_t m_nFrameID = 0;
-    int m_nNextThreadId = -1;
+class BusProcess : public PipelineThread {
+ public:
+  BusProcess() = default;
+  ~BusProcess() = default;
 
-public:
-    BusProcess()
-    {
-    }
-    virtual int Init() override
-    {
-        m_nNextThreadId = GetPipelineThreadIdByName("VencThread");
-        return 0;
-    };
+  int Init() override {
+    m_next_thread_id_ = GetPipelineThreadIdByName("VencThread");
+    return 0;
+  }
 
-    virtual int Process(int msgId, std::shared_ptr<void> msgData) override
-    {
-        int ret = 0;
-        std::shared_ptr<InfData> inData;
-        std::shared_ptr<BusData> outData;
-        switch (msgId)
-        {
-        case MSG_APP_START:
-
-            break;
-        case MSG_INFPROC_DATA:
-
-            inData = std::static_pointer_cast<InfData>(msgData);
-            {
-                vector<TrackingBox> detFrameData;
-                for (size_t i = 0; i < inData->objects.size(); i++)
-                {
-                    auto item = inData->objects[i];
-                    TrackingBox cur_box;
-                    cur_box.box = item.rect;
-                    cur_box.frame_id = m_nFrameID;
-                    detFrameData.push_back(cur_box);
-                }
-                m_nFrameID++;
-                m_tracker.update(detFrameData);
-                vector<TrackingBox> tracking_results = m_tracker.getReport();
-            }
-
-            outData = std::make_shared<BusData>();
-
-            outData->image = inData->image;
-
-            ret = SendMessage(m_nNextThreadId, MSG_BUSPROC_DATA, outData);
-
-            break;
-        case MSG_APP_EXIT:
-
-            break;
-        default:
-            break;
+  int Process(int msg_id, std::shared_ptr<void> msg_data) override {
+    int ret = 0;
+    switch (msg_id) {
+      case kMsgAppStart:
+        break;
+      case kMsgInfprocData: {
+        auto in_data = std::static_pointer_cast<InfData>(msg_data);
+        std::vector<TrackingBox> det_frame_data;
+        for (size_t i = 0; i < in_data->objects.size(); i++) {
+          auto& item = in_data->objects[i];
+          TrackingBox cur_box;
+          cur_box.box = item.rect;
+          cur_box.frame_id = m_frame_id_;
+          det_frame_data.push_back(cur_box);
         }
+        m_frame_id_++;
+        m_tracker_.update(det_frame_data);
 
-        return ret;
-    };
-    ~BusProcess() {};
+        auto out_data = std::make_shared<BusData>();
+        out_data->image = in_data->image;
+        ret = SendMessage(m_next_thread_id_, kMsgBusprocData, out_data);
+        break;
+      }
+      case kMsgAppExit:
+        break;
+      default:
+        break;
+    }
+    return ret;
+  }
+
+ private:
+  SORT_TRACKER m_tracker_;
+  uint64_t m_frame_id_ = 0;
+  int m_next_thread_id_ = -1;
 };

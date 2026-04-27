@@ -1,31 +1,22 @@
-
-#ifndef RESOURCE_H
-#define RESOURCE_H
 #pragma once
 
-#include <unistd.h>
+#include <cstdint>
 #include <string>
+
 #include "Logger.h"
 
-
 class PipelineResource {
-public:
-    PipelineResource();
+ public:
+  PipelineResource();
+  explicit PipelineResource(int32_t channel);
+  ~PipelineResource();
 
-    PipelineResource(int32_t channel);
-    ~PipelineResource();
-    
-    int Init();
-    
-    void Release();
+  int Init();
+  void Release();
 
-    int32_t GetChannelId() {
-        return m_iChannelId;
-    }
+  int32_t GetChannelId() { return channel_id_; }
 
-private:
-    bool m_isReleased;
-    int32_t m_iChannelId;
+ private:
+  bool is_released_ = false;
+  int32_t channel_id_ = 0;
 };
-
-#endif

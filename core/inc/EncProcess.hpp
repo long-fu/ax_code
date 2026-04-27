@@ -1,88 +1,79 @@
 #pragma once
+
+#include <memory>
+#include <string>
+
+#include "FFmpegDecoder.hpp"
+#include "FFmpegEncoder.hpp"
+#include "Pipeline.h"
 #include "PipelineThread.h"
 #include "ProcessMsg.h"
-#include "Pipeline.h"
-#include "FFmpegEncoder.hpp"
 #include "VencHelper.hpp"
-#include "FFmpegDecoder.hpp"
 
-class EncProcess : public PipelineThread
-{
-private:
-    FFmpegEncoder *m_pFFEncoder = nullptr;
-    VencHelper *m_pVenc = nullptr;
+class EncProcess : public PipelineThread {
+ public:
+  EncProcess(const std::string& rtmp, FFmpegDecoder* ff_decoder) {
+    m_p_venc = new VencHelper(0, ff_decoder->GetFrameWidth(),
+                              ff_decoder->GetFrameHeight(), 25, 25);
+    m_p_ff_encoder = new FFmpegEncoder(
+        rtmp, 25, ff_decoder->GetFrameWidth(), ff_decoder->GetFrameHeight(),
+        AV_PIX_FMT_NV12, 25, "main");
+  }
 
-public:
-    EncProcess(std::string rtmp,FFmpegDecoder *ffDecoder)
-    {
-        m_pVenc = new VencHelper(0, ffDecoder->GetFrameWidth(), ffDecoder->GetFrameHeight(), 25, 25);
-        m_pFFEncoder = new FFmpegEncoder(rtmp, 25, ffDecoder->GetFrameWidth(), ffDecoder->GetFrameHeight(), AV_PIX_FMT_NV12, 25, "main");
-    };
+  ~EncProcess() {
+    delete m_p_ff_encoder;
+    delete m_p_venc;
+  }
 
-    static int VencProcessCallBackFunc(AX_VENC_STREAM_T streamData,
-                                int chn,
-                                void *user_data)
-    {
+  static int VencProcessCallBackFunc(AX_VENC_STREAM_T stream_data, int chn,
+                                     void* user_data) {
+    auto self = static_cast<EncProcess*>(user_data);
+    TIME_START(WritePacket);
+    self->m_p_ff_encoder->WritePacket(stream_data.stPack.pu8Addr,
+                                      stream_data.stPack.u32Len);
+    TIME_END(WritePacket);
+    TIME_USEC_SHOW(WritePacket);
+    return 0;
+  }
 
-        EncProcess *self = (EncProcess *)user_data;
-        // 这个时间多久
-        TIME_START(WritePacket);
-        self->m_pFFEncoder->WritePacket(streamData.stPack.pu8Addr, streamData.stPack.u32Len);
-        TIME_END(WritePacket);
-
-        TIME_USEC_SHOW(WritePacket);
-        return 0;
+  int Init() override {
+    if (0 != m_p_ff_encoder->Init()) {
+      LOG_ERROR_LOC("FFmpeg Encoder Init failled!");
+      return -1;
     }
-
-    virtual int Init() override
-    {
-
-        if (0 != m_pFFEncoder->Init())
-        {
-            LOG_ERROR_LOC("FFmpeg Encoder Init failled!");
-            return -1;
-        }
-        if (0 != m_pVenc->Init())
-        {
-            LOG_ERROR_LOC("VENC Init failed!");
-            return -2;
-        };
-        
-        return 0;
-    };
-
-    int Start()
-    {
-        int ret = m_pVenc->Encode(VencProcessCallBackFunc, this);
-        return ret;
+    if (0 != m_p_venc->Init()) {
+      LOG_ERROR_LOC("VENC Init failed!");
+      return -2;
     }
+    return 0;
+  }
 
-    virtual int Process(int msgId, std::shared_ptr<void> msgData) override
-    {
-        int ret;
-        std::shared_ptr<BusData> inData;
-        switch (msgId)
-        {
-        case MSG_APP_START:
-            ret = Start();
-            break;
-        case MSG_BUSPROC_DATA:
-            ret = m_pVenc->Write(&inData->image,nullptr);
-            break;
-        case MSG_APP_EXIT:
-            // 发送结束消息
-            // m_pFFEncoder->s;
-            m_pVenc->StopEncode();
-            break;
-        default:
-            break;
-        }
+  int Start() {
+    int ret = m_p_venc->Encode(VencProcessCallBackFunc, this);
+    return ret;
+  }
 
-        return ret;
-    };
-    ~EncProcess()
-    {
-        delete m_pFFEncoder;
-        delete m_pVenc;
-    };
+  int Process(int msg_id, std::shared_ptr<void> msg_data) override {
+    int ret = 0;
+    switch (msg_id) {
+      case kMsgAppStart:
+        ret = Start();
+        break;
+      case kMsgBusprocData: {
+        auto in_data = std::static_pointer_cast<BusData>(msg_data);
+        ret = m_p_venc->Write(&in_data->image, nullptr);
+        break;
+      }
+      case kMsgAppExit:
+        m_p_venc->StopEncode();
+        break;
+      default:
+        break;
+    }
+    return ret;
+  }
+
+ private:
+  FFmpegEncoder* m_p_ff_encoder = nullptr;
+  VencHelper* m_p_venc = nullptr;
 };

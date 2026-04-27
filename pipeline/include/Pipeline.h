@@ -1,76 +1,59 @@
-
-#ifndef APP_H
-#define APP_H
 #pragma once
 
-#include <iostream>
+#include <cstdint>
 #include <memory>
-#include "PipelineThreadMgr.h"
+#include <string>
+#include <vector>
+
 #include "Logger.h"
+#include "PipelineThreadMgr.h"
 
 namespace {
-    int g_MainThreadId = 0;
-}
+int g_main_thread_id = 0;
+}  // namespace
 
-typedef int (*AclLiteMsgProcess)(uint32_t msgId, std::shared_ptr<void> msgData, void* userData);
+using AclLiteMsgProcess = int (*)(uint32_t msg_id,
+                                  std::shared_ptr<void> msg_data,
+                                  void* user_data);
 
 class Pipeline {
-public:
-    /**
-    * @brief Constructor
-    */
-    Pipeline();
-    Pipeline(const Pipeline&) = delete;
-    Pipeline& operator=(const Pipeline&) = delete;
+ public:
+  Pipeline();
+  Pipeline(const Pipeline&) = delete;
+  Pipeline& operator=(const Pipeline&) = delete;
+  ~Pipeline();
 
-    /**
-    * @brief Destructor
-    */
-    ~Pipeline();
+  static Pipeline& GetInstance() {
+    static Pipeline instance;
+    return instance;
+  }
 
-    /**
-     * @brief Get the single instance of Pipeline
-     * @return Instance of Pipeline
-     */
-    static Pipeline& GetInstance()
-    {
-        static Pipeline instance;
-        return instance;
-    }
+  int Start(std::vector<PipelineThreadParam>& thread_param_tbl);
+  void Wait();
+  void Wait(AclLiteMsgProcess msg_process, void* param);
+  int GetPipelineThreadIdByName(const std::string& thread_name);
+  int SendMessage(int dest, int msg_id, std::shared_ptr<void> data);
+  void WaitEnd() { is_wait_end_ = true; }
+  void Exit();
 
+ private:
+  int Init();
+  int CreatePipelineThread(PipelineThread* th_inst,
+                           const std::string& inst_name,
+                           uint32_t msg_queue_size);
+  int CreatePipelineThreadMgr(PipelineThread* th_inst,
+                              const std::string& inst_name,
+                              uint32_t msg_queue_size);
+  bool CheckThreadAbnormal();
+  bool CheckThreadNameUnique(const std::string& thread_name);
+  void ReleaseThreads();
 
-
-    int Start(std::vector<PipelineThreadParam>& threadParamTbl);
-    void Wait();
-    void Wait(AclLiteMsgProcess msgProcess, void* param);
-    int GetPipelineThreadIdByName(const std::string& threadName);
-    int SendMessage(int dest, int msgId, std::shared_ptr<void> data);
-    void WaitEnd()
-    {
-        m_isWaitEnd = true;
-    }
-    void Exit();
-
-private:
-    int Init();
-    /**
-     * @brief Create one app thread
-     * @return Result of create thread
-     */
-    int CreatePipelineThread(PipelineThread* thInst, const std::string& instName,const uint32_t msgQueueSize);    
-    int CreatePipelineThreadMgr(PipelineThread* thInst, const std::string& instName, const uint32_t msgQueueSize);
-    bool CheckThreadAbnormal();
-    bool CheckThreadNameUnique(const std::string& threadName);
-    void ReleaseThreads();
-
-private:
-    bool m_isReleased;
-    bool m_isWaitEnd;
-    std::vector<PipelineThreadMgr*> m_vThreadList;
+  bool is_released_ = false;
+  bool is_wait_end_ = false;
+  std::vector<PipelineThreadMgr*> thread_list_;
 };
 
 Pipeline& CreatePipelineInstance();
 Pipeline& GetPipelineInstance();
-int SendMessage(int dest, int msgId, std::shared_ptr<void> data);
-int GetPipelineThreadIdByName(const std::string& threadName);
-#endif
+int SendMessage(int dest, int msg_id, std::shared_ptr<void> data);
+int GetPipelineThreadIdByName(const std::string& thread_name);

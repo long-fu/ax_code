@@ -1,27 +1,21 @@
-#ifndef YOLOV5_HPP
-# define YOLOV5_HPP
 #pragma once
-# include <iostream>
-# include <string>
+
+#include <iostream>
+#include <string>
+
 #include "Engine.hpp"
 
-class Yolov5: public Engine
-{
+class Yolov5 : public Engine {
+ public:
+  explicit Yolov5(const std::string& model_config)
+      : Engine(model_config) {}
+  ~Yolov5() override;
 
-	public:
+  void Postprocess(int pic_width, int pic_height,
+                   std::vector<detection::Object>& objects);
 
-		explicit Yolov5(std::string modelConfig):Engine(modelConfig){};
-		~Yolov5();
+  Yolov5(const Yolov5&) = delete;
+  Yolov5& operator=(const Yolov5&) = delete;
 
-		void Postprocess(int picWidth,int picHeight,std::vector<detection::Object> &objects);
-		
-		Yolov5( Yolov5 const & src ) = delete;
-		Yolov5 &		operator=( Yolov5 const & rhs ) = delete;
-
-	private:
-
+ private:
 };
-
-std::ostream &			operator<<( std::ostream & o, Yolov5 const & i );
-
-#endif /* ********************************************************** YOLOV5_H */

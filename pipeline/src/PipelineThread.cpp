@@ -1,26 +1,23 @@
-
 #include "PipelineThread.h"
+
+#include <string>
+
 #include "Logger.h"
-using namespace std;
-PipelineThread::PipelineThread():
-    m_iInstanceId(INVALID_INSTANCE_ID), m_sInstanceName(""),
-    m_isBaseConfiged(false)
-{
+
+PipelineThread::PipelineThread()
+    : m_instance_id_(INVALID_INSTANCE_ID),
+      m_instance_name_(""),
+      m_is_base_configed_(false) {}
+
+int PipelineThread::BaseConfig(int instance_id, const std::string& thread_name) {
+  if (m_is_base_configed_) {
+    return -1;
+  }
+
+  m_instance_id_ = instance_id;
+  m_instance_name_.assign(thread_name.c_str());
+
+  m_is_base_configed_ = true;
+
+  return 0;
 }
-
-int PipelineThread::BaseConfig(int instanceId, const string& threadName
-                                       )
-{
-    if (m_isBaseConfiged) {
-        return -1;
-    }
-
-    m_iInstanceId = instanceId;
-    m_sInstanceName.assign(threadName.c_str());
-
-
-    m_isBaseConfiged = true;
-
-    return 0;
-}
-
