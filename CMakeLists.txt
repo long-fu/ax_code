@@ -26,7 +26,6 @@ include_directories(
     tracker/sort
     common
     axcore/include
-    detector
     3rdpart/freetype/include/freetype
     pipeline/include
     core/inc
