@@ -4,51 +4,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 需求
 
-高性能视频流目标检测
+高性能视频流目标检测 — 在 AX670/AX620 边缘设备上实现 RTSP 拉流 → 目标检测 → SORT 跟踪 → RTMP 推流的实时视频分析管线。
 
-
-## Code Style
-
-Follow Google C++ Style Guide with C++17 standard. 
-
-## Build
-
-This is a CMake-based C++ project cross-compiled for AX (ARM64) edge AI devices.
+## Build & Run
 
 ```bash
-# Build (from project root)
+# Build (cross-compile for ARM64)
 mkdir -p build && cd build && cmake .. && make -j$(nproc)
 
+# Run on device (LD_LIBRARY_PATH must include 3rdparty libs)
+./run.sh
 ```
 
-The project links against AX SDK libraries (ax_sys, ax_ive, ax_ivps, ax_engine, ax_venc, ax_vdec), OpenCV, FFmpeg, x264, and spdlog.
+交叉编译器：`aarch64-linux-gnu-gcc/g++`。项目没有测试框架或 lint 配置。编译选项分 Debug (`-O0 -g -Wall`) 和 Release (`-O2 -Wall`)。
 
-## Architecture Overview
+## Pipeline 架构
 
-This is an **AI video analytics pipeline** for AX670/AX620 edge devices. The pipeline flow:
+4 个 PipelineThread 通过消息传递串联：
 
 ```
-RTSP Stream → FFmpegDecoder → VDEC (HW) → IVPS (resize/CSC) →
-Yolov5 Inference → SORT Tracker → Drawing → VENC (HW) → RTMP Output
+[PreProcess] --kMsgPreprocData--> [InfProccess] --kMsgInfprocData--> [BusProcess] --kMsgBusprocData--> [EncProcess]
 ```
 
-### Core Components
+每个阶段是一个继承 `PipelineThread` 的类，通过 `SendMessage()` 和 `Process(msg_id, msg_data)` 通信。
 
-- **axcore/**: Media handling - FFmpegDecoder/Encoder, VdecHelper/VencHelper (AX hardware), IvpsHelper (image preprocessing), ImageData, detection (Yolov5), drawing
-- **pipeline/**: Thread pool and pipeline management (PipelineThread, PipelineThreadMgr)
-- **tracker/sort**: SORT multi-object tracker implementation
-- **common/**: Shared utilities
+### 各阶段职责
 
-### Main Pipeline (main.cpp)
+| 阶段 | 类文件 | 关键逻辑 |
+|------|--------|----------|
+| **PreProcess** | `core/inc/PreProcess.hpp` | FFmpegDecoder 拉 RTSP 流 → VDEC 硬解码 → IVPS 硬缩放(640x640) → 拷贝到 host 内存 |
+| **InfProccess** | `core/inc/InfProccess.hpp` | Yolov5 NPU 推理 → 后处理（坐标映射到原始分辨率） |
+| **BusProcess** | `core/inc/BusProcess.hpp` | SORT 多目标跟踪 → 画框/画 ID（硬件映射 → draw → unmap） |
+| **EncProcess** | `core/inc/EncProcess.hpp` | VENC 硬编码 H264 → FFmpegEncoder 推 RTMP |
 
-The application runs 3 parallel threads:
-1. **FFmpegDecodeCallBack**: Pulls RTSP stream and feeds to VDEC
-2. **ReadImageDataCallBack**: Receives decoded frames from VDEC, runs IVPS preprocessing (resize to 640x640, YUV CSC), pushes to inference queue
-3. **InferCallBack**: Runs Yolov5 inference on preprocessed frames, performs SORT tracking, draws bounding boxes/IDs, encodes with VENC and pushes to RTMP output
+### 数据流消息类型（`core/inc/ProcessMsg.h`）
 
-### Key Configuration
+- `kMsgVdecData` — `ImageData`（解码帧）
+- `kMsgPreprocData` — `PreData`（image + 预处理后的 host buffer）
+- `kMsgInfprocData` — `InfData`（image + detection::Object 列表）
+- `kMsgBusprocData` — `BusData`（image，已绘制跟踪结果）
 
-- Input: RTSP stream (hardcoded in main.cpp: `rtsp://123:123@22.10.54.60:8555/live21`)
-- Output: RTMP stream (hardcoded: `rtmp://123:123@22.10.57.15/mylive/live`)
-- Inference input: 640x640 NV12
-- Object detection: Yolov5 for person detection (label == 1)
+### 关键模块
+
+- **axcore/**: 硬件抽象层 — VdecHelper（H264 硬解码）、IvpsHelper（图像缩放/CSC）、VencHelper（H264 硬编码）、FFmpegDecoder/Encoder、FrameData（帧生命周期管理，含 IVPS/VDEC/VENC/SYS 多种内存类型）
+- **pipeline/**: 线程框架 — PipelineThread（消息循环基类）、PipelineThreadMgr（线程注册与查找）
+- **tracker/sort/**: SORT 跟踪器，基于 KalmanFilter + Hungarian 匹配
+- **core/src/**: 业务逻辑 — Yolov5 推理封装、BusiniessProcess（SORT + 绘制）
+- **common/**: Logger（spdlog 封装，支持 async 和 crash signal handler）
+
+### 硬件帧生命周期
+
+`FrameData` 管理 AX SDK 视频帧的引用计数和释放。`shared_ptr<FrameData>` 通过自定义析构释放 IVPS/VDEC 硬件帧。内存类型包括 `MEM_ID_IVPS`、`MEM_ID_VDEC`、`MEM_ID_VENC`、`MEM_ID_SYS`。
+
+### 配置
+
+- `person.yaml` — 模型和跟踪参数（Yolov5 模型路径、anchor、tracker 参数）
+- `person.axmodel` — 编译好的 NPU 模型
+- RTSP 输入和 RTMP 输出 URL 硬编码在 `main.cpp` 中

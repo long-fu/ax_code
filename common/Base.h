@@ -31,9 +31,9 @@ class Base
 private:
     /* data */
 public:
-    Base(const std::string &configPatg);
+    Base(const std::string &configPath,cv::Size imgSize);
     virtual int Init() = 0;
-    virtual int Proccess() = 0;
+    virtual int Proccess(std::vector<Object_> boxs) = 0;
     virtual int Destroy() = 0;
     ~Base();
 };
