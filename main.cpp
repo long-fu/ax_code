@@ -54,7 +54,7 @@ int main(int argc, char const *argv[])
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
-    LOG_ERROR("FFmpeg Decoder init error");
+    // LOG_ERROR("FFmpeg Decoder init error");
     return -1;
   }
 

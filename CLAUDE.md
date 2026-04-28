@@ -2,25 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 需求
+
+高性能视频流目标检测
+
+
 ## Code Style
 
-Follow Google C++ Style Guide with C++17 standard. Use `clang-format` for formatting:
-```bash
-clang-format -i --style=google <file>.cpp
-```
+Follow Google C++ Style Guide with C++17 standard. 
 
-## Build and Run
+## Build
 
 This is a CMake-based C++ project cross-compiled for AX (ARM64) edge AI devices.
-
-
 
 ```bash
 # Build (from project root)
 mkdir -p build && cd build && cmake .. && make -j$(nproc)
 
-# Run (requires setting up library paths)
-./run.sh
 ```
 
 The project links against AX SDK libraries (ax_sys, ax_ive, ax_ivps, ax_engine, ax_venc, ax_vdec), OpenCV, FFmpeg, x264, and spdlog.
