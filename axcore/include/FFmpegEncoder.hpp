@@ -49,7 +49,7 @@ public:
     //     if (ret < 0)
     //     {
     //         // fprintf(stderr, "avformat_write_header failed");
-    //         LOG_ERROR_LOC("avformat_write_header failed!! %d", ret);
+    //         LOG_ERROR("avformat_write_header failed!! %d", ret);
     //         return ret;
     //     }
     //     return 0;
@@ -74,13 +74,13 @@ public:
     // //     av_frame_free(&video_frame);
     // // }
     //     if(m_pEncoder_avfc == nullptr) {
-    //         LOG_ERROR_LOC("WriteEnder m_pEncoder_avfc == null");
+    //         LOG_ERROR("WriteEnder m_pEncoder_avfc == null");
     //         return 0;
     //     }   
     //     int ret = av_write_trailer(m_pEncoder_avfc);
     //     if (ret < 0)
     //     {
-    //         LOG_ERROR_LOC("av_write_trailer failed!! %d", ret);
+    //         LOG_ERROR("av_write_trailer failed!! %d", ret);
     //         return ret;
     //     }
     //     return 0;

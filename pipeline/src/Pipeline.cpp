@@ -32,14 +32,14 @@ int Pipeline::CreatePipelineThread(PipelineThread* th_inst,
                                    uint32_t msg_queue_size) {
   int inst_id = CreatePipelineThreadMgr(th_inst, inst_name, msg_queue_size);
   if (inst_id == INVALID_INSTANCE_ID) {
-    LOG_ERROR_LOC("Add thread instance {} failed", inst_name);
+    LOG_ERROR("Add thread instance {} failed", inst_name);
     return INVALID_INSTANCE_ID;
   }
 
   thread_list_[inst_id]->CreateThread();
   int ret = thread_list_[inst_id]->WaitThreadInitEnd();
   if (ret != 0) {
-    LOG_ERROR_LOC("Create thread failed, error {}", ret);
+    LOG_ERROR("Create thread failed, error {}", ret);
     return INVALID_INSTANCE_ID;
   }
 
@@ -50,14 +50,14 @@ int Pipeline::CreatePipelineThreadMgr(PipelineThread* th_inst,
                                       const std::string& inst_name,
                                       uint32_t msg_queue_size) {
   if (!CheckThreadNameUnique(inst_name)) {
-    LOG_ERROR_LOC("The thread instance name is not unique");
+    LOG_ERROR("The thread instance name is not unique");
     return INVALID_INSTANCE_ID;
   }
 
   int inst_id = thread_list_.size();
   int ret = th_inst->BaseConfig(inst_id, inst_name);
   if (ret != 0) {
-    LOG_ERROR_LOC("Create thread instance failed for error {}", ret);
+    LOG_ERROR("Create thread instance failed for error {}", ret);
     return INVALID_INSTANCE_ID;
   }
 
@@ -87,7 +87,7 @@ int Pipeline::Start(std::vector<PipelineThreadParam>& thread_param_tbl) {
                                           thread_param_tbl[i].thread_inst_name,
                                           thread_param_tbl[i].queue_size);
     if (inst_id == INVALID_INSTANCE_ID) {
-      LOG_ERROR_LOC("Create thread instance failed");
+      LOG_ERROR("Create thread instance failed");
       return -1;
     }
     thread_param_tbl[i].thread_inst_id = inst_id;
@@ -101,7 +101,7 @@ int Pipeline::Start(std::vector<PipelineThreadParam>& thread_param_tbl) {
     int inst_id = thread_param_tbl[i].thread_inst_id;
     int ret = thread_list_[inst_id]->WaitThreadInitEnd();
     if (ret != 0) {
-      LOG_ERROR_LOC("Create thread {} failed, error {}",
+      LOG_ERROR("Create thread {} failed, error {}",
                 thread_param_tbl[i].thread_inst_name, ret);
       return ret;
     }
@@ -111,7 +111,7 @@ int Pipeline::Start(std::vector<PipelineThreadParam>& thread_param_tbl) {
 
 int Pipeline::GetPipelineThreadIdByName(const std::string& thread_name) {
   if (thread_name.empty()) {
-    LOG_ERROR_LOC("search name is empty");
+    LOG_ERROR("search name is empty");
     return INVALID_INSTANCE_ID;
   }
 
@@ -127,7 +127,7 @@ int Pipeline::GetPipelineThreadIdByName(const std::string& thread_name) {
 int Pipeline::SendMessage(int dest, int msg_id,
                           std::shared_ptr<void> data) {
   if (static_cast<uint32_t>(dest) > thread_list_.size()) {
-    LOG_ERROR_LOC("Send message to {} failed for thread not exist", dest);
+    LOG_ERROR("Send message to {} failed for thread not exist", dest);
     return -1;
   }
 
@@ -160,7 +160,7 @@ void Pipeline::Wait(AclLiteMsgProcess msg_process, void* param) {
   PipelineThreadMgr* main_mgr = thread_list_[0];
 
   if (main_mgr == nullptr) {
-    LOG_ERROR_LOC(
+    LOG_ERROR(
         "AclLite app wait exit for message process function is nullptr");
     return;
   }
@@ -175,7 +175,7 @@ void Pipeline::Wait(AclLiteMsgProcess msg_process, void* param) {
     }
     int ret = msg_process(msg->msg_id, msg->data, param);
     if (ret) {
-      LOG_ERROR_LOC("AclLite app exit for message {} process error:{}",
+      LOG_ERROR("AclLite app exit for message {} process error:{}",
                 msg->msg_id, ret);
       break;
     }

@@ -29,12 +29,12 @@ class PreProcess : public PipelineThread {
 
   int Init() override {
     if (0 != m_p_vdec->Init()) {
-      LOG_ERROR_LOC("VDEC Init failled!");
+      LOG_ERROR("VDEC Init failled!");
       return -1;
     }
 
     if (0 != m_p_ivps->Resize(AX_IVPS_ASPECT_RATIO_AUTO, 640, 640)) {
-      LOG_ERROR_LOC("IVPS Init failed!");
+      LOG_ERROR("IVPS Init failed!");
       return -2;
     }
 
@@ -78,7 +78,7 @@ class PreProcess : public PipelineThread {
     ImageData src = *img_data.get();
 
     if (m_p_ivps->Process(dest, src) != 0) {
-      LOG_ERROR_LOC("CSC 异常");
+      LOG_ERROR("CSC 异常");
       exit(-1);
     }
 

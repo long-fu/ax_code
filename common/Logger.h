@@ -18,16 +18,13 @@
 
 #define LOG_INIT(logFile, logLevel) Logger::instance().init(logFile, logLevel)
 
-#define LOG_TRACE(...)    Logger::instance().logger()->trace(__VA_ARGS__)
-#define LOG_DEBUG(...)    Logger::instance().logger()->debug(__VA_ARGS__)
-#define LOG_INFO(...)     Logger::instance().logger()->info(__VA_ARGS__)
-#define LOG_WARN(...)     Logger::instance().logger()->warn(__VA_ARGS__)
-// #define LOG_ERROR_LOC(...)    Logger::instance().logger()->error(__VA_ARGS__)
-#define LOG_CRITICAL(...) Logger::instance().logger()->critical(__VA_ARGS__)
+#define LOG_TRACE(...)    SPDLOG_LOGGER_TRACE(Logger::instance().logger(), __VA_ARGS__)
+#define LOG_DEBUG(...)    SPDLOG_LOGGER_DEBUG(Logger::instance().logger(), __VA_ARGS__)
+#define LOG_INFO(...)     SPDLOG_LOGGER_INFO(Logger::instance().logger(), __VA_ARGS__)
+#define LOG_WARN(...)     SPDLOG_LOGGER_WARN(Logger::instance().logger(), __VA_ARGS__)
+#define LOG_ERROR(...)    SPDLOG_LOGGER_ERROR(Logger::instance().logger(), __VA_ARGS__)
+#define LOG_CRITICAL(...) SPDLOG_LOGGER_CRITICAL(Logger::instance().logger(), __VA_ARGS__)
 
-// 带源码位置（文件名:行号）
-#define LOG_INFO_LOC(...)  SPDLOG_LOGGER_INFO(Logger::instance().logger(), __VA_ARGS__)
-#define LOG_ERROR_LOC(...) SPDLOG_LOGGER_ERROR(Logger::instance().logger(), __VA_ARGS__)
 
 #define LOG_FLUSH()     Logger::instance().flush()
 #define LOG_SHUTDOWN()  Logger::instance().shutdown()

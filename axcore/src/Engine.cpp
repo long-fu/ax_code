@@ -20,13 +20,13 @@ int Engine::Init() {
   npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
   auto ret = AX_ENGINE_Init(&npu_attr);
   if (0 != ret) {
-    LOG_ERROR_LOC("AX_ENGINE_Init failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_Init failed!!! code:{:#x}", ret);
     return ret;
   }
 
   std::vector<char> model_buffer;
   if (!utilities::read_file(config_.model_file, model_buffer)) {
-    LOG_ERROR_LOC("Read Run-Joint model file failed. file: {}",
+    LOG_ERROR("Read Run-Joint model file failed. file: {}",
                   config_.model_file);
     return -1;
   }
@@ -35,7 +35,7 @@ int Engine::Init() {
                                model_buffer.size());
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
-    LOG_ERROR_LOC("AX_ENGINE_CreateHandle failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_CreateHandle failed!!! code:{:#x}", ret);
     return ret;
   }
   LOG_INFO("Engine creating handle is done.");
@@ -43,7 +43,7 @@ int Engine::Init() {
   ret = AX_ENGINE_CreateContext(handle_);
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
-    LOG_ERROR_LOC("AX_ENGINE_CreateContext failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_CreateContext failed!!! code:{:#x}", ret);
     return ret;
   }
   LOG_INFO("Engine creating context is done.");
@@ -51,7 +51,7 @@ int Engine::Init() {
   ret = AX_ENGINE_GetIOInfo(handle_, &io_info_);
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
-    LOG_ERROR_LOC("AX_ENGINE_GetIOInfo failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_GetIOInfo failed!!! code:{:#x}", ret);
     return ret;
   }
   LOG_INFO("Engine get io info is done.");
@@ -61,7 +61,7 @@ int Engine::Init() {
       std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
-    LOG_ERROR_LOC("middleware::prepare_io failed!!! code:{:#x}", ret);
+    LOG_ERROR("middleware::prepare_io failed!!! code:{:#x}", ret);
     return ret;
   }
   LOG_INFO("Engine alloc io is done.");
@@ -73,7 +73,7 @@ int Engine::Process(const std::vector<uint8_t>& input_data) {
 
   int ret = middleware::push_input(input_data, &io_data_, io_info_);
   if (0 != ret) {
-    LOG_ERROR_LOC("push_input data failed!!! code:{:#x}", ret);
+    LOG_ERROR("push_input data failed!!! code:{:#x}", ret);
     middleware::free_io(&io_data_);
     AX_ENGINE_DestroyHandle(handle_);
     return ret;
@@ -81,7 +81,7 @@ int Engine::Process(const std::vector<uint8_t>& input_data) {
 
   ret = AX_ENGINE_RunSync(handle_, &io_data_);
   if (0 != ret) {
-    LOG_ERROR_LOC("AX_ENGINE_RunSync failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_RunSync failed!!! code:{:#x}", ret);
     middleware::free_io(&io_data_);
     AX_ENGINE_DestroyHandle(handle_);
     return ret;
@@ -95,7 +95,7 @@ int Engine::Process(const std::vector<uint8_t>& input_data) {
 int Engine::Process(const uint8_t* data, size_t size) {
   int ret = middleware::push_input(data, size, &io_data_, io_info_);
   if (0 != ret) {
-    LOG_ERROR_LOC("push_input data failed!!! code:{:#x}", ret);
+    LOG_ERROR("push_input data failed!!! code:{:#x}", ret);
     middleware::free_io(&io_data_);
     AX_ENGINE_DestroyHandle(handle_);
     return ret;
@@ -103,7 +103,7 @@ int Engine::Process(const uint8_t* data, size_t size) {
 
   ret = AX_ENGINE_RunSync(handle_, &io_data_);
   if (0 != ret) {
-    LOG_ERROR_LOC("AX_ENGINE_RunSync failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_RunSync failed!!! code:{:#x}", ret);
     middleware::free_io(&io_data_);
     AX_ENGINE_DestroyHandle(handle_);
     return ret;

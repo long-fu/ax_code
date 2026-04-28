@@ -19,7 +19,7 @@ int MainThreadProcess(uint32_t msg_id,
     app.WaitEnd();
   }
 
-  LOG_INFO_LOC("Receive exit message, exit now");
+  LOG_INFO("Receive exit message, exit now");
 
   return 0;
 }
@@ -54,7 +54,7 @@ int main(int argc, char const *argv[])
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
-    LOG_ERROR_LOC("FFmpeg Decoder init error");
+    LOG_ERROR("FFmpeg Decoder init error");
     return -1;
   }
 
@@ -93,7 +93,7 @@ int main(int argc, char const *argv[])
   ret = app.Start(thread_tbl);
   if (ret != 0)
   {
-    LOG_ERROR_LOC("Start app failed, error {}", ret);
+    LOG_ERROR("Start app failed, error {}", ret);
     ExitPipeline(app, thread_tbl);
     return -1;
   }
@@ -103,7 +103,7 @@ int main(int argc, char const *argv[])
     ret = SendMessage(thread_tbl[i].thread_inst_id, kMsgAppStart, nullptr);
     if (ret != 0)
     {
-      LOG_ERROR_LOC("Start MSG app failed, error {} {}",
+      LOG_ERROR("Start MSG app failed, error {} {}",
                     thread_tbl[i].thread_inst_id, ret);
     }
   }
@@ -113,6 +113,7 @@ int main(int argc, char const *argv[])
 
   ExitPipeline(app, thread_tbl);
   LOG_INFO("Exit App");
-
+  LOG_FLUSH();
+  LOG_SHUTDOWN();
   return 0;
 }

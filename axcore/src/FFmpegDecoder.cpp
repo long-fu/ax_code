@@ -101,7 +101,7 @@ bool FFmpegDecoder::OpenVideo(AVFormatContext*& av_format_context) {
     char buf_error[kErrorBufferSize];
     av_strerror(open_ret, buf_error, kErrorBufferSize);
 
-    LOG_ERROR_LOC("Could not open video:{}, return:{}, error info:{}",
+    LOG_ERROR("Could not open video:{}, return:{}, error info:{}",
                   stream_name_, open_ret, buf_error);
     ret = false;
   }
@@ -119,26 +119,26 @@ bool FFmpegDecoder::InitVideoParams(int video_index,
   const AVBitStreamFilter* video_filter = nullptr;
   InitVideoStreamFilter(video_filter);
   if (video_filter == nullptr) {
-    LOG_ERROR_LOC("Unkonw bitstream filter, videoFilter is nullptr!");
+    LOG_ERROR("Unkonw bitstream filter, videoFilter is nullptr!");
     return false;
   }
 
   if (av_bsf_alloc(video_filter, &bsf_ctx) < 0) {
-    LOG_ERROR_LOC("Fail to call av_bsf_alloc!");
+    LOG_ERROR("Fail to call av_bsf_alloc!");
     return false;
   }
 
   if (avcodec_parameters_copy(
           bsf_ctx->par_in,
           av_format_context->streams[video_index]->codecpar) < 0) {
-    LOG_ERROR_LOC("Fail to call avcodec_parameters_copy!");
+    LOG_ERROR("Fail to call avcodec_parameters_copy!");
     return false;
   }
 
   bsf_ctx->time_base_in = av_format_context->streams[video_index]->time_base;
 
   if (av_bsf_init(bsf_ctx) < 0) {
-    LOG_ERROR_LOC("Fail to call av_bsf_init!");
+    LOG_ERROR("Fail to call av_bsf_init!");
     return false;
   }
 
@@ -158,7 +158,7 @@ void FFmpegDecoder::Decode(FrameProcessCallBack callback,
 
   int video_index = GetVideoIndex(av_format_context);
   if (video_index == kInvalidVideoIndex) {
-    LOG_ERROR_LOC("Rtsp {} index is -1", stream_name_);
+    LOG_ERROR("Rtsp {} index is -1", stream_name_);
     return;
   }
 
@@ -175,7 +175,7 @@ void FFmpegDecoder::Decode(FrameProcessCallBack callback,
          !is_stop_) {
     if (av_packet.stream_index == video_index) {
       if (av_bsf_send_packet(bsf_ctx, &av_packet)) {
-        LOG_ERROR_LOC("Fail to call av_bsf_send_packet, channel id:{}",
+        LOG_ERROR("Fail to call av_bsf_send_packet, channel id:{}",
                       stream_name_);
       }
 
@@ -202,18 +202,18 @@ int FFmpegDecoder::GetVideoInfo() {
   AVFormatContext* av_format_context = avformat_alloc_context();
   bool ret = OpenVideo(av_format_context);
   if (!ret) {
-    LOG_ERROR_LOC("Open {} failed", stream_name_);
+    LOG_ERROR("Open {} failed", stream_name_);
     return -1;
   }
 
   if (avformat_find_stream_info(av_format_context, NULL) < 0) {
-    LOG_ERROR_LOC("Get stream info of {} failed", stream_name_);
+    LOG_ERROR("Get stream info of {} failed", stream_name_);
     return -1;
   }
 
   int video_index = GetVideoIndex(av_format_context);
   if (video_index == kInvalidVideoIndex) {
-    LOG_ERROR_LOC(
+    LOG_ERROR(
         "Video index is {}, current media stream has no video info:{}",
         kInvalidVideoIndex, stream_name_);
     avformat_close_input(&av_format_context);

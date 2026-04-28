@@ -9,7 +9,7 @@ static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E 
 	AX_U32 nBpp = 0;
 	if (nW == 0 || nH == 0)
 	{
-		// LOG_ERROR_LOC("Invalid width %d or height %d!", nW, nH);
+		// LOG_ERROR("Invalid width %d or height %d!", nW, nH);
 		// LOG(ERROR) << "Invalid width or height " << nW << "x" << nH;
 		return 0;
 	}
@@ -24,7 +24,7 @@ static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E 
 		{
 			if (nStride % nAlign)
 			{
-				// LOG_ERROR_LOC("stride: %u not %u aligned.!", nStride, nAlign);
+				// LOG_ERROR("stride: %u not %u aligned.!", nStride, nAlign);
 				// LOG(ERROR) << "stride: not aligned.!" << nStride << " " << nAlign;
 				return 0;
 			}

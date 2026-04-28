@@ -46,7 +46,7 @@ namespace utilities
 
         if (!fs.is_open() || fs.fail())
         {
-            LOG_ERROR_LOC("[ERR] cannot open file {}", path);
+            LOG_ERROR("[ERR] cannot open file {}", path);
         }
 
         fs.write((char*)data.data(), data.size());
@@ -60,7 +60,7 @@ namespace utilities
 
         if (!fs.is_open() || fs.fail())
         {
-            LOG_ERROR_LOC("[ERR] cannot open file {}", path);
+            LOG_ERROR("[ERR] cannot open file {}", path);
         }
 
         fs.write(data, size);

@@ -3,3 +3,4 @@ build/
 *.mp4
 *.axmodel
 resource/
+logs/

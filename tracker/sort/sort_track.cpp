@@ -75,7 +75,7 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
     double cost_ = HungAlgo.Solve(iouMatrix, assignment);
     if (cost_ == -1.0)
     {
-        LOG_ERROR_LOC("hungarian assignment error !");
+        LOG_ERROR("hungarian assignment error !");
     }
 
     // find matches, unmatched_detections and unmatched_predictions

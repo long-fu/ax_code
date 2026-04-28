@@ -38,11 +38,11 @@ class EncProcess : public PipelineThread {
 
   int Init() override {
     if (0 != m_p_ff_encoder->Init()) {
-      LOG_ERROR_LOC("FFmpeg Encoder Init failled!");
+      LOG_ERROR("FFmpeg Encoder Init failled!");
       return -1;
     }
     if (0 != m_p_venc->Init()) {
-      LOG_ERROR_LOC("VENC Init failed!");
+      LOG_ERROR("VENC Init failed!");
       return -2;
     }
     return 0;

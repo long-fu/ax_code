@@ -163,7 +163,7 @@ void *ReadImageDataCallBack(void *argv)
         // std::shared_ptr<ImageData> dest = std::make_shared<ImageData>();
         if (ctx->ivps->Process(dest, src) != 0)
         {
-            LOG_ERROR_LOC("CSC 异常");
+            LOG_ERROR("CSC 异常");
             exit(-1);
         }
         std::shared_ptr<InferData> infer = std::make_shared<InferData>();
@@ -183,14 +183,14 @@ int AX_INIT()
     ret = AX_SYS_Init();
     if (AX_SUCCESS != ret)
     {
-        // LOG_ERROR_LOC("AX_SYS_Init Failed!! %X\n", ret);
+        // LOG_ERROR("AX_SYS_Init Failed!! %X\n", ret);
         return ret;
     }
 
     ret = AX_IVPS_Init();
     if (AX_SUCCESS != ret)
     {
-        LOG_ERROR_LOC("AX_IVPS_Init Failed!! {:#x}", ret);
+        LOG_ERROR("AX_IVPS_Init Failed!! {:#x}", ret);
         return ret;
     }
     AX_POOL_Init();
@@ -203,7 +203,7 @@ int AX_INIT()
     ret = AX_VDEC_Init(&stModAttr);
     if (AX_SUCCESS != ret)
     {
-        // LOG_ERROR_LOC("AX_VDEC_Init Failed!! %X\n", ret);
+        // LOG_ERROR("AX_VDEC_Init Failed!! %X\n", ret);
         // LOG(ERROR) << ""
         return ret;
     }
@@ -216,7 +216,7 @@ int AX_INIT()
     ret = AX_VENC_Init(&stEncModAttr);
     if (AX_SUCCESS != ret)
     {
-        // LOG_ERROR_LOC("AX_VENC_Init Failed!! %X\n", ret);
+        // LOG_ERROR("AX_VENC_Init Failed!! %X\n", ret);
         return ret;
     }
     // LOG_INFO("SYS INIT SUCCCESS !!!");
@@ -277,7 +277,7 @@ int main(int, char **)
 
     if (0 != ffDecoder.GetVideoInfo())
     {
-        LOG_ERROR_LOC("FFmpeg Decoder init error");
+        LOG_ERROR("FFmpeg Decoder init error");
         return -1;
     }
 
@@ -285,7 +285,7 @@ int main(int, char **)
     FFmpegEncoder ffEncoder(rtmp, 25, ffDecoder.GetFrameWidth(), ffDecoder.GetFrameHeight(), AV_PIX_FMT_NV12, 25, "main");
     if (0 != ffEncoder.Init())
     {
-        LOG_ERROR_LOC("FFmpeg Encoder Init failled!");
+        LOG_ERROR("FFmpeg Encoder Init failled!");
         return -1;
     }
 
@@ -293,14 +293,14 @@ int main(int, char **)
     if (0 != vdec.Init())
     {
         // printf("vdec init failled\n");
-        LOG_ERROR_LOC("VDEC Init failled!");
+        LOG_ERROR("VDEC Init failled!");
         return -1;
     };
 
     VencHelper venc(g_resourceID, ffDecoder.GetFrameWidth(), ffDecoder.GetFrameHeight(), 25, 25);
     if (0 != venc.Init())
     {
-        LOG_ERROR_LOC("VENC Init failed!");
+        LOG_ERROR("VENC Init failed!");
         return -1;
     };
 
@@ -309,14 +309,14 @@ int main(int, char **)
 
     if (0 != ivps.ResizeAndCSC(AX_FORMAT_YUV420_SEMIPLANAR, 640, 640))
     {
-        LOG_ERROR_LOC("IVPS Init failed!");
+        LOG_ERROR("IVPS Init failed!");
         return -1;
     }
 
     Yolov5 engine("");
     if (0 != engine.Init())
     {
-        LOG_ERROR_LOC("Yolov5 Engine Init failed!");
+        LOG_ERROR("Yolov5 Engine Init failed!");
         return -1;
     }
     SORT_TRACKER sort_tracker; 
