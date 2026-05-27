@@ -36,6 +36,9 @@ class FrameData {
   FrameData& operator=(const FrameData& rhs) = delete;
   FrameData(const FrameData& src) = delete;
 
+  FrameData& operator=(const FrameData&& rhs) = delete;
+  FrameData(FrameData&& src) = delete;  
+
   static std::shared_ptr<FrameData> Create(AX_VIDEO_FRAME_INFO_T* frame_data,
                                            AX_S32 grp, AX_S32 chn,
                                            MemId mem_id) {
