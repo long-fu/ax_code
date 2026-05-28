@@ -259,7 +259,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 	VdecHelper *self = (VdecHelper *)argv;
 	AX_VDEC_CHN VdChn = 0;
 	AX_VDEC_GRP VdGrp = self->vd_grp_;
-	self->is_stop_ = false;
+	self->is_stop_.store(false);
 	pthread_setname_np(pthread_self(), "VDECGet");
 	while (!self->is_stop_)
 	{
@@ -370,7 +370,7 @@ int VdecHelper::StopDecode()
 {
 	WriteEOF();
 
-	is_stop_ = true;
+	is_stop_.store(true);
 
 	AX_S32 sRet;
 

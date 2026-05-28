@@ -3,10 +3,12 @@
 #include <cmath>
 #include <vector>
 
+#include "Logger.h"
+
 Yolov5::~Yolov5() {}
 
-void Yolov5::Postprocess(int pic_width, int pic_height,
-                         std::vector<detection::Object>& objects) {
+int Yolov5::Postprocess(int pic_width, int pic_height,
+                        std::vector<detection::Object>& objects) {
   EngineConfig config = GetConfig();
   std::vector<float> anchors;
   for (size_t i = 0; i < config.anchors.size(); i++) {
@@ -28,7 +30,8 @@ void Yolov5::Postprocess(int pic_width, int pic_height,
       -1.0f * static_cast<float>(std::log((1.0f / prob_threshold) - 1.0f));
 
   if (GetInfo()->nOutputSize != strides.size()) {
-    exit(-1);
+    LOG_ERROR("Output size mismatch: {} != {}", GetInfo()->nOutputSize, strides.size());
+    return -1;
   }
 
   std::vector<detection::Object> proposals;
@@ -44,7 +47,8 @@ void Yolov5::Postprocess(int pic_width, int pic_height,
             (labels.size() + 5) * 3 * sizeof(float);
 
     if (countSize != out_size) {
-      exit(-1);
+      LOG_ERROR("Output buffer size mismatch: {} != {}", countSize, out_size);
+      return -2;
     }
 
     detection::generate_proposals_yolov5(
@@ -54,4 +58,5 @@ void Yolov5::Postprocess(int pic_width, int pic_height,
 
   detection::get_out_bbox(proposals, objects, nms_threshold, letterbox_rows,
                           letterbox_cols, pic_height, pic_width);
+  return 0;
 }

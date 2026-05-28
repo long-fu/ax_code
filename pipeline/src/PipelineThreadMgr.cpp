@@ -90,5 +90,10 @@ int PipelineThreadMgr::PushMsgToQueue(
               name_, status_);
     return -1;
   }
-  return msg_queue_.Push(message) ? 0 : -1;
+  bool pushed = msg_queue_.Push(message);
+  if (!pushed) {
+    LOG_WARN("Thread instance {} message queue full, dropping message", name_);
+    return -1;
+  }
+  return 0;
 }

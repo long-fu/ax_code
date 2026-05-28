@@ -133,6 +133,7 @@ int DrawLine(AX_VIDEO_FRAME_INFO_T *frame_info, int stx, int sty, int edx, int e
             }
         }
     }
+    return 0;
 }
 
 // polylines

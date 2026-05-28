@@ -217,30 +217,29 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
     return 0;
 }
 
-static void custom_free(void *opaque, uint8_t *data)
-{
-    // free(data);
-    // delete[] (data);
-    // acldvppFree(data);
-}
-
 int FFmpegEncoder::WritePacket(void *data, size_t data_size)
 {
     int ret = 0;
-    AVPacket pkt = {0};
-    av_init_packet(&pkt);
+    AVPacket *pkt = av_packet_alloc();
+    if (!pkt) {
+        LOG_ERROR("av_packet_alloc failed");
+        return -1;
+    }
 
-    pkt.pts = m_pVideo_frame->pts;
-    pkt.dts = pkt.pts;
-    pkt.flags = AV_PKT_FLAG_KEY;
-    // av_packet_from_data(&pkt, (uint8_t*)pdata, size);
+    ret = av_new_packet(pkt, (int)data_size);
+    if (ret < 0) {
+        LOG_ERROR("av_new_packet failed err code:{}", ret);
+        av_packet_free(&pkt);
+        return -1;
+    }
 
-    pkt.buf = av_buffer_create((uint8_t *)data, data_size, custom_free, NULL, 0);
+    memcpy(pkt->data, data, data_size);
 
-    pkt.data = (uint8_t *)data;
-    pkt.size = data_size;
+    pkt->pts = m_pVideo_frame->pts;
+    pkt->dts = pkt->pts;
+    pkt->flags = AV_PKT_FLAG_KEY;
 
-    ret = av_write_frame(m_pEncoder_avfc, &pkt);
+    ret = av_write_frame(m_pEncoder_avfc, pkt);
 
     if (ret < 0)
     {
@@ -248,10 +247,11 @@ int FFmpegEncoder::WritePacket(void *data, size_t data_size)
         LOG_ERROR("av_write_frame failed err code: {} Reason: {}", ret,
                   av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
 
+        av_packet_free(&pkt);
         return -1;
     }
 
-    av_packet_unref(&pkt);
+    av_packet_free(&pkt);
 
     m_pVideo_frame->pts += av_rescale_q(1, m_pVideo_avcc->time_base, m_pAvs->time_base);
     return 0;

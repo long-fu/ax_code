@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iostream>
+#include <atomic>
 #include <string>
 
 #include "ImageData.hpp"
@@ -40,7 +40,7 @@ class VencHelper {
   VencHelper(const VencHelper& src) = delete;
   VencHelper& operator=(const VencHelper& rhs) = delete;
 
-  bool IsExit() { return is_stop_; }
+  bool IsExit() { return is_stop_.load(); }
 
  private:
   static void* VencRecvThreadFunc(void* argv);
@@ -50,7 +50,7 @@ class VencHelper {
   int picture_height_;
   int src_frame_rate_;
   int dst_frame_rate_;
-  bool is_stop_ = false;
+  std::atomic<bool> is_stop_{false};
   pthread_t recv_thd_;
   void* user_data_ = nullptr;
   VencProcessCallBack callback_ = nullptr;

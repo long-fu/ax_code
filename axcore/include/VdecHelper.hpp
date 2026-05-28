@@ -1,6 +1,6 @@
 #pragma once
 
-#include <iostream>
+#include <atomic>
 #include <string>
 
 #include "FrameData.hpp"
@@ -39,7 +39,7 @@ class VdecHelper {
 
  private:
   void* user_data_ = nullptr;
-  bool is_stop_ = false;
+  std::atomic<bool> is_stop_{false};
   bool is_finished_ = false;
 
   AX_VDEC_GRP vd_grp_ = -1;

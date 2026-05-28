@@ -33,9 +33,13 @@ class InfProccess : public PipelineThread {
 
         auto out_data = std::make_shared<InfData>();
         out_data->image = in_data->image;
-        m_yolov5.Postprocess(m_p_ff_decoder->GetFrameWidth(),
-                             m_p_ff_decoder->GetFrameHeight(),
-                             out_data->objects);
+        int pp_ret = m_yolov5.Postprocess(m_p_ff_decoder->GetFrameWidth(),
+                                          m_p_ff_decoder->GetFrameHeight(),
+                                          out_data->objects);
+        if (pp_ret != 0) {
+            LOG_ERROR("Yolov5 Postprocess failed, ret={}", pp_ret);
+            return pp_ret;
+        }
 
         ret = SendMessage(m_next_thread_id_, kMsgInfprocData, out_data);
         break;

@@ -273,7 +273,7 @@ int VencHelper::StopEncode()
 {
 	WriteEOF();
 	AX_S32 s32Ret = AX_SUCCESS;
-	is_stop_ = true;
+	is_stop_.store(true);
 
 	s32Ret = AX_VENC_StopRecvFrame(chn_);
 	if (AX_SUCCESS != s32Ret)

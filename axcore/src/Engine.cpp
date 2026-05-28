@@ -74,16 +74,12 @@ int Engine::Process(const std::vector<uint8_t>& input_data) {
   int ret = middleware::push_input(input_data, &io_data_, io_info_);
   if (0 != ret) {
     LOG_ERROR("push_input data failed!!! code:{:#x}", ret);
-    middleware::free_io(&io_data_);
-    AX_ENGINE_DestroyHandle(handle_);
     return ret;
   }
 
   ret = AX_ENGINE_RunSync(handle_, &io_data_);
   if (0 != ret) {
     LOG_ERROR("AX_ENGINE_RunSync failed!!! code:{:#x}", ret);
-    middleware::free_io(&io_data_);
-    AX_ENGINE_DestroyHandle(handle_);
     return ret;
   }
 
@@ -96,16 +92,12 @@ int Engine::Process(const uint8_t* data, size_t size) {
   int ret = middleware::push_input(data, size, &io_data_, io_info_);
   if (0 != ret) {
     LOG_ERROR("push_input data failed!!! code:{:#x}", ret);
-    middleware::free_io(&io_data_);
-    AX_ENGINE_DestroyHandle(handle_);
     return ret;
   }
 
   ret = AX_ENGINE_RunSync(handle_, &io_data_);
   if (0 != ret) {
     LOG_ERROR("AX_ENGINE_RunSync failed!!! code:{:#x}", ret);
-    middleware::free_io(&io_data_);
-    AX_ENGINE_DestroyHandle(handle_);
     return ret;
   }
   return ret;

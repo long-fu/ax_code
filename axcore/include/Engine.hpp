@@ -40,8 +40,8 @@ class Engine {
   int Process(const std::vector<uint8_t>& data);
   int Process(const uint8_t* data, size_t size);
 
-  virtual void Postprocess(int pic_width, int pic_height,
-                           std::vector<detection::Object>& objects) = 0;
+  virtual int Postprocess(int pic_width, int pic_height,
+                          std::vector<detection::Object>& objects) = 0;
 
   AX_ENGINE_IO_T GetOutput() const { return io_data_; }
   AX_ENGINE_IO_INFO_T* GetInfo() const { return io_info_; }

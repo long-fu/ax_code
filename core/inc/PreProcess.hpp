@@ -77,16 +77,17 @@ class PreProcess : public PipelineThread {
     ImageData dest;
     ImageData src = *img_data.get();
 
-    if (m_p_ivps->Process(dest, src) != 0) {
-      LOG_ERROR("CSC 异常");
-      exit(-1);
+    int ret = m_p_ivps->Process(dest, src);
+    if (ret != 0) {
+      LOG_ERROR("CSC failed, ret={}", ret);
+      return ret;
     }
 
     auto data = std::make_shared<PreData>();
     data->image = src;
     Copy2Host(data->data, dest);
 
-    int ret = SendMessage(m_next_thread_id_, kMsgPreprocData, data);
+    int send_ret = SendMessage(m_next_thread_id_, kMsgPreprocData, data);
 
     return 0;
   }
