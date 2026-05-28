@@ -258,7 +258,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	if (outCount != 1)
 	{
 		LOG_ERROR("IVPS outCount != 1, outCount:{}", outCount);
-		exit(-1);
+		return -1;
 	}
 
 	int grp = ivps_grp_;
