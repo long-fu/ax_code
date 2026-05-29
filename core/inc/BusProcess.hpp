@@ -1,12 +1,16 @@
 #pragma once
 
 #include <memory>
+#include <fstream>
+#include <sstream>
 
 #include "Pipeline.h"
 #include "PipelineThread.h"
 #include "ProcessMsg.h"
 #include "sort_track.h"
 #include "drawing.h"
+#include "RuleEngine.hpp"
+
 class BusProcess : public PipelineThread
 {
 public:
@@ -16,6 +20,25 @@ public:
   int Init() override
   {
     m_next_thread_id_ = GetPipelineThreadIdByName("EncProcess");
+
+    // Load rule engine configuration
+    std::ifstream config_file("config.yaml");
+    if (config_file.is_open()) {
+      std::stringstream buf;
+      buf << config_file.rdbuf();
+      std::string yaml_content = buf.str();
+
+      // Extract rules section
+      size_t pos = yaml_content.find("rules:");
+      if (pos != std::string::npos) {
+        size_t first_item = yaml_content.find("- ", pos);
+        if (first_item != std::string::npos) {
+          std::string rules_yaml = yaml_content.substr(first_item);
+          RuleEngine::instance().load(rules_yaml);
+        }
+      }
+    }
+
     return 0;
   }
 
@@ -35,7 +58,6 @@ public:
       for (size_t i = 0; i < in_data->objects.size(); i++)
       {
         auto &item = in_data->objects[i];
-        // printf("item.label %d\n",item.label);
         TrackingBox cur_box;
         if (item.label == 1)
         {
@@ -53,12 +75,13 @@ public:
       TIME_END(test_sort);
       TIME_USEC_SHOW(test_sort);
 
+      // Rule engine judgment — evaluate all objects against loaded rules
+      std::vector<bool> rule_results = RuleEngine::instance().processBoxes(in_data->objects);
+
       TIME_START(test_draw);
-      // 需要主动映射
       Map(in_data->image);
       for (size_t i = 0; i < tracking_results.size(); i++)
       {
-        /* code */
         auto item = tracking_results[i];
         DrawText(in_data->image.data->FrameInfo(), item.box.x, item.box.y + 5, std::to_string(item.track_id), {255, 255, 255});
 
@@ -74,6 +97,7 @@ public:
       break;
     }
     case kMsgAppExit:
+      RuleEngine::instance().unload();
       break;
     default:
       break;
