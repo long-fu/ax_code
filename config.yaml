@@ -1,0 +1,10 @@
+# config.yaml
+pipeline:
+  rtsp_input: "rtsp://..."
+  rtmp_output: "rtmp://..."
+
+rules:
+  - name: sample_rule
+    path: "./libsample_rule.so"
+    params: |
+      region: [[100,100],[600,100],[600,500],[100,500]]
