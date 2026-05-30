@@ -10,10 +10,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Build (cross-compile for ARM64)
-mkdir -p build && cd build && cmake .. && make -j$(nproc)
+rm -rf build
+cmake -G "Unix Makefiles" -D CMAKE_BUILD_TYPE=Release -S . -B build
+cmake --build build
 
 # Run on device (LD_LIBRARY_PATH must include 3rdparty libs)
-./run.sh
+# ./run.sh
 ```
 
 交叉编译器：`aarch64-linux-gnu-gcc/g++`。项目没有测试框架或 lint 配置。编译选项分 Debug (`-O0 -g -Wall`) 和 Release (`-O2 -Wall`)。
