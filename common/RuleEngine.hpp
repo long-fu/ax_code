@@ -18,11 +18,14 @@ public:
     static RuleEngine& instance();
 
     // Load configuration from YAML string and initialize all plugins
+    // Returns 0 on success, error code if no rules could be loaded
     int load(const std::string& yaml_config);
 
     // Process detection boxes, return hit results (OR of all rules)
-    std::vector<bool> processBoxes(
-        const std::vector<detection::Object>& objects) const;
+    // Returns false if no rules are loaded or an internal error occurred
+    bool processBoxes(
+        const std::vector<Object_>& objects,
+        std::vector<bool>& results) const;
 
     // Release all plugin resources
     void unload();
@@ -36,4 +39,5 @@ private:
 
     mutable std::mutex mutex_;
     std::vector<LoadedRule> rules_;
+    bool loaded_ = false;
 };

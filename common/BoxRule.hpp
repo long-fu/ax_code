@@ -5,7 +5,7 @@
 #include <vector>
 #include <unordered_map>
 #include <mutex>
-#include "Base.h"  // detection::Object
+#include "Base.h"
 
 class BoxRule {
 public:
@@ -17,7 +17,7 @@ public:
     // Process detection boxes, return judgment results
     // results: output for each object, index corresponds to objects
     virtual int Process(
-        const std::vector<detection::Object>& objects,
+        const std::vector<Object_>& objects,
         std::vector<bool>& results) = 0;
 
     // Destroy resources
@@ -43,7 +43,6 @@ private:
 
 #define REGISTER_RULE(Class) \
     extern "C" BoxRule* create_##Class() { return new Class(); } \
-    extern "C" void destroy_##Class(BoxRule* rule) { delete rule; } \
     struct RegisterHelper_##Class { \
         RegisterHelper_##Class() { \
             RuleFactory::instance().registerRule(#Class, create_##Class); \

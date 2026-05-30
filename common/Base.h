@@ -1,3 +1,6 @@
+#ifndef AX_BASE_H
+#define AX_BASE_H
+
 #include <iostream>
 #include <cstdint>
 #include <opencv2/opencv.hpp>
@@ -38,3 +41,5 @@ public:
     virtual int Destroy() = 0;
     ~Base();
 };
+
+#endif // AX_BASE_H

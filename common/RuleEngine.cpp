@@ -13,6 +13,12 @@ RuleEngine& RuleEngine::instance() {
 int RuleEngine::load(const std::string& yaml_config) {
     std::lock_guard<std::mutex> lock(mutex_);
 
+    // Guard against double-load
+    if (loaded_) {
+        LOG_WARN("RuleEngine already loaded, ignoring duplicate load call");
+        return -1;
+    }
+
     // Parse YAML config format:
     // - name: sample_rule
     //   path: /path/to/libsample_rule.so
@@ -103,30 +109,59 @@ int RuleEngine::load(const std::string& yaml_config) {
         rules_.push_back(std::move(loaded));
     }
 
+    loaded_ = !rules_.empty();
     LOG_INFO("RuleEngine loaded {} rules", rules_.size());
-    return 0;
+    return loaded_ ? 0 : -1;
 }
 
-std::vector<bool> RuleEngine::processBoxes(
-    const std::vector<detection::Object>& objects) const {
+bool RuleEngine::processBoxes(
+    const std::vector<Object_>& objects,
+    std::vector<bool>& results) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::vector<bool> results(objects.size(), false);
+    if (!loaded_ || rules_.empty()) {
+        results.clear();
+        return false;
+    }
+
+    results.assign(objects.size(), false);
+
+    // Copy results from each rule into a local buffer first, then combine
+    // under the lock. This keeps plugin execution time minimal while locked.
+    std::vector<std::vector<bool>> all_results;
+    all_results.reserve(rules_.size());
 
     for (const auto& rule : rules_) {
         if (!rule.instance) continue;
 
         std::vector<bool> rule_results(objects.size(), false);
-        rule.instance->Process(objects, rule_results);
+        int ret = rule.instance->Process(objects, rule_results);
+        if (ret != 0) {
+            LOG_WARN("Rule '{}' Process returned error code {}", rule.config.name, ret);
+            continue;
+        }
 
-        for (size_t i = 0; i < objects.size(); ++i) {
-            if (rule_results[i]) {
+        // Validate result size matches
+        if (rule_results.size() != objects.size()) {
+            LOG_ERROR("Rule '{}' returned {} results for {} objects, skipping",
+                      rule.config.name, rule_results.size(), objects.size());
+            continue;
+        }
+
+        all_results.push_back(std::move(rule_results));
+    }
+
+    // OR-combine all rule results
+    for (size_t i = 0; i < objects.size(); ++i) {
+        for (const auto& rr : all_results) {
+            if (i < rr.size() && rr[i]) {
                 results[i] = true;
+                break;
             }
         }
     }
 
-    return results;
+    return true;
 }
 
 void RuleEngine::unload() {
@@ -144,4 +179,5 @@ void RuleEngine::unload() {
         }
     }
     rules_.clear();
+    loaded_ = false;
 }

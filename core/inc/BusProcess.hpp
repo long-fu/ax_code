@@ -76,7 +76,8 @@ public:
       TIME_USEC_SHOW(test_sort);
 
       // Rule engine judgment — evaluate all objects against loaded rules
-      std::vector<bool> rule_results = RuleEngine::instance().processBoxes(in_data->objects);
+      std::vector<bool> rule_results;
+      RuleEngine::instance().processBoxes(in_data->objects, rule_results);
 
       TIME_START(test_draw);
       Map(in_data->image);
