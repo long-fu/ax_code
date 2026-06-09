@@ -329,6 +329,7 @@ int Clone(ImageData &dest, ImageData const &src)
 #include <vector>
 #include "ax_venc_api.h"
 #include "ax_ivps_api.h"
+#include "JpegHelp.hpp"
 
 /// @brief 把Image编码成Jpeg格式的图片
 /// @param dest
@@ -336,88 +337,19 @@ int Clone(ImageData &dest, ImageData const &src)
 /// @return
 int JpegEncode(std::vector<uint8_t> &dest, ImageData const &src)
 {
-	const static char *MEM_TOKEN = "JpegEncode";
-	AX_JPEG_ENCODE_ONCE_PARAMS_T stJpegEncodeOnceParam;
-	AX_IMG_FORMAT_E picFormat = AX_FORMAT_INVALID;
-	AX_S32 s32Ret = AX_SUCCESS;
-	AX_U32 frameSize = 0;
-	AX_U32 input_width = 0;
-	AX_U32 input_height = 0;
+	return JpegHelp::JpegEncode(dest, src.data->FrameInfo());
+}
 
-	memset(&stJpegEncodeOnceParam, 0x0, sizeof(stJpegEncodeOnceParam));
+int JpegDecode(ImageData &dest, std::string const &jpegFile)
+{
+	AX_VIDEO_FRAME_INFO_T *frame_info = nullptr;
+	int ret = JpegHelp::JpegDecode(frame_info, jpegFile);
+	dest.u32Width = frame_info->stVFrame.u32Width;
+	dest.u32Height = frame_info->stVFrame.u32Height;
+	dest.enImgFormat = frame_info->stVFrame.enImgFormat;
+	dest.data = FrameData::Create(frame_info, MEM_ID_SYS);
 
-	AX_VIDEO_FRAME_INFO_T stFrame = *src.data->FrameInfo();
-
-	picFormat = stFrame.stVFrame.enImgFormat;
-	input_width = stFrame.stVFrame.u32Width;
-	input_height = stFrame.stVFrame.u32Height;
-
-	if (stFrame.stVFrame.u32FrameSize == 0)
-	{
-		frameSize = CalcImgSize(stFrame.stVFrame.u32PicStride[0], stFrame.stVFrame.u32Width,
-								stFrame.stVFrame.u32Height, stFrame.stVFrame.enImgFormat, 16);
-	}
-	else
-	{
-		frameSize = stFrame.stVFrame.u32FrameSize;
-	}
-
-	if (frameSize == 0)
-	{
-		return -1;
-	}
-
-	stJpegEncodeOnceParam.stJpegParam.u32Qfactor = 90;
-	stJpegEncodeOnceParam.u32Width = input_width;
-	stJpegEncodeOnceParam.u32Height = input_height;
-	stJpegEncodeOnceParam.enImgFormat = picFormat;
-
-	stJpegEncodeOnceParam.enStrmBufType = AX_STREAM_BUF_NON_CACHE;
-
-	AX_U64 phyBuff = 0;
-	AX_VOID *virBuff = NULL;
-
-	s32Ret = AX_SYS_MemAlloc(&phyBuff, &virBuff, frameSize, 0, (AX_S8 *)MEM_TOKEN);
-	if (s32Ret)
-	{
-		return s32Ret;
-	}
-
-	stJpegEncodeOnceParam.u32Len = frameSize;
-	stJpegEncodeOnceParam.ulPhyAddr = phyBuff;
-	stJpegEncodeOnceParam.pu8Addr = (AX_U8 *)virBuff;
-
-	for (int i = 0; i < 3; i++)
-	{
-		stJpegEncodeOnceParam.u64PhyAddr[i] = stFrame.stVFrame.u64PhyAddr[i];
-		stJpegEncodeOnceParam.u32PicStride[i] = stFrame.stVFrame.u32PicStride[i];
-	}
-
-	s32Ret = AX_VENC_JpegEncodeOneFrame(&stJpegEncodeOnceParam);
-	if (AX_SUCCESS != s32Ret)
-	{
-		goto EXIT;
-	}
-
-	dest.resize(stJpegEncodeOnceParam.u32Len);
-	memcpy(dest.data(), stJpegEncodeOnceParam.pu8Addr, stJpegEncodeOnceParam.u32Len);
-
-EXIT:
-
-	if (stJpegEncodeOnceParam.ulPhyAddr && (NULL != stJpegEncodeOnceParam.pu8Addr))
-	{
-		s32Ret = AX_SYS_MemFree(stJpegEncodeOnceParam.ulPhyAddr, stJpegEncodeOnceParam.pu8Addr);
-		if (s32Ret != AX_SUCCESS)
-		{
-		}
-		else
-		{
-			stJpegEncodeOnceParam.ulPhyAddr = 0;
-			stJpegEncodeOnceParam.pu8Addr = nullptr;
-		}
-	}
-
-	return s32Ret;
+	return ret;
 }
 
 /// @brief 要考虑数据 stride

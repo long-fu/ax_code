@@ -21,6 +21,7 @@ struct ImageData {
 
 int Clone(ImageData& dest, const ImageData& src);
 int JpegEncode(std::vector<uint8_t>& dest, const ImageData& src);
+int JpegDecode(ImageData &dest, std::string const &jpegFile);
 int Copy2Host(std::vector<uint8_t>& dest, const ImageData& src);
 int Copy2Mat(cv::Mat& dest, const ImageData& src);
 int Map(ImageData& img);
