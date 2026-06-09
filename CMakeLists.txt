@@ -29,6 +29,7 @@ include_directories(
     3rdpart/freetype/include/freetype
     pipeline/include
     core/inc
+    utils/
 )
 
 link_directories(
@@ -38,6 +39,7 @@ link_directories(
     3rdpart/x264/lib
     3rdpart/spdlog/lib
     3rdpart/freetype/lib
+    3rdpart/nlohmann/
 )
 aux_source_directory(axcore/src AX_SRCS)
 aux_source_directory(pipeline/src PIP_SRCS)

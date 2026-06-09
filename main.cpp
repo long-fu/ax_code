@@ -10,6 +10,13 @@
 #include "Logger.h"
 #include "PipelineResource.h"
 
+// static std::atomic<bool> g_running{true};
+// static void SignalHandler(int sig)
+// {
+//     // NLOG_WARN("signal {} received, shutting down...", sig);
+//     g_running = false;
+// }
+
 int MainThreadProcess(uint32_t msg_id,
                       std::shared_ptr<void> msg_data, void *user_data)
 {
@@ -40,7 +47,14 @@ void ExitPipeline(Pipeline &app,
 int main(int argc, char const *argv[])
 {
 
+    // auto lvl = spdlog::level::from_str(spdlog::level::debug);
+    // InitLogger(cfg.log_file, lvl);
+
   LOG_INIT("logs/app.log", spdlog::level::debug);
+    // ── 信号处理（logger 初始化后注册）──────────────────────────────────────
+  // std::signal(SIGINT, SignalHandler);
+  // std::signal(SIGTERM, SignalHandler);
+
   PipelineResource aclDev = PipelineResource();
   int ret = aclDev.Init();
   if (ret != 0)
