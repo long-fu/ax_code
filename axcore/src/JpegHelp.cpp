@@ -1,5 +1,6 @@
 #include "JpegHelp.hpp"
 #include "ax_global_type.h"
+#include "Logger.h"
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
 
 #define AX_VDEC_WIDTH_ALIGN AX_SHIFT_LEFT_ALIGN(8)
@@ -626,7 +627,7 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
     fInput = fopen(streamFile, "rb");
     if (fInput == NULL)
     {
-        // LOG_ERROR("Unable to open input stream file:%s\n", streamFile);
+        LOG_ERROR("Unable to open input stream file:{}\n", streamFile);
         // LOG(ERROR) << "Unable to open input stream file:" << streamFile;
         s32Ret = AX_ERR_VDEC_UNKNOWN;
         goto ERR_RET;
@@ -636,7 +637,7 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
     res = fseek(fInput, 0L, SEEK_END);
     if (res)
     {
-        // LOG_ERROR("fseek FAILED! ret:%d\n", res);
+        LOG_ERROR("fseek FAILED! ret:{}\n", res);
         // LOG(ERROR) << "fseek FAILED! ret:" << res;
         s32Ret = AX_ERR_VDEC_UNKNOWN;
         goto ERR_RET_CLOSE_IN;
@@ -651,8 +652,8 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
                              stStreamBuf.uBufSize, 0x100, (AX_S8 *)"jpeg_decode_input");
     if (s32Ret != AX_SUCCESS)
     {
-        // LOG_ERROR("AX_SYS_MemAlloc FAILED! uBufSize:0x%x ret:0x%x\n",
-        //           stStreamBuf.uBufSize, s32Ret);
+        LOG_ERROR("AX_SYS_MemAlloc FAILED! uBufSize:{} ret:{}",
+                  stStreamBuf.uBufSize, s32Ret);
         // LOG(ERROR) << "AX_SYS_MemAlloc FAILED! size: " << stStreamBuf.uBufSize << " ret: " << s32Ret;
         goto ERR_RET_CLOSE_IN;
     }
@@ -674,8 +675,8 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
                              uBufSize, 0x1000, (AX_S8 *)"jpeg_decode_output");
     if (s32Ret != 0)
     {
-        // LOG_ERROR("AX_SYS_MemAlloc FAILED! uBufSize:0x%x ret:0x%x\n",
-        //           uBufSize, s32Ret);
+        LOG_ERROR("AX_SYS_MemAlloc FAILED! uBufSize:{} ret:{}",
+                  uBufSize, s32Ret);
         // LOG(ERROR) << "AX_SYS_MemAlloc FAILED! size: " << uBufSize << " ret: " << s32Ret;
         goto ERR_RET_FREE_STREAM;
     }
@@ -686,7 +687,7 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
     sRet = StreamParserReadFrameJpeg(&stStreamInfo, &stStreamBuf, &sReadLen);
     if (sRet)
     {
-        // LOG_ERROR("StreamParserReadFrameJpeg FAILED! ret:0x%x\n", sRet);
+        LOG_ERROR("StreamParserReadFrameJpeg FAILED! ret:{}", sRet);
         // LOG(ERROR) << "StreamParserReadFrameJpeg FAILED! ret: " << s32Ret;
         s32Ret = AX_ERR_VDEC_UNKNOWN;
         goto ERR_RET_FREE_OUT;
@@ -694,7 +695,7 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
 
     if (!sReadLen)
     {
-        // LOG_ERROR("read jpeg frame FAILED!\n");
+        LOG_ERROR("read jpeg frame FAILED!\n");
         // LOG(ERROR) << "read jpeg frame FAILED!";
         s32Ret = AX_ERR_VDEC_UNKNOWN;
         goto ERR_RET_FREE_OUT;
@@ -717,8 +718,8 @@ static int JpegDecodeOneFrameInfo(AX_CHAR *pFilePath,
 
     if (s32Ret != AX_SUCCESS)
     {
-        // LOG_ERROR("AX_VDEC_JpegDecodeOneFrame FAILED! ret:0x%x %s\n",
-        //           s32Ret, AX_VdecRetStr1(s32Ret));
+        LOG_ERROR("AX_VDEC_JpegDecodeOneFrame FAILED! ret:{}\n",
+                  s32Ret);
         // LOG(ERROR) << "AX_VDEC_JpegDecodeOneFrame FAILED! ret: " << s32Ret << " " << AX_VdecRetStr1(s32Ret);
         goto ERR_RET_FREE_OUT;
     }
@@ -821,7 +822,7 @@ ERR_RET:
     return s32Ret || sRet;
 }
 
-int JpegHelp::JpegDecode(AX_VIDEO_FRAME_INFO_T *tempImage,const std::string &file_path)
+int JpegHelp::JpegDecode(AX_VIDEO_FRAME_INFO_T **tempImage,const std::string &file_path)
 {
     // AX_VIDEO_FRAME_INFO_T *tempImage;
 
@@ -831,7 +832,7 @@ int JpegHelp::JpegDecode(AX_VIDEO_FRAME_INFO_T *tempImage,const std::string &fil
 
     // DLOG(INFO) << "Read JPEG image width:" << picWidth << " height:" << picHeight;
 
-    ret = JpegDecodeOneFrameInfo((AX_CHAR *)file_path.c_str(), picWidth, picHeight, &tempImage);
+    ret = JpegDecodeOneFrameInfo((AX_CHAR *)file_path.c_str(), picWidth, picHeight, tempImage);
     return ret;
 }
 

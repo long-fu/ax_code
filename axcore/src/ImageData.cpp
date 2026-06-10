@@ -339,11 +339,14 @@ int JpegEncode(std::vector<uint8_t> &dest, ImageData const &src)
 {
 	return JpegHelp::JpegEncode(dest, src.data->FrameInfo());
 }
-
+#include "Logger.h"
 int JpegDecode(ImageData &dest, std::string const &jpegFile)
 {
 	AX_VIDEO_FRAME_INFO_T *frame_info = nullptr;
-	int ret = JpegHelp::JpegDecode(frame_info, jpegFile);
+	int ret = JpegHelp::JpegDecode(&frame_info, jpegFile);
+	if(ret != 0) {
+		LOG_ERROR("JpegDecode {}",ret );
+	}
 	dest.u32Width = frame_info->stVFrame.u32Width;
 	dest.u32Height = frame_info->stVFrame.u32Height;
 	dest.enImgFormat = frame_info->stVFrame.enImgFormat;

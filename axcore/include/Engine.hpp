@@ -9,7 +9,7 @@
 #include "detection.hpp"
 
 struct EngineConfig {
-  std::string model_file = "./person.axmodel";
+  std::string model_file = "/home/workspace/deepsort/weights/yolov5s_layer8.axmodel";
   std::string model_type = "yolov5";
   std::vector<int> inputs = {1, 3, 640, 640};
 
@@ -34,8 +34,8 @@ class Engine {
   explicit Engine(const std::string& model_config);
   virtual ~Engine();
 
-  int Init();
-  int Destroy();
+  virtual int Init();
+  virtual int Destroy();
 
   int Process(const std::vector<uint8_t>& data);
   int Process(const uint8_t* data, size_t size);

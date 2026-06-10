@@ -13,6 +13,7 @@ Engine::Engine(const std::string& model_config) : config_(model_config) {}
 Engine::~Engine() { Destroy(); }
 
 int Engine::Init() {
+  
   config_.Init();
 
   AX_ENGINE_NPU_ATTR_T npu_attr;
@@ -20,22 +21,23 @@ int Engine::Init() {
   npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;
   auto ret = AX_ENGINE_Init(&npu_attr);
   if (0 != ret) {
-    LOG_ERROR("AX_ENGINE_Init failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_Init failed!!! code:{:#x}", static_cast<uint32_t> (ret));
     return ret;
   }
 
+  LOG_INFO("model file:{}",config_.model_file);
   std::vector<char> model_buffer;
   if (!utilities::read_file(config_.model_file, model_buffer)) {
     LOG_ERROR("Read Run-Joint model file failed. file: {}",
                   config_.model_file);
     return -1;
   }
-
+  LOG_INFO("model file:{} size:{}",config_.model_file,model_buffer.size());
   ret = AX_ENGINE_CreateHandle(&handle_, model_buffer.data(),
                                model_buffer.size());
   if (0 != ret) {
-    AX_ENGINE_DestroyHandle(handle_);
-    LOG_ERROR("AX_ENGINE_CreateHandle failed!!! code:{:#x}", ret);
+    LOG_ERROR("AX_ENGINE_CreateHandle failed!!! code:{:#x}", static_cast<uint32_t> (ret));
+    // AX_ENGINE_DestroyHandle(handle_);
     return ret;
   }
   LOG_INFO("Engine creating handle is done.");
