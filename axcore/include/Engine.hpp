@@ -9,7 +9,7 @@
 #include "detection.hpp"
 
 struct EngineConfig {
-  std::string model_file = "/home/workspace/deepsort/weights/yolov5s_layer8.axmodel";
+  std::string model_file = "/home/workspace/deepsort/weights/ALL_GEN_fire.axmodel";
   std::string model_type = "yolov5";
   std::vector<int> inputs = {1, 3, 640, 640};
 
@@ -22,7 +22,7 @@ struct EngineConfig {
       {59, 119}, {116, 90}, {156, 198}, {373, 326}};
   std::vector<int> strides = {8, 16, 32};
 
-  std::vector<std::string> labels = {"head", "person"};
+  std::vector<std::string> labels = {"fire", "smoke", "other", "warning"};
 
   std::string config_path;
   explicit EngineConfig(const std::string& path) : config_path(path) {}

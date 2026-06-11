@@ -1,15 +1,8 @@
 #include <memory>
 #include "img_s_img.hpp"
 #include "ax_venc_api.h"
+#include "Yolov5.hpp"
 
-// #include "Pipeline.h"
-// #include "PreProcess.hpp"
-// #include "InfProccess.hpp"
-// #include "BusProcess.hpp"
-// #include "EncProcess.hpp"
-// #include "ProcessMsg.h"
-// #include "Logger.h"
-// #include "PipelineResource.h"
 
 int AX_INIT() {
 // MARK: 初始化系统资源
@@ -63,13 +56,14 @@ int main(int argc, char const *argv[])
   
   AX_INIT();
 
-  ImgSImg::Config config;
+  // ImgSImg::Config config;
 
-  ImgSImg isi(0,config);
+  // ImgSImg isi(0,config);
 
+  Yolov5 yolov5("");
   
 
-  int ret = isi.Init();
+  int ret = yolov5.Init();
   if(ret != 0) {
     return -1;
   }
@@ -92,8 +86,9 @@ int main(int argc, char const *argv[])
     std::string file = root + "/" + filenames[i];
     
     JpegDecode(img,file);
-    std::string uuid;
-    isi.Search(uuid,"time",img,file,{"123"});
+    
+    // std::string uuid;
+    // isi.Search(uuid,"time",img,file,{"123"});
   }
 
   LOG_INFO("Exit App");
