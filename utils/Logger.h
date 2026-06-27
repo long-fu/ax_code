@@ -9,6 +9,7 @@
 #include <csignal>
 #include <cstdlib>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -104,11 +105,13 @@ class Logger {
   }
 
   void shutdown() {
-    if (logger_) {
-      logger_->info("Logger shutting down.");
-      logger_->flush();
-    }
-    spdlog::shutdown();
+    std::call_once(m_shutdown_flag_, [this]() {
+      if (logger_) {
+        logger_->info("Logger shutting down.");
+        logger_->flush();
+      }
+      spdlog::shutdown();
+    });
   }
 
  private:
@@ -116,6 +119,8 @@ class Logger {
   ~Logger() { shutdown(); }
 
   std::shared_ptr<spdlog::logger> logger_;
+  std::once_flag m_shutdown_flag_;
+  mutable std::mutex m_shutdown_mutex_;
 
   static void signalHandler(int sig) {
     const char* name = "UNKNOWN";
@@ -140,11 +145,20 @@ class Logger {
         break;
     }
 
-    if (auto& l = instance().logger_) {
-      l->critical("======== CRASH: signal {} ({}) ========", sig, name);
-      l->flush();
+    auto& logger_inst = instance();
+    {
+      std::lock_guard<std::mutex> lock(logger_inst.m_shutdown_mutex_);
+      if (logger_inst.logger_) {
+        logger_inst.logger_->critical("======== CRASH: signal {} ({}) ========", sig, name);
+        logger_inst.logger_->flush();
+      }
     }
-    spdlog::shutdown();
+    // Use try-catch in case thread pool is already gone
+    try {
+      spdlog::shutdown();
+    } catch (...) {
+      // Thread pool already destroyed, ignore
+    }
 
     std::signal(sig, SIG_DFL);
     std::raise(sig);
