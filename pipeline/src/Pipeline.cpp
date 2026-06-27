@@ -15,7 +15,7 @@ const uint32_t kThreadExitRetry = 3;
 Pipeline::Pipeline() : is_released_(false), is_wait_end_(false) { Init(); }
 
 Pipeline::~Pipeline() {
-  LOG_INFO("调用释放 ~~Pipeline");
+  // LOG_INFO("调用释放 ~~Pipeline");
   ReleaseThreads();
 }
 
@@ -27,24 +27,24 @@ int Pipeline::Init() {
   return 0;
 }
 
-int Pipeline::CreatePipelineThread(PipelineThread* th_inst,
-                                   const std::string& inst_name,
-                                   uint32_t msg_queue_size) {
-  int inst_id = CreatePipelineThreadMgr(th_inst, inst_name, msg_queue_size);
-  if (inst_id == INVALID_INSTANCE_ID) {
-    LOG_ERROR("Add thread instance {} failed", inst_name);
-    return INVALID_INSTANCE_ID;
-  }
+// int Pipeline::CreatePipelineThread(PipelineThread* th_inst,
+//                                    const std::string& inst_name,
+//                                    uint32_t msg_queue_size) {
+//   int inst_id = CreatePipelineThreadMgr(th_inst, inst_name, msg_queue_size);
+//   if (inst_id == INVALID_INSTANCE_ID) {
+//     LOG_ERROR("Add thread instance {} failed", inst_name);
+//     return INVALID_INSTANCE_ID;
+//   }
 
-  thread_list_[inst_id]->CreateThread();
-  int ret = thread_list_[inst_id]->WaitThreadInitEnd();
-  if (ret != 0) {
-    LOG_ERROR("Create thread failed, error {}", ret);
-    return INVALID_INSTANCE_ID;
-  }
+//   thread_list_[inst_id]->CreateThread();
+//   int ret = thread_list_[inst_id]->WaitThreadInitEnd();
+//   if (ret != 0) {
+//     LOG_ERROR("Create thread failed, error {}", ret);
+//     return INVALID_INSTANCE_ID;
+//   }
 
-  return inst_id;
-}
+//   return inst_id;
+// }
 
 int Pipeline::CreatePipelineThreadMgr(PipelineThread* th_inst,
                                       const std::string& inst_name,
@@ -183,10 +183,13 @@ void Pipeline::Wait(AclLiteMsgProcess msg_process, void* param) {
   thread_list_[g_main_thread_id]->SetStatus(THREAD_EXITED);
 }
 
-void Pipeline::Exit() { ReleaseThreads(); }
+void Pipeline::Exit() { 
+  ReleaseThreads(); 
+}
 
 void Pipeline::ReleaseThreads() {
   if (is_released_) return;
+  LOG_INFO("ReleaseThreads 11");
   thread_list_[g_main_thread_id]->SetStatus(THREAD_EXITED);
 
   for (uint32_t i = 1; i < thread_list_.size(); i++) {
@@ -202,9 +205,10 @@ void Pipeline::ReleaseThreads() {
     for (uint32_t i = 0; i < thread_list_.size(); i++) {
       if (thread_list_[i] == nullptr) continue;
       if (thread_list_[i]->GetStatus() > THREAD_EXITING) {
+        LOG_INFO("App thread {} {} released 1", i,thread_list_[i]->GetThreadName());
         delete thread_list_[i];
         thread_list_[i] = nullptr;
-        LOG_INFO("AclLite thread {} released", i);
+        LOG_INFO("App thread {} released 2", i);
       } else {
         thread_list_[i]->SetStatus(THREAD_EXITING);
         exit_finish = false;
@@ -217,6 +221,7 @@ void Pipeline::ReleaseThreads() {
     retry--;
   }
   is_released_ = true;
+  LOG_INFO("ReleaseThreads done");
 }
 
 Pipeline& CreatePipelineInstance() { return Pipeline::GetInstance(); }

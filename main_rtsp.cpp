@@ -34,10 +34,12 @@ int MainThreadProcess(uint32_t msg_id,
 void ExitPipeline(Pipeline &app,
                   std::vector<PipelineThreadParam> &thread_tbl)
 {
+  LOG_INFO("ExitPipeline {}", thread_tbl.size());
   for (size_t i = 0; i < thread_tbl.size(); i++)
   {
+    LOG_INFO("ExitPipeline delete thread_inst {} {}", i,thread_tbl[i].thread_inst->SelfInstanceName());
     delete thread_tbl[i].thread_inst;
-    LOG_INFO("delete thread_inst %d", i);
+    LOG_INFO("ExitPipeline delete thread_inst {}", i);
   }
 
   app.Exit();
@@ -68,7 +70,7 @@ int main(int argc, char const *argv[])
     return -1;
   }
 
-  std::string rtsp = "rtsp://123:123@22.10.54.60:8555/live21";
+  std::string rtsp = "rtsp://123:123@22.10.57.33:8554/live10";
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
@@ -131,6 +133,7 @@ int main(int argc, char const *argv[])
 
   LOG_INFO("Wait Exit App");
   app.Wait(MainThreadProcess, nullptr);
+  LOG_INFO("Wait Exit App Done!!");
   ExitPipeline(app, thread_tbl);
 
   LOG_INFO("Exit App");

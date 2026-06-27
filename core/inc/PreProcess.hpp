@@ -23,6 +23,13 @@ class PreProcess : public PipelineThread {
   }
 
   ~PreProcess() {
+    LOG_INFO("~PreProcess");
+    
+    m_p_ff_decoder->StopDecode();
+    m_p_vdec->StopDecode();
+
+    pthread_join(m_t_ffmpeg_thread,nullptr);
+
     delete m_p_vdec;
     delete m_p_ivps;
   }
@@ -77,7 +84,7 @@ class PreProcess : public PipelineThread {
     ImageData dest;
     ImageData src = *img_data.get();
     static uint64 index = 0;
-    if(index >= 2000) {
+    if(index >= 250 * 6) {
       SendMessage(g_main_thread_id,kMsgAppExit, nullptr);
     } 
     index++;
@@ -103,13 +110,15 @@ class PreProcess : public PipelineThread {
         ret = Start();
         break;
       case kMsgVdecData: {
+
         auto in_data = std::static_pointer_cast<ImageData>(msg_data);
         ret = Proprocess(in_data);
+        
         break;
       }
       case kMsgAppExit:
-        m_p_ff_decoder->StopDecode();
-        m_p_vdec->StopDecode();
+        // m_p_ff_decoder->StopDecode();
+        // m_p_vdec->StopDecode();
         break;
       default:
         break;

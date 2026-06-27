@@ -21,6 +21,9 @@ class EncProcess : public PipelineThread {
   }
 
   ~EncProcess() {
+    m_p_venc->StopEncode();
+    m_p_ff_encoder->Release();
+
     delete m_p_ff_encoder;
     delete m_p_venc;
   }
@@ -32,7 +35,7 @@ class EncProcess : public PipelineThread {
     self->m_p_ff_encoder->WritePacket(stream_data.stPack.pu8Addr,
                                       stream_data.stPack.u32Len);
     TIME_END(WritePacket);
-    TIME_USEC_SHOW(WritePacket);
+    // TIME_USEC_SHOW(WritePacket);
     return 0;
   }
 
@@ -65,7 +68,8 @@ class EncProcess : public PipelineThread {
         break;
       }
       case kMsgAppExit:
-        m_p_venc->StopEncode();
+        // m_p_venc->StopEncode();
+        // delete m_p_venc;
         break;
       default:
         break;

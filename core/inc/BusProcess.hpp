@@ -70,10 +70,10 @@ public:
       m_tracker_.update(det_frame_data);
 
       vector<TrackingBox> tracking_results = m_tracker_.getReport();
-      LOG_INFO("tracker out: {}", tracking_results.size());
+      // LOG_INFO("tracker out: {}", tracking_results.size());
 
       TIME_END(test_sort);
-      TIME_USEC_SHOW(test_sort);
+      // TIME_USEC_SHOW(test_sort);
 
       // Rule engine judgment — evaluate all objects against loaded rules
       std::vector<bool> rule_results;
@@ -90,7 +90,7 @@ public:
       }
       Unmap(in_data->image);
       TIME_END(test_draw);
-      TIME_USEC_SHOW(test_draw);
+      // TIME_USEC_SHOW(test_draw);
 
       auto out_data = std::make_shared<BusData>();
       out_data->image = in_data->image;
@@ -98,7 +98,7 @@ public:
       break;
     }
     case kMsgAppExit:
-      RuleEngine::instance().unload();
+      // RuleEngine::instance().unload();
       break;
     default:
       break;

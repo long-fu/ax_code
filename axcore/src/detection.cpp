@@ -677,6 +677,7 @@ namespace detection
             {
                 for (int a = 0; a <= anchor_num - 1; a++)
                 {
+                    assert(feature_ptr);
                     if (feature_ptr[4] < prob_threshold_unsigmoid)
                     {
                         feature_ptr += (cls_num + 5);

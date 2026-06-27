@@ -119,7 +119,7 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 		}
 		else
 		{
-			LOG_ERROR("AX_VENC_GetStream failed!!! ret {:#X} {}", ret, AX_VencRetStr(ret));
+			// LOG_ERROR("AX_VENC_GetStream failed!!! ret {:#X} {}", ret, AX_VencRetStr(ret));
 		}
 	}
 	LOG_INFO("AX_VENC_GetStream Exit Success");
@@ -280,7 +280,7 @@ int VencHelper::StopEncode()
 	{
 		// LOG_ERROR("chn-%d: AX_VENC_StopRecvFrame failed with%#x! \n", chn_, s32Ret);
 		LOG_ERROR("AX_VENC_StopRecvFrame FAILED! VeChn:{},code:{:#x},msg:{}", chn_, s32Ret, AX_VencRetStr(s32Ret));
-		return s32Ret;
+		// return s32Ret;
 	}
 
 	void *res = nullptr;

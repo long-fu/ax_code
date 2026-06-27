@@ -38,9 +38,9 @@ class Pipeline {
 
  private:
   int Init();
-  int CreatePipelineThread(PipelineThread* th_inst,
-                           const std::string& inst_name,
-                           uint32_t msg_queue_size);
+  // int CreatePipelineThread(PipelineThread* th_inst,
+  //                          const std::string& inst_name,
+  //                          uint32_t msg_queue_size);
   int CreatePipelineThreadMgr(PipelineThread* th_inst,
                               const std::string& inst_name,
                               uint32_t msg_queue_size);
