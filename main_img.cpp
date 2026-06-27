@@ -75,7 +75,7 @@ int main(int argc, char const *argv[])
     return ret;
   }
 
-  std::string root = "/home/workspace/AF_fire_1";
+  std::string root = "/home/workspace/AF_fire";
   auto filenames = getAllFilesInDirectory(root);
   // list.clear();
   // std::string filenames;
@@ -92,7 +92,7 @@ int main(int argc, char const *argv[])
 
     JpegDecode(img, file);
 
-    size_t data_size = 640 * 640 * 3 / 2;
+    // size_t data_size = 640 * 640 * 3 / 2;
     ImageData resizeInfo;
     std::vector<uint8_t> data;
     int ret = m_Ivps.Process(resizeInfo, img);
@@ -106,7 +106,7 @@ int main(int argc, char const *argv[])
     {
       auto item = objects[i];
       LOG_INFO("box: {} {} {} {} {} {}", item.label, item.prob, item.rect.x, item.rect.y, item.rect.width, item.rect.height);
-      if (item.label == 0 || item.label == 3)
+      if (item.label == 0)
       {
         fire_count++;
         break;

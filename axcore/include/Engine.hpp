@@ -13,7 +13,7 @@ struct EngineConfig {
   std::string model_type = "yolov5";
   std::vector<int> inputs = {1, 3, 640, 640};
 
-  float prob_threshold = 0.65;
+  float prob_threshold = 0.20;
   float nms_threshold = 0.45;
 
   std::vector<int> num_anchors = {3, 3, 3};

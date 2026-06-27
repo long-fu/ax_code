@@ -10,12 +10,12 @@
 #include "Logger.h"
 #include "PipelineResource.h"
 
-// static std::atomic<bool> g_running{true};
-// static void SignalHandler(int sig)
-// {
-//     // NLOG_WARN("signal {} received, shutting down...", sig);
-//     g_running = false;
-// }
+static std::atomic<bool> g_running{true};
+static void SignalHandler(int sig)
+{
+    // NLOG_WARN("signal {} received, shutting down...", sig);
+    g_running = false;
+}
 
 int MainThreadProcess(uint32_t msg_id,
                       std::shared_ptr<void> msg_data, void *user_data)
@@ -52,8 +52,8 @@ int main(int argc, char const *argv[])
 
   LOG_INIT("logs/app.log", spdlog::level::debug);
     // ── 信号处理（logger 初始化后注册）──────────────────────────────────────
-  // std::signal(SIGINT, SignalHandler);
-  // std::signal(SIGTERM, SignalHandler);
+  std::signal(SIGINT, SignalHandler);
+  std::signal(SIGTERM, SignalHandler);
 
   PipelineResource aclDev = PipelineResource();
   int ret = aclDev.Init();
@@ -61,6 +61,10 @@ int main(int argc, char const *argv[])
   {
     // ACLLITE_LOG_ERROR("Init app failed");
     // LOG(ERROR) << "Init app failed";
+    LOG_ERROR("Init app failed");
+    LOG_INFO("Exit App");
+    LOG_FLUSH();
+    LOG_SHUTDOWN();      
     return -1;
   }
 
@@ -68,7 +72,10 @@ int main(int argc, char const *argv[])
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
-    // LOG_ERROR("FFmpeg Decoder init error");
+    LOG_ERROR("FFmpeg Decoder init error");
+    LOG_INFO("Exit App");
+    LOG_FLUSH();
+    LOG_SHUTDOWN();    
     return -1;
   }
 
@@ -124,8 +131,8 @@ int main(int argc, char const *argv[])
 
   LOG_INFO("Wait Exit App");
   app.Wait(MainThreadProcess, nullptr);
-
   ExitPipeline(app, thread_tbl);
+
   LOG_INFO("Exit App");
   LOG_FLUSH();
   LOG_SHUTDOWN();
