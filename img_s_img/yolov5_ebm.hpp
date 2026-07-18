@@ -1,9 +1,9 @@
 
 #include <cstring>
-#include "Engine.hpp"
-#include "IvpsHelper.hpp"
-#include "ImageData.hpp"
-#include "Logger.h"
+#include "engine.hpp"
+#include "ivps_helper.hpp"
+#include "image_data.hpp"
+#include "logger.h"
 
 
 void SaveBinFile(const std::string &filename, const void *data, uint32_t size)

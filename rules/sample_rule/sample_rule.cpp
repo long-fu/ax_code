@@ -1,6 +1,6 @@
 // rules/sample_rule/sample_rule.cpp
-#include "BoxRule.hpp"
-#include "Logger.h"
+#include "box_rule.hpp"
+#include "logger.h"
 #include <cmath>
 #include <utility>
 #include <stdexcept>

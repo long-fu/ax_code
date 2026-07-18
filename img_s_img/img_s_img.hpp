@@ -17,7 +17,7 @@
 #include <uuid/uuid.h>
 #include "qdrant_client.hpp"
 #include "yolov5_ebm.hpp"
-#include "Logger.h"
+#include "logger.h"
 #include <iostream>
 #include <string>
 #include <vector>

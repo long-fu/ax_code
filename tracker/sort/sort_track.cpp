@@ -1,5 +1,5 @@
 #include "sort_track.h"
-#include "Logger.h"
+#include "logger.h"
 
 double SortTracker::GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
 {

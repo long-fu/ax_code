@@ -1,6 +1,6 @@
 
 #include "io.hpp"
-#include "Logger.h"
+#include "logger.h"
 
 
 const char* AX_CMM_SESSION_NAME = "npu";

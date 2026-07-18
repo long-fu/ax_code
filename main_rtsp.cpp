@@ -1,14 +1,14 @@
 
 #include <memory>
 
-#include "Pipeline.h"
-#include "PreProcess.hpp"
-#include "InfProccess.hpp"
-#include "BusProcess.hpp"
-#include "EncProcess.hpp"
-#include "ProcessMsg.h"
-#include "Logger.h"
-#include "PipelineResource.h"
+#include "pipeline.h"
+#include "pre_process.hpp"
+#include "inf_process.hpp"
+#include "bus_process.hpp"
+#include "enc_process.hpp"
+#include "process_msg.h"
+#include "logger.h"
+#include "pipeline_resource.h"
 
 static std::atomic<bool> g_running{true};
 static void SignalHandler(int sig)

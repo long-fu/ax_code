@@ -2,8 +2,8 @@
 #define __TRACK_H__
 
 #include <set>
-#include "Hungarian.h"
-#include "KalmanTracker.h"
+#include "hungarian.h"
+#include "kalman_tracker.h"
 #include "datatrans.h"
 
 #include "opencv2/video/tracking.hpp"

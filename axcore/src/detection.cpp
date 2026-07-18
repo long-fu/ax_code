@@ -1,7 +1,7 @@
 
 #include "detection.hpp"
 #include <opencv2/opencv.hpp>
-#include "Logger.h"
+#include "logger.h"
 
 namespace detection
 {
