@@ -12,8 +12,8 @@ STrack::STrack( std::vector<float> tlwh_, float score)
 	tlwh.resize(4);
 	tlbr.resize(4);
 
-	static_tlwh();
-	static_tlbr();
+	StaticTlwh();
+	StaticTlbr();
 	frame_id = 0;
 	tracklet_len = 0;
 	this->score = score;
@@ -27,25 +27,25 @@ STrack::~STrack()
 void STrack::Activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id)
 {
 	this->kalman_filter = kalman_filter;
-	this->track_id = this->next_id();
+	this->track_id = this->NextId();
 
-	 std::vector<float> _tlwh_tmp(4);
-	_tlwh_tmp[0] = this->tlwh_internal_[0];
-	_tlwh_tmp[1] = this->tlwh_internal_[1];
-	_tlwh_tmp[2] = this->tlwh_internal_[2];
-	_tlwh_tmp[3] = this->tlwh_internal_[3];
-	 std::vector<float> xyah = tlwh_to_xyah(_tlwh_tmp);
+	 std::vector<float> tlwh_tmp(4);
+	tlwh_tmp[0] = this->tlwh_internal_[0];
+	tlwh_tmp[1] = this->tlwh_internal_[1];
+	tlwh_tmp[2] = this->tlwh_internal_[2];
+	tlwh_tmp[3] = this->tlwh_internal_[3];
+	 std::vector<float> xyah = TlwhToXyah(tlwh_tmp);
 	DETECTBOX xyah_box;
 	xyah_box[0] = xyah[0];
 	xyah_box[1] = xyah[1];
 	xyah_box[2] = xyah[2];
 	xyah_box[3] = xyah[3];
-	auto mc = this->kalman_filter.initiate(xyah_box);
+	auto mc = this->kalman_filter.Initiate(xyah_box);
 	this->mean = mc.first;
 	this->covariance = mc.second;
 
-	static_tlwh();
-	static_tlbr();
+	StaticTlwh();
+	StaticTlbr();
 
 	this->tracklet_len = 0;
 	this->state = TrackState::Tracked;
@@ -60,7 +60,7 @@ void STrack::Activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id
 
 void STrack::ReActivate(STrack &new_track, int frame_id, bool new_id)
 {
-	 std::vector<float> xyah = tlwh_to_xyah(new_track.tlwh);
+	 std::vector<float> xyah = TlwhToXyah(new_track.tlwh);
 	DETECTBOX xyah_box;
 	xyah_box[0] = xyah[0];
 	xyah_box[1] = xyah[1];
@@ -70,8 +70,8 @@ void STrack::ReActivate(STrack &new_track, int frame_id, bool new_id)
 	this->mean = mc.first;
 	this->covariance = mc.second;
 
-	static_tlwh();
-	static_tlbr();
+	StaticTlwh();
+	StaticTlbr();
 
 	this->tracklet_len = 0;
 	this->state = TrackState::Tracked;
@@ -79,7 +79,7 @@ void STrack::ReActivate(STrack &new_track, int frame_id, bool new_id)
 	this->frame_id = frame_id;
 	this->score = new_track.score;
 	if (new_id)
-		this->track_id = next_id();
+		this->track_id = NextId();
 }
 
 void STrack::Update(STrack &new_track, int frame_id)
@@ -87,7 +87,7 @@ void STrack::Update(STrack &new_track, int frame_id)
 	this->frame_id = frame_id;
 	this->tracklet_len++;
 
-	 std::vector<float> xyah = tlwh_to_xyah(new_track.tlwh);
+	 std::vector<float> xyah = TlwhToXyah(new_track.tlwh);
 	DETECTBOX xyah_box;
 	xyah_box[0] = xyah[0];
 	xyah_box[1] = xyah[1];
@@ -98,8 +98,8 @@ void STrack::Update(STrack &new_track, int frame_id)
 	this->mean = mc.first;
 	this->covariance = mc.second;
 
-	static_tlwh();
-	static_tlbr();
+	StaticTlwh();
+	StaticTlbr();
 
 	this->state = TrackState::Tracked;
 	this->is_activated = true;
@@ -147,7 +147,7 @@ void STrack::StaticTlbr()
 
  std::vector<float> STrack::ToXyah()
 {
-	return tlwh_to_xyah(tlwh);
+	return TlwhToXyah(tlwh);
 }
 
  std::vector<float> STrack::TlbrToTlwh( std::vector<float> &tlbr)

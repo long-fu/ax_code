@@ -74,7 +74,7 @@ BYTETracker::~BYTETracker()
 
 	////////////////// Step 2: First association, with IoU //////////////////
 	strack_pool = JointStracks(tracked_stracks, this->lost_stracks);
-	STrack::multi_predict(strack_pool, this->kalman_filter);
+	STrack::MultiPredict(strack_pool, this->kalman_filter);
 
 	 std::vector< std::vector<float> > dists;
 	int dist_size = 0, dist_size_size = 0;
@@ -171,7 +171,7 @@ BYTETracker::~BYTETracker()
 	for (int i = 0; i < u_unconfirmed.size(); i++)
 	{
 		STrack *track = unconfirmed[u_unconfirmed[i]];
-		track->mark_removed();
+		track->MarkRemoved();
 		removed_stracks.push_back(*track);
 	}
 
@@ -188,9 +188,9 @@ BYTETracker::~BYTETracker()
 	////////////////// Step 5: Update state //////////////////
 	for (int i = 0; i < this->lost_stracks.size(); i++)
 	{
-		if (this->frame_id - this->lost_stracks[i].end_frame() > this->max_time_lost)
+		if (this->frame_id - this->lost_stracks[i].EndFrame() > this->max_time_lost)
 		{
-			this->lost_stracks[i].mark_removed();
+			this->lost_stracks[i].MarkRemoved();
 			removed_stracks.push_back(this->lost_stracks[i]);
 		}
 	}

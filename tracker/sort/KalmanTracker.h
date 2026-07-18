@@ -36,7 +36,7 @@ public:
 
 	~KalmanTracker()
 	{
-		m_history.clear();
+		history_.clear();
 	}
 
 	StateType Predict();
@@ -68,7 +68,7 @@ private:
 	cv::KalmanFilter kf;
 	cv::Mat measurement;  // 观测值
 
-	std::vector<StateType> m_history;  // 保存单个目标框连续预测的多个结果到history列表中，一旦执行update就会清空
+	std::vector<StateType> history_;  // 保存单个目标框连续预测的多个结果到history列表中，一旦执行update就会清空
 };
 
 #endif

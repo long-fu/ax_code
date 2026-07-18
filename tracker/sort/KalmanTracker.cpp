@@ -52,8 +52,8 @@ StateType KalmanTracker::Predict()
 
 	latest_rect = predictBox;  // 使用最近一次预测值更新latestRect变量
 
-	m_history.push_back(predictBox);
-	return m_history.back();  // 返回对vector最后一个元素的引用
+	history_.push_back(predictBox);
+	return history_.back();  // 返回对vector最后一个元素的引用
 }
 
 // Update the state vector with observed bounding box.
@@ -62,7 +62,7 @@ void KalmanTracker::Update(TrackingBox track_box)
 	latest_rect = track_box.box;  // 使用最近一次观测值更新latestRect变量
 
 	time_since_update = 0;  // 每次观察到目标就重置为0
-	m_history.clear();
+	history_.clear();
 	observed_num += 1;
 	hit_streak += 1;
 

@@ -182,19 +182,19 @@ private:
     // 资源ID
     int channel_id_;
 
-    Config m_Config = {};
-    Yolov5Embedding m_Embedding;
-    QdrantClient m_Client;
+    Config config_ = {};
+    Yolov5Embedding embedding_;
+    QdrantClient client_;
 
 public:
-    ImgSImg(int channelId, Config config) : m_Config(config),
-                                            m_Embedding(config.model_path, channelId),
-                                            m_Client(config.qdrant_host) {};
+    ImgSImg(int channelId, Config config) : config_(config),
+                                            embedding_(config.model_path, channelId),
+                                            client_(config.qdrant_host) {};
     ~ImgSImg() {};
     int Init()
     {
         int ret;
-        ret = m_Embedding.Init();
+        ret = embedding_.Init();
 
         // m_ImgPath = "" +
         // m_ImgPath = format("%s/%s/%s",m_RootPath,)
@@ -202,7 +202,7 @@ public:
         // 创建集合
         try
         {
-           m_Client.delete_collection(m_Config.scene_id);
+           client_.delete_collection(config_.scene_id);
         }
         catch(const std::exception& e)
         {
@@ -210,16 +210,16 @@ public:
         }
         
         
-        for (size_t i = 0; i < m_Config.events_id.size(); i++)
+        for (size_t i = 0; i < config_.events_id.size(); i++)
         {
             // TODO: 可以按照配置读取
             try
             {
                 VectorParams params;
                 params.size = 400;
-                params.vector_name = m_Config.events_id[i];
+                params.vector_name = config_.events_id[i];
                 params.distance = "Cosine";
-                m_Client.create_collection(m_Config.scene_id, params);
+                client_.create_collection(config_.scene_id, params);
             }
             catch(const std::exception& e)
             {
@@ -250,7 +250,7 @@ public:
         TIME_START(Embedding);
 
         // 12 ms
-        int ret = m_Embedding.Embedding(img, vec);
+        int ret = embedding_.Embedding(img, vec);
         TIME_END(Embedding);
         TIME_MSEC_SHOW(Embedding);
 
@@ -269,7 +269,7 @@ public:
 
             float score = 0;
             std::string event_id = events[i];
-            auto results = m_Client.query_points(m_Config.scene_id, vec, 1, event_id,0);
+            auto results = client_.query_points(config_.scene_id, vec, 1, event_id,0);
             
             if (results.size() > 0)
             {
@@ -277,8 +277,8 @@ public:
             }
             
             LOG_INFO("query size: {} score:{}", results.size(), score);
-            m_Config.score_threshold = 0.94;
-            if (score >= m_Config.score_threshold)
+            config_.score_threshold = 0.94;
+            if (score >= config_.score_threshold)
             {
                 LOG_INFO("找到相似图片:{}\n{}\n{}",score,imgPath, results[0].payload["path"].get<std::string>());
                 std::remove(imgPath.c_str());
@@ -292,13 +292,13 @@ public:
                 payload["create_time"] = json(123);
                 payload["path"] = imgPath;
                 payload["alarm_time"] = alarmTime;
-                payload["channel_id"] = m_Config.channel_id;
-                payload["scene_id"] = m_Config.scene_id;
+                payload["channel_id"] = config_.channel_id;
+                payload["scene_id"] = config_.scene_id;
                 payload["event_id"] = event_id;
-                payload["device_ip"] = m_Config.device_ip;
-                payload["place_id"] = m_Config.place_id;
-                payload["cameraIP_ip"] = m_Config.camera_ip;
-                payload["org_name"] = m_Config.org_name;
+                payload["device_ip"] = config_.device_ip;
+                payload["place_id"] = config_.place_id;
+                payload["cameraIP_ip"] = config_.camera_ip;
+                payload["org_name"] = config_.org_name;
 
                 std::vector<PointStruct> points = {
                     {json(uuid),
@@ -306,7 +306,7 @@ public:
                      payload,
                      event_id}};
 
-                m_Client.upsert_points(m_Config.scene_id, points);
+                client_.upsert_points(config_.scene_id, points);
             }
         }
         TIME_END(Search);

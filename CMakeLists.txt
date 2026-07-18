@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.10.0)
 project(ax_core VERSION 0.1.0 LANGUAGES C CXX)
 
 
-set(CMAKE_C_COMPILER "aarch64-linux-gnu-gcc-9")
-set(CMAKE_CXX_COMPILER "aarch64-linux-gnu-g++-9")
+# set(CMAKE_C_COMPILER "aarch64-linux-gnu-gcc-9")
+# set(CMAKE_CXX_COMPILER "aarch64-linux-gnu-g++-9")
 
 # set(CMAKE_C_COMPILER clang-15)
 # set(CMAKE_CXX_COMPILER clang-15)

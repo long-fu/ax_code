@@ -23,10 +23,10 @@ void SaveBinFile(const std::string &filename, const void *data, uint32_t size)
 class Yolov5Embedding : public Engine
 {
 private:
-    IvpsHelper m_Ivps;
+    IvpsHelper ivps_;
 
 public:
-    Yolov5Embedding(std::string modelPath, int channelId) : Engine(modelPath), m_Ivps(channelId, 640 * 640 * 3, 16) {};
+    Yolov5Embedding(std::string modelPath, int channelId) : Engine(modelPath), ivps_(channelId, 640 * 640 * 3, 16) {};
 
     int Init() override
     {
@@ -36,7 +36,7 @@ public:
         {
             return ret;
         }
-        ret = m_Ivps.Resize(AX_IVPS_ASPECT_RATIO_AUTO, 640, 640);
+        ret = ivps_.Resize(AX_IVPS_ASPECT_RATIO_AUTO, 640, 640);
         if (ret != 0)
         {
             return ret;
@@ -61,7 +61,7 @@ public:
         size_t data_size = 640 * 640 * 3 / 2;
         ImageData resizeInfo;
         std::vector<uint8_t> data;
-        int ret = m_Ivps.Process(resizeInfo, img);
+        int ret = ivps_.Process(resizeInfo, img);
         Copy2Host(data, resizeInfo);
         // std::vector<uint8_t> jpeg;
         // JpegEncode(jpeg, resizeInfo);
