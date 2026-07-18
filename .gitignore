@@ -4,3 +4,4 @@ build/
 *.axmodel
 resource/
 logs/
+.claude

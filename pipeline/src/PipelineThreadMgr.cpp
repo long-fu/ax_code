@@ -74,7 +74,7 @@ int PipelineThreadMgr::WaitThreadInitEnd() {
     } else if (status_ > THREAD_RUNNING) {
       std::string& inst_name = user_instance_->SelfInstanceName();
       LOG_ERROR("Thread instance {} status change to {}, app start failed",
-                inst_name, status_);
+                inst_name, static_cast<int>(status_));
       return -1;
     } else {
       usleep(kWaitThreadStart);
@@ -87,7 +87,7 @@ int PipelineThreadMgr::PushMsgToQueue(
     std::shared_ptr<PipelineMessage>& message) {
   if (status_ != THREAD_RUNNING) {
     LOG_ERROR("Thread instance {} status({}) is invalid, can not receive message",
-              name_, status_);
+              name_, static_cast<int>(status_));
     return -1;
   }
   bool pushed = msg_queue_.Push(message);
