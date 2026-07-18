@@ -11,27 +11,27 @@ public:
 	STrack( std::vector<float> tlwh_, float score);
 	~STrack();
 
-	 std::vector<float> static tlbr_to_tlwh( std::vector<float> &tlbr);
-	void static multi_predict( std::vector<STrack*> &stracks, byte_kalman::ByteKalmanFilter &kalman_filter);
-	void static_tlwh();
-	void static_tlbr();
-	 std::vector<float> tlwh_to_xyah( std::vector<float> tlwh_tmp);
-	 std::vector<float> to_xyah();
-	void mark_lost();
-	void mark_removed();
-	int next_id();
-	int end_frame();
+	 std::vector<float> static TlbrToTlwh( std::vector<float> &tlbr);
+	void static MultiPredict( std::vector<STrack*> &stracks, byte_kalman::ByteKalmanFilter &kalman_filter);
+	void StaticTlwh();
+	void StaticTlbr();
+	 std::vector<float> TlwhToXyah( std::vector<float> tlwh_tmp);
+	 std::vector<float> ToXyah();
+	void MarkLost();
+	void MarkRemoved();
+	int NextId();
+	int EndFrame();
 	
-	void activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id);
-	void re_activate(STrack &new_track, int frame_id, bool new_id = false);
-	void update(STrack &new_track, int frame_id);
+	void Activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id);
+	void ReActivate(STrack &new_track, int frame_id, bool new_id = false);
+	void Update(STrack &new_track, int frame_id);
 
 public:
 	bool is_activated;
 	int track_id;
 	int state;
 
-	 std::vector<float> _tlwh;
+	 std::vector<float> tlwh_internal_;
 	 std::vector<float> tlwh;
 	 std::vector<float> tlbr;
 	int frame_id;

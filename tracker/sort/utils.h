@@ -8,15 +8,15 @@
 using namespace std;
 
 // 获取目录中所有文件的文件路径，可以指定文件类型
-void getFilePaths(string &folder, vector<cv::String> &filepaths, string postfix, bool sort_=true);
+void GetFilePaths(string &folder, vector<cv::String> &filepaths, string postfix, bool sort_=true);
 // 从行人真值TXT文件中读取检测结果，返回以frame_id为key的字典
-void getDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results);
+void GetDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results);
 // 字符串分割，返回vector，sep:分割符号。可应对如下情况："3,4,5" | "3,4,5," | ",3,4,5,"
-void splitString(string &str, vector<int> &out, char sep);
+void SplitString(string &str, vector<int> &out, char sep);
 
 // 可视化检测结果
-// void drawPic(cv::Mat &img, string &savepath, const std::vector<Bbox> &results);
+// void DrawPic(cv::Mat &img, string &savepath, const std::vector<Bbox> &results);
 // 可视化跟踪结果
-void drawPic(cv::Mat &img, string savepath, const std::vector<TrackingBox> &results, SORT_TRACKER &tracker);
-void drawPic(cv::Mat &img, const std::vector<TrackingBox> &results, SORT_TRACKER &tracker);
+void DrawPic(cv::Mat &img, string savepath, const std::vector<TrackingBox> &results, SortTracker &tracker);
+void DrawPic(cv::Mat &img, const std::vector<TrackingBox> &results, SortTracker &tracker);
 #endif

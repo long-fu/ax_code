@@ -50,7 +50,7 @@ double HungarianAlgorithm::Solve(vector<vector<double>> &DistMatrix, vector<int>
 			distMatrixIn[i + nRows * j] = DistMatrix[i][j];
 
 	// call solving function
-	assignmentoptimal(assignment, &cost, distMatrixIn, nRows, nCols);
+	AssignmentOptimal(assignment, &cost, distMatrixIn, nRows, nCols);
 
 	Assignment.clear();
 	for (unsigned int r = 0; r < nRows; r++)
@@ -64,7 +64,7 @@ double HungarianAlgorithm::Solve(vector<vector<double>> &DistMatrix, vector<int>
 //********************************************************//
 // Solve optimal solution for assignment problem using Munkres algorithm, also known as Hungarian Algorithm.
 //********************************************************//
-void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double *distMatrixIn, int nOfRows, int nOfColumns)
+void HungarianAlgorithm::AssignmentOptimal(int *assignment, double *cost, double *distMatrixIn, int nOfRows, int nOfColumns)
 {
 	double *distMatrix, *distMatrixTemp, *distMatrixEnd, *columnEnd, value, minValue;
 	bool *coveredColumns, *coveredRows, *starMatrix, *newStarMatrix, *primeMatrix;
@@ -178,7 +178,7 @@ void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double
 	step2b(assignment, distMatrix, starMatrix, newStarMatrix, primeMatrix, coveredColumns, coveredRows, nOfRows, nOfColumns, minDim);
 
 	/* compute cost and remove invalid assignments */
-	computeassignmentcost(assignment, cost, distMatrixIn, nOfRows);
+	ComputeAssignmentCost(assignment, cost, distMatrixIn, nOfRows);
 
 	/* free allocated memory */
 	free(distMatrix);
@@ -192,7 +192,7 @@ void HungarianAlgorithm::assignmentoptimal(int *assignment, double *cost, double
 }
 
 /********************************************************/
-void HungarianAlgorithm::buildassignmentvector(int *assignment, bool *starMatrix, int nOfRows, int nOfColumns)
+void HungarianAlgorithm::BuildAssignmentVector(int *assignment, bool *starMatrix, int nOfRows, int nOfColumns)
 {
 	int row, col;
 
@@ -210,7 +210,7 @@ void HungarianAlgorithm::buildassignmentvector(int *assignment, bool *starMatrix
 }
 
 /********************************************************/
-void HungarianAlgorithm::computeassignmentcost(int *assignment, double *cost, double *distMatrix, int nOfRows)
+void HungarianAlgorithm::ComputeAssignmentCost(int *assignment, double *cost, double *distMatrix, int nOfRows)
 {
 	int row, col;
 
@@ -261,7 +261,7 @@ void HungarianAlgorithm::step2b(int *assignment, double *distMatrix, bool *starM
 	if (nOfCoveredColumns == minDim)
 	{
 		/* algorithm finished */
-		buildassignmentvector(assignment, starMatrix, nOfRows, nOfColumns);
+		BuildAssignmentVector(assignment, starMatrix, nOfRows, nOfColumns);
 	}
 	else
 	{

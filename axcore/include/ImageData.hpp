@@ -10,13 +10,13 @@
 #include <opencv2/opencv.hpp>
 
 struct ImageData {
-  AX_U32 u32Width;
-  AX_U32 u32Height;
-  AX_IMG_FORMAT_E enImgFormat;
-  AX_BOOL bEndOfStream;
+  AX_U32 width;
+  AX_U32 height;
+  AX_IMG_FORMAT_E img_format;
+  AX_BOOL end_of_stream;
   std::shared_ptr<FrameData> data;
 
-  std::chrono::steady_clock::time_point timePoint;
+  std::chrono::steady_clock::time_point time_point;
 };
 
 int Clone(ImageData& dest, const ImageData& src);

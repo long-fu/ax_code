@@ -290,10 +290,10 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 
 			ImageData image;
 			image.data = FrameData::Create(frameInfo, VdGrp, VdChn, MEM_ID_VDEC);
-			image.bEndOfStream = frameInfo->bEndOfStream;
-			image.enImgFormat = frameInfo->stVFrame.enImgFormat;
-			image.u32Width = frameInfo->stVFrame.u32Width;
-			image.u32Height = frameInfo->stVFrame.u32Height;
+			image.end_of_stream = frameInfo->bEndOfStream;
+			image.img_format = frameInfo->stVFrame.enImgFormat;
+			image.width = frameInfo->stVFrame.u32Width;
+			image.height = frameInfo->stVFrame.u32Height;
 
 			self->callback_(image, VdGrp, VdChn, self->user_data_);
 

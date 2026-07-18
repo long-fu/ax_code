@@ -12,19 +12,19 @@ typedef unsigned char uchar;
 
 namespace utilities
 {
-    bool file_exist(const std::string& path);
+    bool FileExist(const std::string& path);
     
 
-    bool read_file(const std::string& path, std::vector<char>& data);
+    bool ReadFile(const std::string& path, std::vector<char>& data);
     
 
-    bool dump_file(const std::string& path, std::vector<uint8_t> data);
+    bool DumpFile(const std::string& path, std::vector<uint8_t> data);
     
 
-    bool dump_file(const std::string& path, char* data, int size);
+    bool DumpFile(const std::string& path, char* data, int size);
     
 
-    bool read_file(const char* fn, std::vector<uchar>& data);
+    bool ReadFile(const char* fn, std::vector<uchar>& data);
 
 } // namespace utilities
 

@@ -17,7 +17,7 @@ public:
     // Process detection boxes, return judgment results
     // results: output for each object, index corresponds to objects
     virtual int Process(
-        const std::vector<Object_>& objects,
+        const std::vector<DetectionObject>& objects,
         std::vector<bool>& results) = 0;
 
     // Destroy resources
@@ -31,10 +31,10 @@ using RuleDestroyFunc = void (*)(BoxRule*);
 // Factory registry: auto-registers plugin types
 class RuleFactory {
 public:
-    static RuleFactory& instance();
+    static RuleFactory& Instance();
 
-    void registerRule(const std::string& name, RuleCreateFunc create);
-    BoxRule* createRule(const std::string& name) const;
+    void RegisterRule(const std::string& name, RuleCreateFunc create);
+    BoxRule* CreateRule(const std::string& name) const;
 
 private:
     mutable std::mutex mutex_;
@@ -45,7 +45,7 @@ private:
     extern "C" BoxRule* create_##Class() { return new Class(); } \
     struct RegisterHelper_##Class { \
         RegisterHelper_##Class() { \
-            RuleFactory::instance().registerRule(#Class, create_##Class); \
+            RuleFactory::Instance().RegisterRule(#Class, create_##Class); \
         } \
     }; \
     static RegisterHelper_##Class g_register_##Class;

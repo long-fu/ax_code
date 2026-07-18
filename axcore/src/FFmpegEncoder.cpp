@@ -8,9 +8,9 @@
 
 FFmpegEncoder::FFmpegEncoder(std::string stream_name, int frame_rate,
                              size_t pic_width, size_t pic_height, AVPixelFormat pix_fmt,
-                             size_t gop_size, std::string profile) : m_sPushName(stream_name), m_iFrameRate(frame_rate),
-                                                                     m_iPicWidth(pic_width), m_iPicHeight(pic_height), m_ePixFmt(pix_fmt),
-                                                                     m_iGopSize(gop_size), m_sProfile(profile)
+                             size_t gop_size, std::string profile) : push_name_(stream_name), frame_rate_(frame_rate),
+                                                                     pic_width_(pic_width), pic_height_(pic_height), pix_fmt_(pix_fmt),
+                                                                     gop_size_(gop_size), profile_(profile)
 {
 }
 
@@ -35,19 +35,19 @@ static std::string GuessFormatFromName(const std::string &name)
 
 int FFmpegEncoder::Init()
 {
-    std::string format = GuessFormatFromName(m_sPushName);
+    std::string format = GuessFormatFromName(push_name_);
 
-    const char *output = m_sPushName.c_str();
-    const char *profile = m_sProfile.c_str();
+    const char *output = push_name_.c_str();
+    const char *profile = profile_.c_str();
     AVRational av_framerate;
-    av_framerate.num = m_iFrameRate;
+    av_framerate.num = frame_rate_;
     av_framerate.den = 1;
 
     int ret = 0;
 
-    m_pEncoder_avfc = NULL;
+    encoder_avfc_ = NULL;
 
-    ret = avformat_alloc_output_context2(&m_pEncoder_avfc, NULL, format.empty() ? NULL : format.c_str(), output);
+    ret = avformat_alloc_output_context2(&encoder_avfc_, NULL, format.empty() ? NULL : format.c_str(), output);
 
     if (ret < 0)
     {
@@ -56,11 +56,11 @@ int FFmpegEncoder::Init()
     }
 
     // encoder_avfc->flags |= AVFMT_FLAG_NOBUFFER;
-    m_pEncoder_avfc->flags |= AVFMT_FLAG_FLUSH_PACKETS;
+    encoder_avfc_->flags |= AVFMT_FLAG_FLUSH_PACKETS;
 
-    if (!(m_pEncoder_avfc->oformat->flags & AVFMT_NOFILE))
+    if (!(encoder_avfc_->oformat->flags & AVFMT_NOFILE))
     {
-        ret = avio_open2(&m_pEncoder_avfc->pb, output, AVIO_FLAG_WRITE, NULL, NULL);
+        ret = avio_open2(&encoder_avfc_->pb, output, AVIO_FLAG_WRITE, NULL, NULL);
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -69,36 +69,36 @@ int FFmpegEncoder::Init()
         }
     }
 
-    m_pVideo_avc = avcodec_find_encoder(AV_CODEC_ID_H264);
+    video_avc_ = avcodec_find_encoder(AV_CODEC_ID_H264);
 
-    m_pEncoder_avfc->video_codec = (AVCodec *)m_pVideo_avc;
-    m_pEncoder_avfc->video_codec_id = AV_CODEC_ID_H264;
+    encoder_avfc_->video_codec = (AVCodec *)video_avc_;
+    encoder_avfc_->video_codec_id = AV_CODEC_ID_H264;
 
-    m_pVideo_avcc = avcodec_alloc_context3(m_pVideo_avc);
+    video_avcc_ = avcodec_alloc_context3(video_avc_);
 
-    m_pVideo_avcc->codec_tag = 0;
-    m_pVideo_avcc->codec_id = AV_CODEC_ID_H264;
-    m_pVideo_avcc->codec_type = AVMEDIA_TYPE_VIDEO;
-    m_pVideo_avcc->gop_size = m_iFrameRate / 2;
-    m_pVideo_avcc->height = m_iPicHeight;
-    m_pVideo_avcc->width = m_iPicWidth;
-    m_pVideo_avcc->pix_fmt = (AVPixelFormat)m_ePixFmt; // AV_PIX_FMT_NV12;// NV12 IS YUV420
+    video_avcc_->codec_tag = 0;
+    video_avcc_->codec_id = AV_CODEC_ID_H264;
+    video_avcc_->codec_type = AVMEDIA_TYPE_VIDEO;
+    video_avcc_->gop_size = frame_rate_ / 2;
+    video_avcc_->height = pic_height_;
+    video_avcc_->width = pic_width_;
+    video_avcc_->pix_fmt = (AVPixelFormat)pix_fmt_; // AV_PIX_FMT_NV12;// NV12 IS YUV420
     // control rate
-    m_pVideo_avcc->bit_rate = 0;
-    m_pVideo_avcc->rc_buffer_size = 0;
-    m_pVideo_avcc->rc_max_rate = 0;
-    m_pVideo_avcc->rc_min_rate = 0;
-    m_pVideo_avcc->time_base.num = av_framerate.den;
-    m_pVideo_avcc->time_base.den = av_framerate.num;
+    video_avcc_->bit_rate = 0;
+    video_avcc_->rc_buffer_size = 0;
+    video_avcc_->rc_max_rate = 0;
+    video_avcc_->rc_min_rate = 0;
+    video_avcc_->time_base.num = av_framerate.den;
+    video_avcc_->time_base.den = av_framerate.num;
 
-    if (m_pEncoder_avfc->oformat->flags & AVFMT_GLOBALHEADER)
+    if (encoder_avfc_->oformat->flags & AVFMT_GLOBALHEADER)
     {
-        m_pVideo_avcc->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
+        video_avcc_->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
     }
 
-    m_pAvs = avformat_new_stream(m_pEncoder_avfc, m_pVideo_avc);
+    avs_ = avformat_new_stream(encoder_avfc_, video_avc_);
 
-    ret = avcodec_parameters_from_context(m_pAvs->codecpar, m_pVideo_avcc);
+    ret = avcodec_parameters_from_context(avs_->codecpar, video_avcc_);
 
     if (ret < 0)
     {
@@ -113,7 +113,7 @@ int FFmpegEncoder::Init()
     av_dict_set(&codec_options, "preset", "superfast", 0);
     av_dict_set(&codec_options, "tune", "zerolatency", 0);
 
-    ret = avcodec_open2(m_pVideo_avcc, m_pVideo_avc, &codec_options);
+    ret = avcodec_open2(video_avcc_, video_avc_, &codec_options);
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -123,12 +123,12 @@ int FFmpegEncoder::Init()
         return ret;
     }
 
-    m_pAvs->codecpar->extradata = m_pVideo_avcc->extradata;
-    m_pAvs->codecpar->extradata_size = m_pVideo_avcc->extradata_size;
+    avs_->codecpar->extradata = video_avcc_->extradata;
+    avs_->codecpar->extradata_size = video_avcc_->extradata_size;
 
-    av_dump_format(m_pEncoder_avfc, 0, output, 1);
+    av_dump_format(encoder_avfc_, 0, output, 1);
 
-    ret = avformat_write_header(m_pEncoder_avfc, NULL);
+    ret = avformat_write_header(encoder_avfc_, NULL);
     if (ret < 0)
     {
         char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -138,15 +138,15 @@ int FFmpegEncoder::Init()
         return ret;
     }
 
-    m_pVideo_frame = av_frame_alloc();
+    video_frame_ = av_frame_alloc();
 
     // int frame_buf_size = av_image_get_buffer_size(
     //     video_avcc->pix_fmt, video_avcc->width, video_avcc->height, 1);
 
-    m_pVideo_frame->width = m_pVideo_avcc->width;
-    m_pVideo_frame->height = m_pVideo_avcc->height;
-    m_pVideo_frame->format = m_pVideo_avcc->pix_fmt;
-    m_pVideo_frame->pts = 1;
+    video_frame_->width = video_avcc_->width;
+    video_frame_->height = video_avcc_->height;
+    video_frame_->format = video_avcc_->pix_fmt;
+    video_frame_->pts = 1;
     // ACLLITE_LOG_INFO("FFmpeg encoder success");
     // valid = true;
     // std::ifstream test_f(name.c_str());
@@ -156,15 +156,15 @@ int FFmpegEncoder::Init()
 
 int FFmpegEncoder::Release()
 {
-    if (m_pEncoder_avfc != nullptr)
+    if (encoder_avfc_ != nullptr)
     {
-        av_write_trailer(m_pEncoder_avfc);
+        av_write_trailer(encoder_avfc_);
 
-        avformat_close_input(&m_pEncoder_avfc);
+        avformat_close_input(&encoder_avfc_);
 
-        av_frame_free(&m_pVideo_frame);
+        av_frame_free(&video_frame_);
 
-        m_pEncoder_avfc = nullptr;
+        encoder_avfc_ = nullptr;
     }
     
     return 0;
@@ -173,11 +173,11 @@ int FFmpegEncoder::Release()
 int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
 {
     int ret = 0;
-    av_image_fill_arrays(m_pVideo_frame->data, m_pVideo_frame->linesize, (const uint8_t *)data,
-                         m_pVideo_avcc->pix_fmt, m_pVideo_avcc->width,
-                         m_pVideo_avcc->height, 1);
+    av_image_fill_arrays(video_frame_->data, video_frame_->linesize, (const uint8_t *)data,
+                         video_avcc_->pix_fmt, video_avcc_->width,
+                         video_avcc_->height, 1);
 
-    ret = avcodec_send_frame(m_pVideo_avcc, m_pVideo_frame);
+    ret = avcodec_send_frame(video_avcc_, video_frame_);
 
     if (ret < 0)
     {
@@ -192,7 +192,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
     {
         AVPacket pkt = {0};
         av_init_packet(&pkt);
-        ret = avcodec_receive_packet(m_pVideo_avcc, &pkt);
+        ret = avcodec_receive_packet(video_avcc_, &pkt);
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -202,7 +202,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
             av_packet_unref(&pkt);
             return -1;
         }
-        ret = av_interleaved_write_frame(m_pEncoder_avfc, &pkt);
+        ret = av_interleaved_write_frame(encoder_avfc_, &pkt);
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -212,7 +212,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
             return -1;
         }
         av_packet_unref(&pkt);
-        m_pVideo_frame->pts += av_rescale_q(1, m_pVideo_avcc->time_base, m_pAvs->time_base);
+        video_frame_->pts += av_rescale_q(1, video_avcc_->time_base, avs_->time_base);
     }
     return 0;
 }
@@ -235,11 +235,11 @@ int FFmpegEncoder::WritePacket(void *data, size_t data_size)
 
     memcpy(pkt->data, data, data_size);
 
-    pkt->pts = m_pVideo_frame->pts;
+    pkt->pts = video_frame_->pts;
     pkt->dts = pkt->pts;
     pkt->flags = AV_PKT_FLAG_KEY;
 
-    ret = av_write_frame(m_pEncoder_avfc, pkt);
+    ret = av_write_frame(encoder_avfc_, pkt);
 
     if (ret < 0)
     {
@@ -253,6 +253,6 @@ int FFmpegEncoder::WritePacket(void *data, size_t data_size)
 
     av_packet_free(&pkt);
 
-    m_pVideo_frame->pts += av_rescale_q(1, m_pVideo_avcc->time_base, m_pAvs->time_base);
+    video_frame_->pts += av_rescale_q(1, video_avcc_->time_base, avs_->time_base);
     return 0;
 }

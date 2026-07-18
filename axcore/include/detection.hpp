@@ -50,7 +50,7 @@ namespace detection
     //     /* for yolov8-obb */
     //     float angle;
     // } Object;
-    typedef Object_ Object;
+    typedef DetectionObject Object;
 
     /* for palm detection */
     typedef struct PalmObject
@@ -79,26 +79,26 @@ namespace detection
     // template <typename T>
     // static void nms_sorted_bboxes(const std::vector<T> &faceobjects, std::vector<int> &picked, float nms_threshold);
 
-    // void generate_proposals_yolov5_face(int stride, const float *feat,
+    // void GenerateProposalsYolov5Face(int stride, const float *feat,
     //                                            float prob_threshold, std::vector<Object> &objects,
     //                                            int letterbox_cols, int letterbox_rows,
     //                                            const float *anchors, float prob_threshold_unsigmoid);
 
-    void generate_proposals_scrfd(int feat_stride, const float *score_blob,
+    void GenerateProposalsScrfd(int feat_stride, const float *score_blob,
                                          const float *bbox_blob, const float *kps_blob,
                                          float prob_threshold, std::vector<detection::Object> &faceobjects, int letterbox_cols, int letterbox_rows);
 
-    void generate_proposals_yolov5_face(const float *feat,
+    void GenerateProposalsYolov5Face(const float *feat,
                                         float prob_threshold,
                                         std::vector<Object> &objects);
 
-    void generate_proposals_yolov5_face(int stride, int anchor_group,
+    void GenerateProposalsYolov5Face(int stride, int anchor_group,
                                         const float *feat, float prob_threshold, std::vector<Object> &objects,
                                         int letterbox_cols, int letterbox_rows,
                                         const float *anchors, const int anchor_num,
                                         float prob_threshold_unsigmoid);
 
-    void generate_proposals_yolov5(int stride, int anchor_group,
+    void GenerateProposalsYolov5(int stride, int anchor_group,
                                    const float *feat, float prob_threshold,
                                    std::vector<Object> &objects,
                                    int letterbox_cols, int letterbox_rows,
@@ -115,41 +115,41 @@ namespace detection
     //                                            float prob_threshold, std::vector<Object> &objects,
     //                                            int letterbox_cols, int letterbox_rows, const int num_point = 17);
 
-    void generate_proposals_yolov8_native(int stride, const float *feat, float prob_threshold,
+    void GenerateProposalsYolov8Native(int stride, const float *feat, float prob_threshold,
                                           std::vector<Object> &objects,
                                           int letterbox_cols, int letterbox_rows, int cls_num = 80);
 
-    void generate_proposals_yolov8_pose_native(int stride, const float *feat,
+    void GenerateProposalsYolov8PoseNative(int stride, const float *feat,
                                                const float *feat_kps, float prob_threshold, std::vector<Object> &objects,
                                                int letterbox_cols, int letterbox_rows,
                                                const int num_point = 17, int cls_num = 1);
 
-    void reverse_letterbox(std::vector<Object> &proposal, std::vector<Object> &objects,
+    void ReverseLetterbox(std::vector<Object> &proposal, std::vector<Object> &objects,
                            int letterbox_rows, int letterbox_cols, int src_rows, int src_cols);
 
-    void get_out_bbox_no_letterbox(std::vector<Object> &proposals,
+    void GetOutBboxNoLetterbox(std::vector<Object> &proposals,
                                    std::vector<Object> &objects,
                                    const float nms_threshold,
                                    int letterbox_rows, int letterbox_cols,
                                    int src_rows, int src_cols);
 
-    void get_out_bbox(std::vector<Object> &objects, int letterbox_rows,
+    void GetOutBbox(std::vector<Object> &objects, int letterbox_rows,
                       int letterbox_cols, int src_rows, int src_cols);
 
-    void get_out_bbox(std::vector<Object> &proposals, std::vector<Object> &objects,
+    void GetOutBbox(std::vector<Object> &proposals, std::vector<Object> &objects,
                       const float nms_threshold, int letterbox_rows, int letterbox_cols,
                       int src_rows, int src_cols);
 
-    void get_out_bbox_mask(std::vector<Object> &proposals,
+    void GetOutBboxMask(std::vector<Object> &proposals,
                            std::vector<Object> &objects, const float *mask_proto,
                            int mask_proto_dim, int mask_stride, const float nms_threshold,
                            int letterbox_rows, int letterbox_cols, int src_rows, int src_cols);
 
-    void get_out_bbox_kps(std::vector<Object> &proposals,
+    void GetOutBboxKps(std::vector<Object> &proposals,
                           std::vector<Object> &objects, const float nms_threshold,
                           int letterbox_rows, int letterbox_cols, int src_rows, int src_cols);
 
-    void get_out_bbox_kps_no_letterbox(std::vector<Object> &proposals, std::vector<Object> &objects,
+    void GetOutBboxKpsNoLetterbox(std::vector<Object> &proposals, std::vector<Object> &objects,
                                        const float nms_threshold,
                                        int letterbox_rows, int letterbox_cols,
                                        int src_rows, int src_cols);

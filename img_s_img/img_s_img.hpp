@@ -180,7 +180,7 @@ public:
 
 private:
     // 资源ID
-    int m_nChannelId;
+    int channel_id_;
 
     Config m_Config = {};
     Yolov5Embedding m_Embedding;

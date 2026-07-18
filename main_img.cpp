@@ -99,7 +99,7 @@ int main(int argc, char const *argv[])
     Copy2Host(data, resizeInfo);
     ret = yolov5.Process(data);
     std::vector<detection::Object> objects;
-    yolov5.Postprocess(img.u32Width, img.u32Height, objects);
+    yolov5.Postprocess(img.width, img.height, objects);
 
     LOG_INFO("---------------------------------");
     for (size_t i = 0; i < objects.size(); i++)

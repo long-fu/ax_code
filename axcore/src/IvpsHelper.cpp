@@ -282,10 +282,10 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 		return -1;
 	}
 	// dest_frame = SHARED_IVPS_FRAMEINFO(grp, chn, tDstFrame);
-	dest_frame.bEndOfStream = tDstFrame->bEndOfStream;
-	dest_frame.enImgFormat = tDstFrame->stVFrame.enImgFormat;
-	dest_frame.u32Width = tDstFrame->stVFrame.u32Width;
-	dest_frame.u32Height = tDstFrame->stVFrame.u32Height;
+	dest_frame.end_of_stream = tDstFrame->bEndOfStream;
+	dest_frame.img_format = tDstFrame->stVFrame.enImgFormat;
+	dest_frame.width = tDstFrame->stVFrame.u32Width;
+	dest_frame.height = tDstFrame->stVFrame.u32Height;
 	dest_frame.data = FrameData::Create(tDstFrame, ivps_grp_, 0, MEM_ID_IVPS);
 	return ret;
 }

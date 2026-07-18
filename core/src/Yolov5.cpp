@@ -51,12 +51,12 @@ int Yolov5::Postprocess(int pic_width, int pic_height,
       return -2;
     }
 
-    detection::generate_proposals_yolov5(
+    detection::GenerateProposalsYolov5(
         stride, i + 1, ptr, prob_threshold, proposals, letterbox_cols,
         letterbox_rows, anchors.data(), 3, prob_threshold_u_sigmoid, cls_num);
   }
 
-  detection::get_out_bbox(proposals, objects, nms_threshold, letterbox_rows,
+  detection::GetOutBbox(proposals, objects, nms_threshold, letterbox_rows,
                           letterbox_cols, pic_height, pic_width);
   return 0;
 }

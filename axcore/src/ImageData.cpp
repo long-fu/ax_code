@@ -91,9 +91,9 @@ static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E 
 
 int Clone(ImageData &dest, ImageData const &src)
 {
-	dest.u32Width = src.u32Width;
-	dest.u32Height = src.u32Height;
-	dest.enImgFormat = src.enImgFormat;
+	dest.width = src.width;
+	dest.height = src.height;
+	dest.img_format = src.img_format;
 
 	const static char *MEM_TOKEN = "Clone";
 	AX_VIDEO_FRAME_INFO_T *frameInfo = new AX_VIDEO_FRAME_INFO_T();
@@ -347,9 +347,9 @@ int JpegDecode(ImageData &dest, std::string const &jpegFile)
 	if(ret != 0) {
 		LOG_ERROR("JpegDecode {}",ret );
 	}
-	dest.u32Width = frame_info->stVFrame.u32Width;
-	dest.u32Height = frame_info->stVFrame.u32Height;
-	dest.enImgFormat = frame_info->stVFrame.enImgFormat;
+	dest.width = frame_info->stVFrame.u32Width;
+	dest.height = frame_info->stVFrame.u32Height;
+	dest.img_format = frame_info->stVFrame.enImgFormat;
 	dest.data = FrameData::Create(frame_info, MEM_ID_SYS);
 
 	return ret;

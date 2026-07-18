@@ -12,11 +12,11 @@
 class PreProcess : public PipelineThread {
  public:
   explicit PreProcess(FFmpegDecoder* ff_decoder)
-      : m_p_ff_decoder(ff_decoder) {
-    m_p_vdec = new VdecHelper(0, PT_H264, ff_decoder->GetFrameWidth(),
+      : ff_decoder_(ff_decoder) {
+    vdec_ = new VdecHelper(0, PT_H264, ff_decoder->GetFrameWidth(),
                               ff_decoder->GetFrameHeight(),
                               ff_decoder->GetFps());
-    m_p_ivps = new IvpsHelper(0,
+    ivps_ = new IvpsHelper(0,
                               ff_decoder->GetFrameWidth() *
                                       ff_decoder->GetFrameHeight() * 3,
                               32);
@@ -24,42 +24,42 @@ class PreProcess : public PipelineThread {
 
   ~PreProcess() {
     LOG_INFO("~PreProcess");
-    
-    m_p_ff_decoder->StopDecode();
-    m_p_vdec->StopDecode();
 
-    pthread_join(m_t_ffmpeg_thread,nullptr);
+    ff_decoder_->StopDecode();
+    vdec_->StopDecode();
 
-    delete m_p_vdec;
-    delete m_p_ivps;
+    pthread_join(ffmpeg_thread_, nullptr);
+
+    delete vdec_;
+    delete ivps_;
   }
 
   int Init() override {
-    if (0 != m_p_vdec->Init()) {
+    if (0 != vdec_->Init()) {
       LOG_ERROR("VDEC Init failled!");
       return -1;
     }
 
-    if (0 != m_p_ivps->Resize(AX_IVPS_ASPECT_RATIO_AUTO, 640, 640)) {
+    if (0 != ivps_->Resize(AX_IVPS_ASPECT_RATIO_AUTO, 640, 640)) {
       LOG_ERROR("IVPS Init failed!");
       return -2;
     }
 
-    m_next_thread_id_ = GetPipelineThreadIdByName("InfProccess");
+    next_thread_id_ = GetPipelineThreadIdByName("InfProccess");
     return 0;
   }
 
   static int FrameProcessCallBackFunc(void* user_data, void* frame_data,
                                       int frame_size) {
     auto self = static_cast<PreProcess*>(user_data);
-    self->m_p_vdec->Write(frame_data, frame_size, nullptr);
+    self->vdec_->Write(frame_data, frame_size, nullptr);
     return 0;
   }
 
   static int VdecProcessCallBackFunc(ImageData image, int grp, int chn,
                                      void* user_data) {
     auto data = std::make_shared<ImageData>(image);
-    data->timePoint = std::chrono::steady_clock::now();
+    data->time_point = std::chrono::steady_clock::now();
 
     auto self = static_cast<PreProcess*>(user_data);
     int ret = SendMessage(self->SelfInstanceId(), kMsgVdecData, data);
@@ -70,13 +70,13 @@ class PreProcess : public PipelineThread {
   static void* FFmpegDecodeCallBackFunc(void* argv) {
     pthread_setname_np(pthread_self(), "FFDec");
     auto self = static_cast<PreProcess*>(argv);
-    self->m_p_ff_decoder->Decode(FrameProcessCallBackFunc, argv);
+    self->ff_decoder_->Decode(FrameProcessCallBackFunc, argv);
     return nullptr;
   }
 
   int Start() {
-    int ret = m_p_vdec->Decode(VdecProcessCallBackFunc, this);
-    pthread_create(&m_t_ffmpeg_thread, nullptr, FFmpegDecodeCallBackFunc, this);
+    int ret = vdec_->Decode(VdecProcessCallBackFunc, this);
+    pthread_create(&ffmpeg_thread_, nullptr, FFmpegDecodeCallBackFunc, this);
     return ret;
   }
 
@@ -84,11 +84,11 @@ class PreProcess : public PipelineThread {
     ImageData dest;
     ImageData src = *img_data.get();
     static uint64 index = 0;
-    if(index >= 250 * 6) {
-      SendMessage(g_main_thread_id,kMsgAppExit, nullptr);
-    } 
+    if (index >= 250 * 6) {
+      SendMessage(g_main_thread_id, kMsgAppExit, nullptr);
+    }
     index++;
-    int ret = m_p_ivps->Process(dest, src);
+    int ret = ivps_->Process(dest, src);
     if (ret != 0) {
       LOG_ERROR("CSC failed, ret={}", ret);
       return ret;
@@ -98,7 +98,7 @@ class PreProcess : public PipelineThread {
     data->image = src;
     Copy2Host(data->data, dest);
 
-    int send_ret = SendMessage(m_next_thread_id_, kMsgPreprocData, data);
+    int send_ret = SendMessage(next_thread_id_, kMsgPreprocData, data);
 
     return 0;
   }
@@ -110,15 +110,13 @@ class PreProcess : public PipelineThread {
         ret = Start();
         break;
       case kMsgVdecData: {
-
         auto in_data = std::static_pointer_cast<ImageData>(msg_data);
         ret = Proprocess(in_data);
-        
         break;
       }
       case kMsgAppExit:
-        // m_p_ff_decoder->StopDecode();
-        // m_p_vdec->StopDecode();
+        // ff_decoder_->StopDecode();
+        // vdec_->StopDecode();
         break;
       default:
         break;
@@ -127,9 +125,9 @@ class PreProcess : public PipelineThread {
   }
 
  private:
-  FFmpegDecoder* m_p_ff_decoder = nullptr;
-  VdecHelper* m_p_vdec = nullptr;
-  IvpsHelper* m_p_ivps = nullptr;
-  pthread_t m_t_ffmpeg_thread = -1;
-  int m_next_thread_id_ = -1;
+  FFmpegDecoder* ff_decoder_ = nullptr;
+  VdecHelper* vdec_ = nullptr;
+  IvpsHelper* ivps_ = nullptr;
+  pthread_t ffmpeg_thread_ = -1;
+  int next_thread_id_ = -1;
 };

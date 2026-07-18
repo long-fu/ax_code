@@ -27,7 +27,7 @@ int Engine::Init() {
 
   LOG_INFO("model file:{}",config_.model_file);
   std::vector<char> model_buffer;
-  if (!utilities::read_file(config_.model_file, model_buffer)) {
+  if (!utilities::ReadFile(config_.model_file, model_buffer)) {
     LOG_ERROR("Read Run-Joint model file failed. file: {}",
                   config_.model_file);
     return -1;
@@ -58,12 +58,12 @@ int Engine::Init() {
   }
   LOG_INFO("Engine get io info is done.");
 
-  ret = middleware::prepare_io(
+  ret = middleware::PrepareIo(
       io_info_, &io_data_,
       std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
-    LOG_ERROR("middleware::prepare_io failed!!! code:{:#x}", ret);
+    LOG_ERROR("middleware::PrepareIo failed!!! code:{:#x}", ret);
     return ret;
   }
   LOG_INFO("Engine alloc io is done.");
@@ -73,7 +73,7 @@ int Engine::Init() {
 int Engine::Process(const std::vector<uint8_t>& input_data) {
   // TIME_START(EngineProcess);
 
-  int ret = middleware::push_input(input_data, &io_data_, io_info_);
+  int ret = middleware::PushInput(input_data, &io_data_, io_info_);
   if (0 != ret) {
     LOG_ERROR("push_input data failed!!! code:{:#x}", ret);
     return ret;
@@ -91,7 +91,7 @@ int Engine::Process(const std::vector<uint8_t>& input_data) {
 }
 
 int Engine::Process(const uint8_t* data, size_t size) {
-  int ret = middleware::push_input(data, size, &io_data_, io_info_);
+  int ret = middleware::PushInput(data, size, &io_data_, io_info_);
   if (0 != ret) {
     LOG_ERROR("push_input data failed!!! code:{:#x}", ret);
     return ret;
@@ -112,7 +112,7 @@ int Engine::Destroy() {
   }
   is_released_ = true;
 
-  middleware::free_io(&io_data_);
+  middleware::FreeIo(&io_data_);
   AX_S32 ret = AX_ENGINE_DestroyHandle(handle_);
 
   AX_ENGINE_Deinit();

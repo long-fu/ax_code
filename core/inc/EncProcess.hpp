@@ -13,26 +13,26 @@
 class EncProcess : public PipelineThread {
  public:
   EncProcess(const std::string& rtmp, FFmpegDecoder* ff_decoder) {
-    m_p_venc = new VencHelper(0, ff_decoder->GetFrameWidth(),
+    venc_ = new VencHelper(0, ff_decoder->GetFrameWidth(),
                               ff_decoder->GetFrameHeight(), 25, 25);
-    m_p_ff_encoder = new FFmpegEncoder(
+    ff_encoder_ = new FFmpegEncoder(
         rtmp, 25, ff_decoder->GetFrameWidth(), ff_decoder->GetFrameHeight(),
         AV_PIX_FMT_NV12, 25, "main");
   }
 
   ~EncProcess() {
-    m_p_venc->StopEncode();
-    m_p_ff_encoder->Release();
+    venc_->StopEncode();
+    ff_encoder_->Release();
 
-    delete m_p_ff_encoder;
-    delete m_p_venc;
+    delete ff_encoder_;
+    delete venc_;
   }
 
   static int VencProcessCallBackFunc(AX_VENC_STREAM_T stream_data, int chn,
                                      void* user_data) {
     auto self = static_cast<EncProcess*>(user_data);
     TIME_START(WritePacket);
-    self->m_p_ff_encoder->WritePacket(stream_data.stPack.pu8Addr,
+    self->ff_encoder_->WritePacket(stream_data.stPack.pu8Addr,
                                       stream_data.stPack.u32Len);
     TIME_END(WritePacket);
     // TIME_USEC_SHOW(WritePacket);
@@ -40,11 +40,11 @@ class EncProcess : public PipelineThread {
   }
 
   int Init() override {
-    if (0 != m_p_ff_encoder->Init()) {
+    if (0 != ff_encoder_->Init()) {
       LOG_ERROR("FFmpeg Encoder Init failled!");
       return -1;
     }
-    if (0 != m_p_venc->Init()) {
+    if (0 != venc_->Init()) {
       LOG_ERROR("VENC Init failed!");
       return -2;
     }
@@ -52,7 +52,7 @@ class EncProcess : public PipelineThread {
   }
 
   int Start() {
-    int ret = m_p_venc->Encode(VencProcessCallBackFunc, this);
+    int ret = venc_->Encode(VencProcessCallBackFunc, this);
     return ret;
   }
 
@@ -64,12 +64,12 @@ class EncProcess : public PipelineThread {
         break;
       case kMsgBusprocData: {
         auto in_data = std::static_pointer_cast<BusData>(msg_data);
-        ret = m_p_venc->Write(&in_data->image, nullptr);
+        ret = venc_->Write(&in_data->image, nullptr);
         break;
       }
       case kMsgAppExit:
-        // m_p_venc->StopEncode();
-        // delete m_p_venc;
+        // venc_->StopEncode();
+        // delete venc_;
         break;
       default:
         break;
@@ -78,6 +78,6 @@ class EncProcess : public PipelineThread {
   }
 
  private:
-  FFmpegEncoder* m_p_ff_encoder = nullptr;
-  VencHelper* m_p_venc = nullptr;
+  FFmpegEncoder* ff_encoder_ = nullptr;
+  VencHelper* venc_ = nullptr;
 };

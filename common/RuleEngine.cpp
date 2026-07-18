@@ -5,12 +5,12 @@
 #include <sstream>
 #include <algorithm>
 
-RuleEngine& RuleEngine::instance() {
+RuleEngine& RuleEngine::Instance() {
     static RuleEngine inst;
     return inst;
 }
 
-int RuleEngine::load(const std::string& yaml_config) {
+int RuleEngine::Load(const std::string& yaml_config) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     // Guard against double-load
@@ -114,8 +114,8 @@ int RuleEngine::load(const std::string& yaml_config) {
     return loaded_ ? 0 : -1;
 }
 
-bool RuleEngine::processBoxes(
-    const std::vector<Object_>& objects,
+bool RuleEngine::ProcessBoxes(
+    const std::vector<DetectionObject>& objects,
     std::vector<bool>& results) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
@@ -164,7 +164,7 @@ bool RuleEngine::processBoxes(
     return true;
 }
 
-void RuleEngine::unload() {
+void RuleEngine::Unload() {
     std::lock_guard<std::mutex> lock(mutex_);
 
     for (auto& rule : rules_) {

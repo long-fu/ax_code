@@ -1,7 +1,7 @@
 #include "sort_track.h"
 #include "Logger.h"
 
-double SORT_TRACKER::getIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
+double SortTracker::GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
 {
     float intersection = (bb_test & bb_gt).area();
     float unionArea = bb_test.area() + bb_gt.area() - intersection;
@@ -11,7 +11,7 @@ double SORT_TRACKER::getIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
 }
 
 
-void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
+void SortTracker::Update(const vector<TrackingBox> &detFrameData)
 {
     // total_frames++;
     frame_count++;
@@ -33,14 +33,14 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
 
     ///////////////////////////////////////
     // 3.1. get predicted locations from existing trackers.
-    predictedBoxes.clear();
+    predicted_boxes.clear();
 
     for (auto it = trackers.begin(); it != trackers.end();)
     {
-        Rect_<float> pBox = (*it).predict();
+        Rect_<float> pBox = (*it).Predict();
         if (pBox.x >= 0 && pBox.y >= 0)
         {
-            predictedBoxes.push_back(pBox);
+            predicted_boxes.push_back(pBox);
             it++;
         }
         else
@@ -53,18 +53,18 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
     ///////////////////////////////////////
     // 3.2. associate detections to tracked object (both represented as bounding boxes)
     // dets : detFrameData[fi]
-    trkNum = predictedBoxes.size();
-    detNum = detFrameData.size();
+    trk_num = predicted_boxes.size();
+    det_num = detFrameData.size();
 
-    iouMatrix.clear();
-    iouMatrix.resize(trkNum, vector<double>(detNum, 0));
+    iou_matrix.clear();
+    iou_matrix.resize(trk_num, vector<double>(det_num, 0));
     // compute iou matrix as a distance matrix
-    for (unsigned int i = 0; i < trkNum; i++)
+    for (unsigned int i = 0; i < trk_num; i++)
     {
-        for (unsigned int j = 0; j < detNum; j++)
+        for (unsigned int j = 0; j < det_num; j++)
         {
             // use 1-iou because the hungarian algorithm computes a minimum-cost assignment.
-            iouMatrix[i][j] = 1 - getIOU(predictedBoxes[i], detFrameData[j].box);
+            iou_matrix[i][j] = 1 - GetIOU(predicted_boxes[i], detFrameData[j].box);
         }
     }
 
@@ -72,50 +72,50 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
     // the resulting assignment is [track(prediction) : detection], with len=preNum
     HungarianAlgorithm HungAlgo;
     assignment.clear();
-    double cost_ = HungAlgo.Solve(iouMatrix, assignment);
+    double cost_ = HungAlgo.Solve(iou_matrix, assignment);
     if (cost_ == -1.0)
     {
         LOG_ERROR("hungarian assignment error !");
     }
 
     // find matches, unmatched_detections and unmatched_predictions
-    unmatchedTrajectories.clear();
-    unmatchedDetections.clear();
-    allItems.clear();
-    matchedItems.clear();
+    unmatched_trajectories.clear();
+    unmatched_detections.clear();
+    all_items.clear();
+    matched_items.clear();
 
-    if (detNum > trkNum) //	there are unmatched detections
+    if (det_num > trk_num) //	there are unmatched detections
     {
-        for (unsigned int n = 0; n < detNum; n++)
-            allItems.insert(n);
+        for (unsigned int n = 0; n < det_num; n++)
+            all_items.insert(n);
 
-        for (unsigned int i = 0; i < trkNum; ++i)
-            matchedItems.insert(assignment[i]);
+        for (unsigned int i = 0; i < trk_num; ++i)
+            matched_items.insert(assignment[i]);
         // 找到没有配对上的检测框
-        set_difference(allItems.begin(), allItems.end(),
-                       matchedItems.begin(), matchedItems.end(),
-                       insert_iterator<set<int>>(unmatchedDetections, unmatchedDetections.begin()));
+        set_difference(all_items.begin(), all_items.end(),
+                       matched_items.begin(), matched_items.end(),
+                       insert_iterator<set<int>>(unmatched_detections, unmatched_detections.begin()));
     }
-    else if (detNum < trkNum) // there are unmatched trajectory/predictions
+    else if (det_num < trk_num) // there are unmatched trajectory/predictions
     {
-        for (unsigned int i = 0; i < trkNum; ++i)
+        for (unsigned int i = 0; i < trk_num; ++i)
             if (assignment[i] == -1) // unassigned label will be set as -1 in the assignment algorithm
-                unmatchedTrajectories.insert(i);
+                unmatched_trajectories.insert(i);
     }
 
     // filter out matched with low IOU
-    matchedPairs.clear();
-    for (unsigned int i = 0; i < trkNum; ++i)
+    matched_pairs.clear();
+    for (unsigned int i = 0; i < trk_num; ++i)
     {
         if (assignment[i] == -1) // pass over invalid values
             continue;
-        if (1 - iouMatrix[i][assignment[i]] < iouThreshold)
+        if (1 - iou_matrix[i][assignment[i]] < iou_threshold)
         {
-            unmatchedTrajectories.insert(i);
-            unmatchedDetections.insert(assignment[i]);
+            unmatched_trajectories.insert(i);
+            unmatched_detections.insert(assignment[i]);
         }
         else
-            matchedPairs.push_back(cv::Point(i, assignment[i]));
+            matched_pairs.push_back(cv::Point(i, assignment[i]));
     }
 
     ///////////////////////////////////////
@@ -124,15 +124,15 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
     // 3.3.1，update matched trackers with assigned detections.
     // each prediction is corresponding to a tracker
     int detIdx, trkIdx;
-    for (unsigned int i = 0; i < matchedPairs.size(); i++)
+    for (unsigned int i = 0; i < matched_pairs.size(); i++)
     {
-        trkIdx = matchedPairs[i].x;
-        detIdx = matchedPairs[i].y;
-        trackers[trkIdx].update(detFrameData[detIdx]);
+        trkIdx = matched_pairs[i].x;
+        detIdx = matched_pairs[i].y;
+        trackers[trkIdx].Update(detFrameData[detIdx]);
     }
 
     // 3.3.2，create and initialise new trackers for unmatched detections
-    for (auto umd : unmatchedDetections)
+    for (auto umd : unmatched_detections)
     {
         // 创建新tracker时不会调用KalmanTracker的update函数
         KalmanTracker tracker = KalmanTracker(detFrameData[umd]);
@@ -148,8 +148,8 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
     {
         // 移除情况1：稳定的tracker，连续丢失次数超过阈值max_lost_time
         // 移除情况2：才刚创建的tracker，就连续丢失超过阈值lower_max_lost_time
-        if ((it->m_time_since_update > max_lost_time) || 
-            (it->m_age == max_lost_time && it->m_time_since_update==lower_max_lost_time))
+        if ((it->time_since_update > max_lost_time) || 
+            (it->age == max_lost_time && it->time_since_update==lower_max_lost_time))
                 it = trackers.erase(it);
         else{
             ++it;
@@ -161,28 +161,28 @@ void SORT_TRACKER::update(const vector<TrackingBox> &detFrameData)
 }
 
 
-vector<TrackingBox> SORT_TRACKER::getReport(){
+vector<TrackingBox> SortTracker::GetReport(){
     // get trackers' output
-    frameTrackingResult.clear();
+    frame_tracking_result.clear();
     for (auto it = trackers.begin(); it != trackers.end(); ++it)
     {
         // min_hits不设置为0是因为第一次检测到的目标不用跟踪，不能设大，一般就是1，表示如果连续两帧都检测到目标
         // int time_window = 1; // 表示连续预测的次数
-        // if ((it->m_time_since_update < time_window) && it->m_hit_streak >= min_hits)
-        if (it->m_observed_num >= min_hits)
+        // if ((it->time_since_update < time_window) && it->hit_streak >= min_hits)
+        if (it->observed_num >= min_hits)
         {
             TrackingBox res;
-            res.box = it->latestRect;  // 如果有观测值则使用观测值;如果没有观测值就使用预测值
-            res.track_id = it->m_id + 1; // +1 as MOT benchmark requires positive
+            res.box = it->latest_rect;  // 如果有观测值则使用观测值;如果没有观测值就使用预测值
+            res.track_id = it->track_id_ + 1; // +1 as MOT benchmark requires positive
             res.frame_id = frame_count;
             res.obj_conf = it->obj_conf;
             res.class_id = it->class_id;
-            frameTrackingResult.push_back(res);
+            frame_tracking_result.push_back(res);
         }
         else{
             // 
         }
         
     }
-    return frameTrackingResult;
+    return frame_tracking_result;
 }

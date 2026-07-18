@@ -9,7 +9,7 @@
 #include <cmath>
 #include <string>
 #include <queue>
-struct Object_
+struct DetectionObject
 {
     cv::Rect_<float> rect;
     int label;
@@ -27,7 +27,7 @@ struct Object_
 
 class BoxMgr
 {
-    std::queue<Object_> boxQueue;
+    std::queue<DetectionObject> boxQueue;
 };
 
 class Base
@@ -37,7 +37,7 @@ private:
 public:
     Base(const std::string &configPath, cv::Size imgSize);
     virtual int Init() = 0;
-    virtual int Proccess(std::unordered_map<std::string, Object_> boxs) = 0;
+    virtual int Proccess(std::unordered_map<std::string, DetectionObject> boxs) = 0;
     virtual int Destroy() = 0;
     ~Base();
 };

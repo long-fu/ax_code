@@ -1,6 +1,6 @@
 #include "utils.h"
 
-void getFilePaths(string &folder, vector<cv::String> &filepaths, string postfix, bool sort_){
+void GetFilePaths(string &folder, vector<cv::String> &filepaths, string postfix, bool sort_){
     // 获取目录中某种格式的文件，返回其路径
     
     // 1，根据后缀进行过滤
@@ -18,7 +18,7 @@ void getFilePaths(string &folder, vector<cv::String> &filepaths, string postfix,
     }
 }
 
-void getDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results){
+void GetDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results){
     ifstream fin;
     fin.open(detfile, std::ios::in);
     string str_line;
@@ -26,7 +26,7 @@ void getDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results)
     while (getline(fin, str_line))
     {
         vector<int> res;  // 当前行按逗号分割后的结果
-        splitString(str_line, res, ',');
+        SplitString(str_line, res, ',');
         // 解析bbox
         int frame_id = res[0];
         Bbox bbox;
@@ -40,7 +40,7 @@ void getDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results)
     }
 }
 
-void splitString(string &str, std::vector<int> &out, char sep)
+void SplitString(string &str, std::vector<int> &out, char sep)
 {
     string::size_type start = str.find_first_not_of(sep, 0); // 找到第一个不为逗号的下标
     string::size_type pose = str.find_first_of(sep, start);  // 找到第一个逗号的下标
@@ -52,7 +52,7 @@ void splitString(string &str, std::vector<int> &out, char sep)
     }
 }
 
-// void drawPic(cv::Mat &img, string savepath, const std::vector<Bbox> &results){
+// void DrawPic(cv::Mat &img, string savepath, const std::vector<Bbox> &results){
 //     vector<cv::Scalar> colors = {{0,0,255}, {0,255,0}, {255,0,0}, {255,255,0}, {0,255,255}, {255,0,255}, {255,153,18}, {255,97,0}};
 //     for (auto obj:results){
 //         // cv::Scalar color = {rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255)};
@@ -68,29 +68,29 @@ void splitString(string &str, std::vector<int> &out, char sep)
 //     cout << "save vis img in: " << savepath << endl;
 // }
 
-void drawPic(cv::Mat &img, string savepath, const std::vector<TrackingBox> &results, SORT_TRACKER &tracker){
+void DrawPic(cv::Mat &img, string savepath, const std::vector<TrackingBox> &results, SortTracker &tracker){
     for (TrackingBox it : results)
     {
-        cv::rectangle(img, it.box, tracker.randColor[it.track_id % 255], 2);
+        cv::rectangle(img, it.box, tracker.rand_color[it.track_id % 255], 2);
         cv::putText(img,
                     to_string(it.track_id),
                     cv::Point2f(it.box.x, it.box.y-5),
                     cv::FONT_HERSHEY_DUPLEX,
                     1,
-                    tracker.randColor[it.track_id % 255]);
+                    tracker.rand_color[it.track_id % 255]);
     }
     cv::imwrite(savepath, img);
 }
 
-void drawPic(cv::Mat &img, const std::vector<TrackingBox> &results, SORT_TRACKER &tracker){
+void DrawPic(cv::Mat &img, const std::vector<TrackingBox> &results, SortTracker &tracker){
     for (TrackingBox it : results)
     {
-        cv::rectangle(img, it.box, tracker.randColor[it.track_id % 255], 2);
+        cv::rectangle(img, it.box, tracker.rand_color[it.track_id % 255], 2);
         cv::putText(img,
                     to_string(it.track_id),
                     cv::Point2f(it.box.x, it.box.y-5),
                     cv::FONT_HERSHEY_DUPLEX,
                     1,
-                    tracker.randColor[it.track_id % 255]);
+                    tracker.rand_color[it.track_id % 255]);
     }
 }

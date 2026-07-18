@@ -9,7 +9,7 @@ const char* AX_CMM_SESSION_NAME = "npu";
 namespace middleware
 {
 
-    void free_io_index(AX_ENGINE_IO_BUFFER_T* io_buf, size_t index)
+    void FreeIoIndex(AX_ENGINE_IO_BUFFER_T* io_buf, size_t index)
     {
         for (size_t i = 0; i < index; ++i)
         {
@@ -18,7 +18,7 @@ namespace middleware
         }
     }
 
-    void free_io(AX_ENGINE_IO_T* io)
+    void FreeIo(AX_ENGINE_IO_T* io)
     {
         for (size_t j = 0; j < io->nInputSize; ++j)
         {
@@ -40,7 +40,7 @@ namespace middleware
         }
     }
 
-    int prepare_io(AX_ENGINE_IO_INFO_T* info, AX_ENGINE_IO_T* io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy)
+    int PrepareIo(AX_ENGINE_IO_INFO_T* info, AX_ENGINE_IO_T* io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy)
     {
         memset(io_data, 0, sizeof(*io_data));
         io_data->pInputs = new AX_ENGINE_IO_BUFFER_T[info->nInputSize];
@@ -63,7 +63,7 @@ namespace middleware
 
             if (ret != 0)
             {
-                free_io_index(io_data->pInputs, i);
+                FreeIoIndex(io_data->pInputs, i);
                 LOG_ERROR("Allocate input{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
                 return ret;
             }
@@ -89,8 +89,8 @@ namespace middleware
             if (ret != 0)
             {
                 LOG_ERROR("Allocate output{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
-                free_io_index(io_data->pInputs, io_data->nInputSize);
-                free_io_index(io_data->pOutputs, i);
+                FreeIoIndex(io_data->pInputs, io_data->nInputSize);
+                FreeIoIndex(io_data->pOutputs, i);
                 return ret;
             }
             // fprintf(stderr, "Allocate output{%d} { phy: %p, vir: %p, size: %lu Bytes }.\n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
@@ -99,7 +99,7 @@ namespace middleware
         return 0;
     }
 
-    int push_input(const std::vector<uint8_t>& data, AX_ENGINE_IO_T* io_t, AX_ENGINE_IO_INFO_T* info_t)
+    int PushInput(const std::vector<uint8_t>& data, AX_ENGINE_IO_T* io_t, AX_ENGINE_IO_INFO_T* info_t)
     {
         if (info_t->nInputSize != 1)
         {
@@ -119,7 +119,7 @@ namespace middleware
         return 0;
     }
 
-    int push_input(const uint8_t* data, size_t data_size, AX_ENGINE_IO_T* io_t, AX_ENGINE_IO_INFO_T* info_t)
+    int PushInput(const uint8_t* data, size_t data_size, AX_ENGINE_IO_T* io_t, AX_ENGINE_IO_INFO_T* info_t)
     {
         if (info_t->nInputSize != 1)
         {

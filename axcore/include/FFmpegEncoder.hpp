@@ -21,19 +21,19 @@ class FFmpegEncoder
 {
 private:
     /* data */
-    std::string m_sPushName;
-    int m_iFrameRate;
-    size_t m_iPicWidth;
-    size_t m_iPicHeight;
-    AVPixelFormat m_ePixFmt;
-    size_t m_iGopSize;
-    std::string m_sProfile;
+    std::string push_name_;
+    int frame_rate_;
+    size_t pic_width_;
+    size_t pic_height_;
+    AVPixelFormat pix_fmt_;
+    size_t gop_size_;
+    std::string profile_;
 
-    AVFormatContext *m_pEncoder_avfc{nullptr};
-    AVCodecContext *m_pVideo_avcc{nullptr};
-    const AVCodec *m_pVideo_avc{nullptr};
-    AVStream *m_pAvs{nullptr};
-    AVFrame *m_pVideo_frame{nullptr};
+    AVFormatContext *encoder_avfc_{nullptr};
+    AVCodecContext *video_avcc_{nullptr};
+    const AVCodec *video_avc_{nullptr};
+    AVStream *avs_{nullptr};
+    AVFrame *video_frame_{nullptr};
 
 public:
     FFmpegEncoder(std::string stream_name, int frame_rate,

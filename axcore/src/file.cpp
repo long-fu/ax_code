@@ -4,7 +4,7 @@
 
 namespace utilities
 {
-    bool file_exist(const std::string& path)
+    bool FileExist(const std::string& path)
     {
         auto flag = false;
 
@@ -15,7 +15,7 @@ namespace utilities
         return flag;
     }
 
-    bool read_file(const std::string& path, std::vector<char>& data)
+    bool ReadFile(const std::string& path, std::vector<char>& data)
     {
         std::fstream fs(path, std::ios::in | std::ios::binary);
 
@@ -40,7 +40,7 @@ namespace utilities
         return true;
     }
 
-    bool dump_file(const std::string& path, std::vector<uint8_t> data)
+    bool DumpFile(const std::string& path, std::vector<uint8_t> data)
     {
         std::fstream fs(path, std::ios::out | std::ios::binary);
 
@@ -54,7 +54,7 @@ namespace utilities
         return true;
     }
 
-    bool dump_file(const std::string& path, char* data, int size)
+    bool DumpFile(const std::string& path, char* data, int size)
     {
         std::fstream fs(path, std::ios::out | std::ios::binary);
 
@@ -68,7 +68,7 @@ namespace utilities
         return true;
     }
 
-    bool read_file(const char* fn, std::vector<uchar>& data)
+    bool ReadFile(const char* fn, std::vector<uchar>& data)
     {
         FILE* fp = fopen(fn, "r");
         if (fp != nullptr)

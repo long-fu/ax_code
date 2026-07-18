@@ -19,7 +19,7 @@ public:
 
   int Init() override
   {
-    m_next_thread_id_ = GetPipelineThreadIdByName("EncProcess");
+    next_thread_id_ = GetPipelineThreadIdByName("EncProcess");
 
     // Load rule engine configuration
     std::ifstream config_file("config.yaml");
@@ -34,7 +34,7 @@ public:
         size_t first_item = yaml_content.find("- ", pos);
         if (first_item != std::string::npos) {
           std::string rules_yaml = yaml_content.substr(first_item);
-          RuleEngine::instance().load(rules_yaml);
+          RuleEngine::Instance().Load(rules_yaml);
         }
       }
     }
@@ -62,14 +62,14 @@ public:
         if (item.label == 1)
         {
           cur_box.box = item.rect;
-          cur_box.frame_id = m_frame_id_;
+          cur_box.frame_id = frame_id_;
           det_frame_data.push_back(cur_box);
         }
       }
-      m_frame_id_++;
-      m_tracker_.update(det_frame_data);
+      frame_id_++;
+      tracker_.Update(det_frame_data);
 
-      vector<TrackingBox> tracking_results = m_tracker_.getReport();
+      vector<TrackingBox> tracking_results = tracker_.GetReport();
       // LOG_INFO("tracker out: {}", tracking_results.size());
 
       TIME_END(test_sort);
@@ -77,7 +77,7 @@ public:
 
       // Rule engine judgment — evaluate all objects against loaded rules
       std::vector<bool> rule_results;
-      RuleEngine::instance().processBoxes(in_data->objects, rule_results);
+      RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);
 
       TIME_START(test_draw);
       Map(in_data->image);
@@ -94,11 +94,11 @@ public:
 
       auto out_data = std::make_shared<BusData>();
       out_data->image = in_data->image;
-      ret = SendMessage(m_next_thread_id_, kMsgBusprocData, out_data);
+      ret = SendMessage(next_thread_id_, kMsgBusprocData, out_data);
       break;
     }
     case kMsgAppExit:
-      // RuleEngine::instance().unload();
+      // RuleEngine::Instance().Unload();
       break;
     default:
       break;
@@ -107,7 +107,7 @@ public:
   }
 
 private:
-  SORT_TRACKER m_tracker_;
-  uint64_t m_frame_id_ = 0;
-  int m_next_thread_id_ = -1;
+  SortTracker tracker_;
+  uint64_t frame_id_ = 0;
+  int next_thread_id_ = -1;
 };

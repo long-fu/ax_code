@@ -3,10 +3,10 @@
 
 #include "KalmanTracker.h"
 
-int KalmanTracker::kkf_count = 0;
+int KalmanTracker::kkf_count_ = 0;
 
 // initialize Kalman filter
-void KalmanTracker::init_kf(StateType stateMat)
+void KalmanTracker::InitKf(StateType stateMat)
 {
 	int stateNum = 7;  // 一个7维的状态更新向量：[u,v,s,r,u^,v^,s^]T。Note：u^,v^,s^表示运动速度
 	int measureNum = 4;  // 一个4维的观测输入，即中心面积的形式[x,y,s,r]，即[检测框中心x坐标,y坐标,面积,宽高比]。
@@ -38,33 +38,33 @@ void KalmanTracker::init_kf(StateType stateMat)
 }
 
 // Predict the estimated bounding box.
-StateType KalmanTracker::predict()
+StateType KalmanTracker::Predict()
 {
-	// predict
-	Mat p = kf.predict();  // 计算预测的状态值，一个7维的状态更新向量，最后三个元素是运动速度
-	m_age += 1;
+	// predict // 计算预测的状态值，一个7维的状态更新向量，最后三个元素是运动速度
+	Mat p = kf.predict();
+	age += 1;
 	
-	if (m_time_since_update > m_max_missing_observed_num)
-		m_hit_streak = 0;
-	m_time_since_update += 1;
+	if (time_since_update > max_missing_observed_num)
+		hit_streak = 0;
+	time_since_update += 1;
 
-	StateType predictBox = get_rect_xysr(p.at<float>(0, 0), p.at<float>(1, 0), p.at<float>(2, 0), p.at<float>(3, 0));
+	StateType predictBox = GetRectXysr(p.at<float>(0, 0), p.at<float>(1, 0), p.at<float>(2, 0), p.at<float>(3, 0));
 
-	latestRect = predictBox;  // 使用最近一次预测值更新latestRect变量
+	latest_rect = predictBox;  // 使用最近一次预测值更新latestRect变量
 
 	m_history.push_back(predictBox);
 	return m_history.back();  // 返回对vector最后一个元素的引用
 }
 
 // Update the state vector with observed bounding box.
-void KalmanTracker::update(TrackingBox track_box)
+void KalmanTracker::Update(TrackingBox track_box)
 {
-	latestRect = track_box.box;  // 使用最近一次观测值更新latestRect变量
+	latest_rect = track_box.box;  // 使用最近一次观测值更新latestRect变量
 
-	m_time_since_update = 0;  // 每次观察到目标就重置为0
+	time_since_update = 0;  // 每次观察到目标就重置为0
 	m_history.clear();
-	m_observed_num += 1;
-	m_hit_streak += 1;
+	observed_num += 1;
+	hit_streak += 1;
 
 	obj_conf = track_box.obj_conf;
 	class_id = track_box.class_id;
@@ -80,14 +80,14 @@ void KalmanTracker::update(TrackingBox track_box)
 }
 
 // Return the current state vector
-StateType KalmanTracker::get_state()
+StateType KalmanTracker::GetState()
 {
 	Mat s = kf.statePost;
-	return get_rect_xysr(s.at<float>(0, 0), s.at<float>(1, 0), s.at<float>(2, 0), s.at<float>(3, 0));
+	return GetRectXysr(s.at<float>(0, 0), s.at<float>(1, 0), s.at<float>(2, 0), s.at<float>(3, 0));
 }
 
 // Convert bounding box from [cx,cy,s,r] to [x,y,w,h] style.
-StateType KalmanTracker::get_rect_xysr(float cx, float cy, float s, float r)
+StateType KalmanTracker::GetRectXysr(float cx, float cy, float s, float r)
 {
 	float w = sqrt(s * r);
 	float h = s / w;

@@ -17,25 +17,25 @@
 //  宏接口（推荐对外使用）
 // ============================================================
 
-#define LOG_INIT(logFile, logLevel) Logger::instance().init(logFile, logLevel)
+#define LOG_INIT(logFile, logLevel) Logger::Instance().Init(logFile, logLevel)
 
-#define LOG_TRACE(...)    SPDLOG_LOGGER_TRACE(Logger::instance().logger(), __VA_ARGS__)
-#define LOG_DEBUG(...)    SPDLOG_LOGGER_DEBUG(Logger::instance().logger(), __VA_ARGS__)
-#define LOG_INFO(...)     SPDLOG_LOGGER_INFO(Logger::instance().logger(), __VA_ARGS__)
-#define LOG_WARN(...)     SPDLOG_LOGGER_WARN(Logger::instance().logger(), __VA_ARGS__)
-#define LOG_ERROR(...)    SPDLOG_LOGGER_ERROR(Logger::instance().logger(), __VA_ARGS__)
-#define LOG_CRITICAL(...) SPDLOG_LOGGER_CRITICAL(Logger::instance().logger(), __VA_ARGS__)
+#define LOG_TRACE(...)    SPDLOG_LOGGER_TRACE(Logger::Instance().logger(), __VA_ARGS__)
+#define LOG_DEBUG(...)    SPDLOG_LOGGER_DEBUG(Logger::Instance().logger(), __VA_ARGS__)
+#define LOG_INFO(...)     SPDLOG_LOGGER_INFO(Logger::Instance().logger(), __VA_ARGS__)
+#define LOG_WARN(...)     SPDLOG_LOGGER_WARN(Logger::Instance().logger(), __VA_ARGS__)
+#define LOG_ERROR(...)    SPDLOG_LOGGER_ERROR(Logger::Instance().logger(), __VA_ARGS__)
+#define LOG_CRITICAL(...) SPDLOG_LOGGER_CRITICAL(Logger::Instance().logger(), __VA_ARGS__)
 
 
-#define LOG_FLUSH()     Logger::instance().flush()
-#define LOG_SHUTDOWN()  Logger::instance().shutdown()
+#define LOG_FLUSH()     Logger::Instance().Flush()
+#define LOG_SHUTDOWN()  Logger::Instance().Shutdown()
 
 // ============================================================
 //  Logger 单例类
 // ============================================================
 class Logger {
  public:
-  static Logger& instance() {
+  static Logger& Instance() {
     static Logger inst;
     return inst;
   }
@@ -56,15 +56,15 @@ class Logger {
     bool install_crash_handler = true;
   };
 
-  void init(const std::string& log_file = "logs/app.log",
+  void Init(const std::string& log_file = "logs/app.log",
             spdlog::level::level_enum level = spdlog::level::info) {
     Config cfg;
     cfg.log_file = log_file;
     cfg.level = level;
-    init(cfg);
+    Init(cfg);
   }
 
-  void init(const Config& cfg) {
+  void Init(const Config& cfg) {
     spdlog::init_thread_pool(cfg.async_queue_size, 1);
 
     std::vector<spdlog::sink_ptr> sinks;
@@ -91,7 +91,7 @@ class Logger {
     spdlog::set_pattern("[%m-%d %H:%M:%S.%e] [%^%l%$] [tid:%t] %v");
 
     if (cfg.install_crash_handler) {
-      installSignalHandlers();
+      InstallSignalHandlers();
     }
 
     logger_->info("Logger initialized. file={} level={}", cfg.log_file,
@@ -100,12 +100,12 @@ class Logger {
 
   std::shared_ptr<spdlog::logger>& logger() { return logger_; }
 
-  void flush() {
+  void Flush() {
     if (logger_) logger_->flush();
   }
 
-  void shutdown() {
-    std::call_once(m_shutdown_flag_, [this]() {
+  void Shutdown() {
+    std::call_once(shutdown_flag_, [this]() {
       if (logger_) {
         logger_->info("Logger shutting down.");
         logger_->flush();
@@ -116,13 +116,13 @@ class Logger {
 
  private:
   Logger() = default;
-  ~Logger() { shutdown(); }
+  ~Logger() { Shutdown(); }
 
   std::shared_ptr<spdlog::logger> logger_;
-  std::once_flag m_shutdown_flag_;
-  mutable std::mutex m_shutdown_mutex_;
+  std::once_flag shutdown_flag_;
+  mutable std::mutex shutdown_mutex_;
 
-  static void signalHandler(int sig) {
+  static void SignalHandler(int sig) {
     const char* name = "UNKNOWN";
     switch (sig) {
       case SIGSEGV:
@@ -145,9 +145,9 @@ class Logger {
         break;
     }
 
-    auto& logger_inst = instance();
+    auto& logger_inst = Instance();
     {
-      std::lock_guard<std::mutex> lock(logger_inst.m_shutdown_mutex_);
+      std::lock_guard<std::mutex> lock(logger_inst.shutdown_mutex_);
       if (logger_inst.logger_) {
         logger_inst.logger_->critical("======== CRASH: signal {} ({}) ========", sig, name);
         logger_inst.logger_->flush();
@@ -164,13 +164,13 @@ class Logger {
     std::raise(sig);
   }
 
-  static void installSignalHandlers() {
-    std::signal(SIGSEGV, signalHandler);
-    std::signal(SIGABRT, signalHandler);
-    std::signal(SIGFPE, signalHandler);
-    std::signal(SIGILL, signalHandler);
-    std::signal(SIGBUS, signalHandler);
-    std::signal(SIGTERM, signalHandler);
+  static void InstallSignalHandlers() {
+    std::signal(SIGSEGV, SignalHandler);
+    std::signal(SIGABRT, SignalHandler);
+    std::signal(SIGFPE, SignalHandler);
+    std::signal(SIGILL, SignalHandler);
+    std::signal(SIGBUS, SignalHandler);
+    std::signal(SIGTERM, SignalHandler);
   }
 };
 

@@ -30,20 +30,20 @@ typedef std::pair<AX_ENGINE_ALLOC_BUFFER_STRATEGY_T, AX_ENGINE_ALLOC_BUFFER_STRA
 #define SAMPLE_AX_ENGINE_DEAL_HANDLE_IO         \
     if (0 != ret)                               \
     {                                           \
-        middleware::free_io(&io_data);          \
+        middleware::FreeIo(&io_data);          \
         return AX_ENGINE_DestroyHandle(handle); \
     }
 
 namespace middleware
 {
-    void free_io_index(AX_ENGINE_IO_BUFFER_T *io_buf, size_t index);
+    void FreeIoIndex(AX_ENGINE_IO_BUFFER_T *io_buf, size_t index);
 
-    void free_io(AX_ENGINE_IO_T *io);
+    void FreeIo(AX_ENGINE_IO_T *io);
 
-    int prepare_io(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy);
+    int PrepareIo(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy);
 
-    int push_input(const std::vector<uint8_t> &data, AX_ENGINE_IO_T *io_t, AX_ENGINE_IO_INFO_T *info_t);
-    int push_input(const uint8_t *data, size_t data_size, AX_ENGINE_IO_T *io_t, AX_ENGINE_IO_INFO_T *info_t);
+    int PushInput(const std::vector<uint8_t> &data, AX_ENGINE_IO_T *io_t, AX_ENGINE_IO_INFO_T *info_t);
+    int PushInput(const uint8_t *data, size_t data_size, AX_ENGINE_IO_T *io_t, AX_ENGINE_IO_INFO_T *info_t);
 } // namespace middleware
 
 #endif
