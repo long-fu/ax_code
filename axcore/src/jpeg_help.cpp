@@ -1,5 +1,10 @@
 #include "jpeg_help.hpp"
 #include "ax_global_type.h"
+#include "ax_vdec_api.h"
+#include "ax_sys_api.h"
+#include "ax_venc_api.h"
+#include "ax_buffer_tool.h"
+
 #include "logger.h"
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
 
