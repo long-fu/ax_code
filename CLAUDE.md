@@ -34,12 +34,12 @@ cmake --build build
 
 | 阶段 | 类文件 | 关键逻辑 |
 |------|--------|----------|
-| **PreProcess** | `core/inc/PreProcess.hpp` | FFmpegDecoder 拉 RTSP 流 → VDEC 硬解码 → IVPS 硬缩放(640x640) → 拷贝到 host 内存 |
-| **InfProccess** | `core/inc/InfProccess.hpp` | Yolov5 NPU 推理 → 后处理（坐标映射到原始分辨率） |
-| **BusProcess** | `core/inc/BusProcess.hpp` | SORT 多目标跟踪 → 画框/画 ID（硬件映射 → draw → unmap） |
-| **EncProcess** | `core/inc/EncProcess.hpp` | VENC 硬编码 H264 → FFmpegEncoder 推 RTMP |
+| **PreProcess** | `core/inc/pre_process.hpp` | FFmpegDecoder 拉 RTSP 流 → VDEC 硬解码 → IVPS 硬缩放(640x640) → 拷贝到 host 内存 |
+| **InfProccess** | `core/inc/inf_process.hpp` | Yolov5 NPU 推理 → 后处理（坐标映射到原始分辨率） |
+| **BusProcess** | `core/inc/bus_process.hpp` | SORT 多目标跟踪 → 画框/画 ID（硬件映射 → draw → unmap） |
+| **EncProcess** | `core/inc/enc_process.hpp` | VENC 硬编码 H264 → FFmpegEncoder 推 RTMP |
 
-### 数据流消息类型（`core/inc/ProcessMsg.h`）
+### 数据流消息类型（`core/inc/process_msg.h`）
 
 - `kMsgVdecData` — `ImageData`（解码帧）
 - `kMsgPreprocData` — `PreData`（image + 预处理后的 host buffer）
