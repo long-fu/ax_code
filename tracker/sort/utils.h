@@ -15,7 +15,7 @@ void GetDetectResults(string &detfile, std::map<int, std::vector<BoundingBox>> &
 void SplitString(string &str, vector<int> &out, char sep);
 
 // 可视化检测结果
-// void DrawPic(cv::Mat &img, string &savepath, const std::std::vector<BoundingBox> &results);
+// void DrawPic(cv::Mat &img, string &savepath, const std::vector<BoundingBox> &results);
 // 可视化跟踪结果
 void DrawPic(cv::Mat &img, string savepath, const std::vector<TrackingBox> &results, SortTracker &tracker);
 void DrawPic(cv::Mat &img, const std::vector<TrackingBox> &results, SortTracker &tracker);
