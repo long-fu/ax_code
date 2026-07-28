@@ -1,7 +1,6 @@
 
 
-#ifndef __DRAWING__
-#define __DRAWING__
+#pragma once
 
 #include <string>
 #include <vector>
@@ -35,4 +34,3 @@ void DrawClosedLines(AX_VIDEO_FRAME_INFO_T *frame_info, std::vector<std::tuple<i
 void DrawRect(AX_VIDEO_FRAME_INFO_T *frame_info, int x1, int y1, int x2, int y2, const YUVColor &color, int lineWidth);
 
 void DrawCircle(AX_VIDEO_FRAME_INFO_T *frame_info, int xCenter, int yCenter, int radius, YUVColor color);
-#endif

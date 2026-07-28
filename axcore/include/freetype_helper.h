@@ -1,6 +1,5 @@
 
-#ifndef __FREETYPE_HELPER__
-#define __FREETYPE_HELPER__
+#pragma once
 
 #include <unistd.h>
 #include <string>
@@ -11,5 +10,3 @@
 
 
 void RenderText(AX_VIDEO_FRAME_INFO_T *image, int x, int y, const std::string &text, const YUVColor *color);
-
-#endif

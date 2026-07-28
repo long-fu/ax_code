@@ -1,5 +1,4 @@
-#ifndef __TRACK_H__
-#define __TRACK_H__
+#pragma once
 
 #include <set>
 #include "hungarian.h"
@@ -59,5 +58,3 @@ public:
     // 对外输出跟踪结果
     vector<TrackingBox> GetReport();
 };
-
-#endif

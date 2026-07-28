@@ -1,5 +1,4 @@
-#ifndef __DATATRANS_H
-#define __DATATRANS_H
+#pragma once
 
 #include <opencv2/opencv.hpp>
 
@@ -32,5 +31,3 @@ struct TrackingBox
         track_id = -1;  // 初始化为-1
     }
 };
-
-#endif // DATATRANS_H

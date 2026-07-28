@@ -1,7 +1,4 @@
 
-#ifndef __FFMPEGENCODER__
-#define __FFMPEGENCODER__
-
 #pragma once
 
 #include <string.h>
@@ -90,7 +87,3 @@ public:
     int WritePacket(void *data, size_t data_size);
     ~FFmpegEncoder();
 };
-
-
-
-#endif

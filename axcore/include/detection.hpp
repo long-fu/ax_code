@@ -17,8 +17,6 @@
 /*
  * Author: ls.wang
  */
-#ifndef __detection__
-#define __detection__
 #pragma once
 
 #include <cstdint>
@@ -154,4 +152,3 @@ namespace detection
                                        int letterbox_rows, int letterbox_cols,
                                        int src_rows, int src_cols);
 } // namespace detection
-#endif

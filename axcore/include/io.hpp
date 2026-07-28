@@ -1,6 +1,3 @@
-#ifndef __IO__
-#define __IO__
-
 #pragma once
 
 #include <cstdio>
@@ -45,5 +42,3 @@ namespace middleware
     int PushInput(const std::vector<uint8_t> &data, AX_ENGINE_IO_T *io_t, AX_ENGINE_IO_INFO_T *info_t);
     int PushInput(const uint8_t *data, size_t data_size, AX_ENGINE_IO_T *io_t, AX_ENGINE_IO_INFO_T *info_t);
 } // namespace middleware
-
-#endif

@@ -1,6 +1,3 @@
-#ifndef __FILE_H__
-#define __FILE_H__
-
 #pragma once
 
 #include <cstdint>
@@ -27,6 +24,3 @@ namespace utilities
     bool ReadFile(const char* fn, std::vector<uchar>& data);
 
 } // namespace utilities
-
-
-#endif
