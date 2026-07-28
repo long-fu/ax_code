@@ -9,11 +9,11 @@
 #include "thread_safe_queue.h"
 
 enum PipelineThreadStatus {
-  THREAD_READY = 0,
-  THREAD_RUNNING = 1,
-  THREAD_EXITING = 2,
-  THREAD_EXITED = 3,
-  THREAD_ERROR = 4,
+  kThreadReady = 0,
+  kThreadRunning = 1,
+  kThreadExiting = 2,
+  kThreadExited = 3,
+  kThreadError = 4,
 };
 
 struct PipelineMessage {
@@ -46,7 +46,7 @@ class PipelineThreadMgr {
 
  public:
   bool is_exit_ = false;
-  PipelineThreadStatus status_ = THREAD_READY;
+  PipelineThreadStatus status_ = kThreadReady;
   PipelineThread* user_instance_ = nullptr;
   std::string name_;
   ThreadSafeQueue<std::shared_ptr<PipelineMessage>> msg_queue_;

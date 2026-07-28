@@ -14,16 +14,16 @@
 #include "ax_vdec_type.h"
 
 enum MemId {
-  MEM_ID_MIN = 0x00,
-  MEM_ID_VDEC = 0x01,
-  MEM_ID_VENC = 0x02,
-  MEM_ID_IVPS = 0x03,
-  MEM_ID_IVES = 0x04,
-  MEM_ID_JENC = 0x05,
-  MEM_ID_JDEC = 0x06,
-  MEM_ID_NPU = 0x07,
-  MEM_ID_SYS = 0x08,
-  MEM_ID_MAX = 0xFF
+  kMemIdMin = 0x00,
+  kMemIdVdec = 0x01,
+  kMemIdVenc = 0x02,
+  kMemIdIvps = 0x03,
+  kMemIdIves = 0x04,
+  kMemIdJenc = 0x05,
+  kMemIdJdec = 0x06,
+  kMemIdNpu = 0x07,
+  kMemIdSys = 0x08,
+  kMemIdMax = 0xFF
 };
 
 class FrameData {
@@ -64,7 +64,7 @@ class FrameData {
   int Init() { return 0; }
   int Destroy();
 
-  MemId mem_id_ = MEM_ID_MIN;
+  MemId mem_id_ = kMemIdMin;
   AX_S32 grp_ = -1;
   AX_S32 chn_ = -1;
   AX_VIDEO_FRAME_INFO_T* frame_data_ = nullptr;

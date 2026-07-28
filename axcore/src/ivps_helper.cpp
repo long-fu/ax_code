@@ -286,7 +286,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	dest_frame.img_format = tDstFrame->stVFrame.enImgFormat;
 	dest_frame.width = tDstFrame->stVFrame.u32Width;
 	dest_frame.height = tDstFrame->stVFrame.u32Height;
-	dest_frame.data = FrameData::Create(tDstFrame, ivps_grp_, 0, MEM_ID_IVPS);
+	dest_frame.data = FrameData::Create(tDstFrame, ivps_grp_, 0, kMemIdIvps);
 	return ret;
 }
 

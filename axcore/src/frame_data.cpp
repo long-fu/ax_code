@@ -3,7 +3,7 @@
 #include "logger.h"
 
 int FrameData::Destroy() {
-  if (mem_id_ == MEM_ID_SYS) {
+  if (mem_id_ == kMemIdSys) {
 
     // LOG_INFO("Destory SYS Info");
 
@@ -197,10 +197,10 @@ int FrameData::Destroy() {
       break;
   }
 
-  if (mem_id_ == MEM_ID_IVPS) {
+  if (mem_id_ == kMemIdIvps) {
     // LOG_INFO("Destory IVPS Info");
     s_ret = AX_IVPS_ReleaseChnFrame(grp_, chn_, &frame_data_->stVFrame);
-  } else if (mem_id_ == MEM_ID_VDEC) {
+  } else if (mem_id_ == kMemIdVdec) {
     s_ret = AX_VDEC_ReleaseChnFrame(grp_, chn_, frame_data_);
   }
   

@@ -97,7 +97,7 @@ int Clone(ImageData &dest, ImageData const &src)
 
 	const static char *MEM_TOKEN = "Clone";
 	AX_VIDEO_FRAME_INFO_T *frameInfo = new AX_VIDEO_FRAME_INFO_T();
-	dest.data = FrameData::Create(frameInfo, MEM_ID_SYS);
+	dest.data = FrameData::Create(frameInfo, kMemIdSys);
 
 	memcpy(frameInfo, src.data->FrameInfo(), sizeof(AX_VIDEO_FRAME_INFO_T));
 
@@ -350,7 +350,7 @@ int JpegDecode(ImageData &dest, std::string const &jpegFile)
 	dest.width = frame_info->stVFrame.u32Width;
 	dest.height = frame_info->stVFrame.u32Height;
 	dest.img_format = frame_info->stVFrame.enImgFormat;
-	dest.data = FrameData::Create(frame_info, MEM_ID_SYS);
+	dest.data = FrameData::Create(frame_info, kMemIdSys);
 
 	return ret;
 }

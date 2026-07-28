@@ -60,9 +60,9 @@
 // }
 
 enum ResourceType{
-    RES_IVPS_ID = 1,
-    RES_VDEC_ID = 2,
-    RES_VENC_ID = 3
+    kResIvpsId = 1,
+    kResVdecId = 2,
+    kResVencId = 3
 };
 
 class ReqResourceId

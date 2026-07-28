@@ -23,7 +23,7 @@ int Pipeline::Init() {
   const uint32_t msg_queue_size = 256;
   auto* th_mgr = new PipelineThreadMgr(nullptr, "main", msg_queue_size);
   thread_list_.push_back(th_mgr);
-  th_mgr->SetStatus(THREAD_RUNNING);
+  th_mgr->SetStatus(kThreadRunning);
   return 0;
 }
 
@@ -144,12 +144,12 @@ void Pipeline::Wait() {
     usleep(kWaitInterval);
     if (is_wait_end_) break;
   }
-  thread_list_[g_main_thread_id]->SetStatus(THREAD_EXITED);
+  thread_list_[g_main_thread_id]->SetStatus(kThreadExited);
 }
 
 bool Pipeline::CheckThreadAbnormal() {
   for (size_t i = 0; i < thread_list_.size(); i++) {
-    if (thread_list_[i]->GetStatus() == THREAD_ERROR) {
+    if (thread_list_[i]->GetStatus() == kThreadError) {
       return true;
     }
   }
@@ -180,7 +180,7 @@ void Pipeline::Wait(AclLiteMsgProcess msg_process, void* param) {
       break;
     }
   }
-  thread_list_[g_main_thread_id]->SetStatus(THREAD_EXITED);
+  thread_list_[g_main_thread_id]->SetStatus(kThreadExited);
 }
 
 void Pipeline::Exit() { 
@@ -190,12 +190,12 @@ void Pipeline::Exit() {
 void Pipeline::ReleaseThreads() {
   if (is_released_) return;
   LOG_INFO("ReleaseThreads 11");
-  thread_list_[g_main_thread_id]->SetStatus(THREAD_EXITED);
+  thread_list_[g_main_thread_id]->SetStatus(kThreadExited);
 
   for (uint32_t i = 1; i < thread_list_.size(); i++) {
     if ((thread_list_[i] != nullptr) &&
-        (thread_list_[i]->GetStatus() == THREAD_RUNNING)) {
-      thread_list_[i]->SetStatus(THREAD_EXITING);
+        (thread_list_[i]->GetStatus() == kThreadRunning)) {
+      thread_list_[i]->SetStatus(kThreadExiting);
     }
   }
 
@@ -204,13 +204,13 @@ void Pipeline::ReleaseThreads() {
     bool exit_finish = true;
     for (uint32_t i = 0; i < thread_list_.size(); i++) {
       if (thread_list_[i] == nullptr) continue;
-      if (thread_list_[i]->GetStatus() > THREAD_EXITING) {
+      if (thread_list_[i]->GetStatus() > kThreadExiting) {
         LOG_INFO("App thread {} {} released 1", i,thread_list_[i]->GetThreadName());
         delete thread_list_[i];
         thread_list_[i] = nullptr;
         LOG_INFO("App thread {} released 2", i);
       } else {
-        thread_list_[i]->SetStatus(THREAD_EXITING);
+        thread_list_[i]->SetStatus(kThreadExiting);
         exit_finish = false;
       }
     }

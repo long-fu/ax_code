@@ -289,7 +289,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 			frameInfo->stVFrame.u64VirAddr[2] = 0;
 
 			ImageData image;
-			image.data = FrameData::Create(frameInfo, VdGrp, VdChn, MEM_ID_VDEC);
+			image.data = FrameData::Create(frameInfo, VdGrp, VdChn, kMemIdVdec);
 			image.end_of_stream = frameInfo->bEndOfStream;
 			image.img_format = frameInfo->stVFrame.enImgFormat;
 			image.width = frameInfo->stVFrame.u32Width;
@@ -297,7 +297,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 
 			self->callback_(image, VdGrp, VdChn, self->user_data_);
 
-			// std::shared_ptr<FrameData> data = std::make_shared<FrameData>(frameInfo, VdGrp, VdChn, MEM_ID_VDEC);
+			// std::shared_ptr<FrameData> data = std::make_shared<FrameData>(frameInfo, VdGrp, VdChn, kMemIdVdec);
 
 			// ImageData image;
 			// image.bEndOfStream = frameInfo->bEndOfStream;

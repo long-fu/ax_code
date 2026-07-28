@@ -12,18 +12,18 @@ extern "C" {
 }
 
 enum StreamType {
-  STREAM_VIDEO = 0,
-  STREAM_RTSP,
+  kStreamVideo = 0,
+  kStreamRtsp,
 };
 
 enum DecodeStatus {
-  DECODE_ERROR = -1,
-  DECODE_UNINIT = 0,
-  DECODE_READY = 1,
-  DECODE_START = 2,
-  DECODE_FFMPEG_FINISHED = 3,
-  DECODE_DVPP_FINISHED = 4,
-  DECODE_FINISHED = 5
+  kDecodeError = -1,
+  kDecodeUninit = 0,
+  kDecodeReady = 1,
+  kDecodeStart = 2,
+  kDecodeFfmpegFinished = 3,
+  kDecodeDvppFinished = 4,
+  kDecodeFinished = 5
 };
 
 #define INVALID_CHANNEL_ID (-1)
