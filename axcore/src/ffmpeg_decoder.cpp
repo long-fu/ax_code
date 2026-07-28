@@ -145,7 +145,7 @@ bool FFmpegDecoder::InitVideoParams(int video_index,
   return true;
 }
 
-void FFmpegDecoder::Decode(FrameProcessCallBack callback,
+void FFmpegDecoder::Decode(FrameProcessCallback callback,
                            void* callback_param) {
   LOG_INFO("Start ffmpeg decode video {} ...", stream_name_);
   avformat_network_init();

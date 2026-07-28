@@ -217,7 +217,7 @@ int VencHelper::Init()
 	return s32Ret;
 }
 
-int VencHelper::Encode(VencProcessCallBack callback, void *user_data)
+int VencHelper::Encode(VencProcessCallback callback, void *user_data)
 {
 	AX_S32 s32Ret;
 	callback_ = callback;

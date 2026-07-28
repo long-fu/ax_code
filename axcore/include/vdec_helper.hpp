@@ -9,7 +9,7 @@
 #include "ax_global_type.h"
 #include "ax_vdec_api.h"
 
-typedef int (*VdecProcessCallBack)(ImageData imageData, int grp, int chn,
+typedef int (*VdecProcessCallback)(ImageData imageData, int grp, int chn,
                                    void* user_data);
 
 class VdecHelper {
@@ -31,7 +31,7 @@ class VdecHelper {
   int Destory();
 
   static void* RecvStreamFunc(void* argv);
-  int Decode(VdecProcessCallBack callback, void* user_data);
+  int Decode(VdecProcessCallback callback, void* user_data);
   int StopDecode();
   int WriteEOF();
   int Write(void* data, size_t data_size, void* user_data);
@@ -47,7 +47,7 @@ class VdecHelper {
   AX_U32 frame_width_ = 0;
   AX_U32 frame_height_ = 0;
   int fps_ = 25;
-  VdecProcessCallBack callback_ = nullptr;
+  VdecProcessCallback callback_ = nullptr;
   AX_IMG_FORMAT_E img_format_{AX_FORMAT_YUV420_SEMIPLANAR};
   AX_U32 buf_size_ = 3 * 1024 * 1024;
   pthread_t recv_tid_{0};

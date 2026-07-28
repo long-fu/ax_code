@@ -8,7 +8,7 @@
 #include "ax_global_type.h"
 #include "ax_venc_api.h"
 
-typedef int (*VencProcessCallBack)(AX_VENC_STREAM_T streamData, int chn,
+typedef int (*VencProcessCallback)(AX_VENC_STREAM_T streamData, int chn,
                                    void* user_data);
 
 class VencHelper {
@@ -22,7 +22,7 @@ class VencHelper {
         dst_frame_rate_(dst_frame_rate) {}
 
   int Init();
-  int Encode(VencProcessCallBack callback, void* user_data);
+  int Encode(VencProcessCallback callback, void* user_data);
   int StopEncode();
 
   int WriteEOF() {
@@ -53,5 +53,5 @@ class VencHelper {
   std::atomic<bool> is_stop_{false};
   pthread_t recv_thd_;
   void* user_data_ = nullptr;
-  VencProcessCallBack callback_ = nullptr;
+  VencProcessCallback callback_ = nullptr;
 };

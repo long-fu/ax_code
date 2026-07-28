@@ -28,7 +28,7 @@ class EncProcess : public PipelineThread {
     delete venc_;
   }
 
-  static int VencProcessCallBackFunc(AX_VENC_STREAM_T stream_data, int chn,
+  static int VencProcessCallbackFunc(AX_VENC_STREAM_T stream_data, int chn,
                                      void* user_data) {
     auto self = static_cast<EncProcess*>(user_data);
     TIME_START(WritePacket);
@@ -52,7 +52,7 @@ class EncProcess : public PipelineThread {
   }
 
   int Start() {
-    int ret = venc_->Encode(VencProcessCallBackFunc, this);
+    int ret = venc_->Encode(VencProcessCallbackFunc, this);
     return ret;
   }
 

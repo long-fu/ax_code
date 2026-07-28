@@ -49,14 +49,14 @@ class PreProcess : public PipelineThread {
     return 0;
   }
 
-  static int FrameProcessCallBackFunc(void* user_data, void* frame_data,
+  static int FrameProcessCallbackFunc(void* user_data, void* frame_data,
                                       int frame_size) {
     auto self = static_cast<PreProcess*>(user_data);
     self->vdec_->Write(frame_data, frame_size, nullptr);
     return 0;
   }
 
-  static int VdecProcessCallBackFunc(ImageData image, int grp, int chn,
+  static int VdecProcessCallbackFunc(ImageData image, int grp, int chn,
                                      void* user_data) {
     auto data = std::make_shared<ImageData>(image);
     data->time_point = std::chrono::steady_clock::now();
@@ -67,16 +67,16 @@ class PreProcess : public PipelineThread {
     return 0;
   }
 
-  static void* FFmpegDecodeCallBackFunc(void* argv) {
+  static void* FFmpegDecodeCallbackFunc(void* argv) {
     pthread_setname_np(pthread_self(), "FFDec");
     auto self = static_cast<PreProcess*>(argv);
-    self->ff_decoder_->Decode(FrameProcessCallBackFunc, argv);
+    self->ff_decoder_->Decode(FrameProcessCallbackFunc, argv);
     return nullptr;
   }
 
   int Start() {
-    int ret = vdec_->Decode(VdecProcessCallBackFunc, this);
-    pthread_create(&ffmpeg_thread_, nullptr, FFmpegDecodeCallBackFunc, this);
+    int ret = vdec_->Decode(VdecProcessCallbackFunc, this);
+    pthread_create(&ffmpeg_thread_, nullptr, FFmpegDecodeCallbackFunc, this);
     return ret;
   }
 

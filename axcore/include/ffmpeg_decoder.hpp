@@ -32,7 +32,7 @@ constexpr int kVideoChannelMax = 256;
 constexpr const char* kRtspTransportUdp = "udp";
 constexpr const char* kRtspTransportTcp = "tcp";
 
-typedef int (*FrameProcessCallBack)(void* callback_param, void* frame_data,
+typedef int (*FrameProcessCallback)(void* callback_param, void* frame_data,
                                     int frame_size);
 
 class FFmpegDecoder {
@@ -40,7 +40,7 @@ class FFmpegDecoder {
   explicit FFmpegDecoder(const std::string& name);
   ~FFmpegDecoder() = default;
 
-  void Decode(FrameProcessCallBack callback_func, void* callback_param);
+  void Decode(FrameProcessCallback callback_func, void* callback_param);
   int GetVideoInfo();
 
   int GetFrameWidth() { return frame_width_; }

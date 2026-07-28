@@ -345,7 +345,7 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 	LOG_INFO("Read Vdec Data Stop code:{}, msg:{}", sRet, AX_VdecRetStr(sRet));
 	return nullptr;
 }
-int VdecHelper::Decode(VdecProcessCallBack callbac, void *user_data)
+int VdecHelper::Decode(VdecProcessCallback callbac, void *user_data)
 {
 
 	AX_VDEC_RECV_PIC_PARAM_T tRecvParam;
