@@ -1,7 +1,7 @@
 #include "byte_tracker.h"
 #include <fstream>
 
-BYTETracker::BYTETracker(int frame_rate, int track_buffer)
+ByteTracker::ByteTracker(int frame_rate, int track_buffer)
 {
 	track_thresh = 0.5;
 	high_thresh = 0.6;
@@ -11,11 +11,11 @@ BYTETracker::BYTETracker(int frame_rate, int track_buffer)
 	max_time_lost = int(frame_rate / 30.0 * track_buffer);
 }
 
-BYTETracker::~BYTETracker()
+ByteTracker::~ByteTracker()
 {
 }
 
- std::vector<STrack> BYTETracker::Update(const  std::vector<detect_result>& objects)
+ std::vector<STrack> ByteTracker::Update(const  std::vector<detect_result>& objects)
 {
 
 	////////////////// Step 1: Get detections //////////////////

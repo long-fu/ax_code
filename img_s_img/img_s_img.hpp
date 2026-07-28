@@ -150,7 +150,7 @@ std::vector<std::string> getAllFilesInDirectory(const std::string &dirPath)
 
 #endif
 
-class ImgSImg
+class ImgSimg
 {
 public:
     struct Config
@@ -187,10 +187,10 @@ private:
     QdrantClient client_;
 
 public:
-    ImgSImg(int channelId, Config config) : config_(config),
+    ImgSimg(int channelId, Config config) : config_(config),
                                             embedding_(config.model_path, channelId),
                                             client_(config.qdrant_host) {};
-    ~ImgSImg() {};
+    ~ImgSimg() {};
     int Init()
     {
         int ret;

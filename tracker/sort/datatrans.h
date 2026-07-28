@@ -5,7 +5,7 @@
 
 using namespace std;
 
-struct Bbox
+struct BoundingBox
 {
     float score;
     int class_id;  // 类别ID
@@ -25,7 +25,7 @@ struct TrackingBox
     // 构造函数
     TrackingBox(){}  
     // 重载构造函数
-    TrackingBox(Bbox obj){
+    TrackingBox(BoundingBox obj){
         box = obj.rect;
         obj_conf = obj.score;
         class_id = obj.class_id;

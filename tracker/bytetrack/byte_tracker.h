@@ -3,11 +3,11 @@
 #include "strack.h"
 #include "YOLOv5Detector.h"
 
-class BYTETracker
+class ByteTracker
 {
 public:
-	BYTETracker(int frame_rate = 30, int track_buffer = 30);
-	~BYTETracker();
+	ByteTracker(int frame_rate = 30, int track_buffer = 30);
+	~ByteTracker();
 
 	std::vector<STrack> Update(const std::vector<detect_result> &objects);
 	cv::Scalar GetColor(int idx);

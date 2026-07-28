@@ -55,9 +55,9 @@ int main(int argc, char const *argv[])
 
   AX_INIT();
 
-  // ImgSImg::Config config;
+  // ImgSimg::Config config;
 
-  // ImgSImg isi(0,config);
+  // ImgSimg isi(0,config);
 
   IvpsHelper m_Ivps(0, 640 * 640 * 3, 16);
 

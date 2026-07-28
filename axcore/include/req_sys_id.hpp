@@ -65,7 +65,7 @@ enum ResourceType{
     RES_VENC_ID = 3
 };
 
-class ReqResourceID
+class ReqResourceId
 {
 private:
     sigset_t waitset_;
@@ -73,7 +73,7 @@ private:
 
     static void *RequestThread(void *argv)
     {
-        ReqResourceID *self = (ReqResourceID *)argv;
+        ReqResourceId *self = (ReqResourceId *)argv;
         do
         {
             siginfo_t info{0x0};
@@ -112,7 +112,7 @@ private:
     }
 
 public:
-    ReqResourceID() {};
+    ReqResourceId() {};
 
     int Request(ResourceType type)
     {
@@ -134,5 +134,5 @@ public:
         return resource_id_;
     };
 
-    ~ReqResourceID() {};
+    ~ReqResourceId() {};
 };

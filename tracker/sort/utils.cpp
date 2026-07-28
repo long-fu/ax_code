@@ -18,7 +18,7 @@ void GetFilePaths(string &folder, vector<cv::String> &filepaths, string postfix,
     }
 }
 
-void GetDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results){
+void GetDetectResults(string &detfile, std::map<int, vector<BoundingBox>> &det_results){
     ifstream fin;
     fin.open(detfile, std::ios::in);
     string str_line;
@@ -29,12 +29,12 @@ void GetDetectResults(string &detfile, std::map<int, vector<Bbox>> &det_results)
         SplitString(str_line, res, ',');
         // 解析bbox
         int frame_id = res[0];
-        Bbox bbox;
+        BoundingBox bbox;
         bbox.bbox_id = res[1];
         bbox.rect = cv::Rect_<int>(res[2], res[3], res[4], res[5]);
         // 判断map中某个key是否存在，如果不存在需要先初始化
         if (det_results.find(frame_id) == det_results.end()){
-            det_results[frame_id] = vector<Bbox>();  // 初始化为空值
+            det_results[frame_id] = vector<BoundingBox>();  // 初始化为空值
         }
         det_results[frame_id].push_back(bbox);
     }
@@ -52,7 +52,7 @@ void SplitString(string &str, std::vector<int> &out, char sep)
     }
 }
 
-// void DrawPic(cv::Mat &img, string savepath, const std::vector<Bbox> &results){
+// void DrawPic(cv::Mat &img, string savepath, const std::vector<BoundingBox> &results){
 //     vector<cv::Scalar> colors = {{0,0,255}, {0,255,0}, {255,0,0}, {255,255,0}, {0,255,255}, {255,0,255}, {255,153,18}, {255,97,0}};
 //     for (auto obj:results){
 //         // cv::Scalar color = {rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255)};
