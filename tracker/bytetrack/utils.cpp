@@ -98,7 +98,7 @@ void ByteTracker::RemoveDuplicateStracks( std::vector<STrack> &resa,  std::vecto
 
     for (int i = 0; i < stracksa.size(); i++)
     {
-        std::vector<int>::iterator iter = find(dupa.begin(), dupa.end(), i);
+        std::vector<int>::iterator iter = std::find(dupa.begin(), dupa.end(), i);
         if (iter == dupa.end())
         {
             resa.push_back(stracksa[i]);
@@ -107,7 +107,7 @@ void ByteTracker::RemoveDuplicateStracks( std::vector<STrack> &resa,  std::vecto
 
     for (int i = 0; i < stracksb.size(); i++)
     {
-        std::vector<int>::iterator iter = find(dupb.begin(), dupb.end(), i);
+        std::vector<int>::iterator iter = std::find(dupb.begin(), dupb.end(), i);
         if (iter == dupb.end())
         {
             resb.push_back(stracksb[i]);

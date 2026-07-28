@@ -1,7 +1,7 @@
 #include "sort_track.h"
 #include "logger.h"
 
-double SortTracker::GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
+double SortTracker::GetIOU(cv::Rect_<float> bb_test, cv::Rect_<float> bb_gt)
 {
     float intersection = (bb_test & bb_gt).area();
     float unionArea = bb_test.area() + bb_gt.area() - intersection;
@@ -11,13 +11,13 @@ double SortTracker::GetIOU(Rect_<float> bb_test, Rect_<float> bb_gt)
 }
 
 
-void SortTracker::Update(const vector<TrackingBox> &detFrameData)
+void SortTracker::Update(const std::vector<TrackingBox> &detFrameData)
 {
     // total_frames++;
     frame_count++;
 
     // count running time using clock()
-    start_time = getTickCount();
+    start_time = cv::getTickCount();
 
     // 初始化，the first frame met
     if (trackers.size() == 0)
@@ -37,7 +37,7 @@ void SortTracker::Update(const vector<TrackingBox> &detFrameData)
 
     for (auto it = trackers.begin(); it != trackers.end();)
     {
-        Rect_<float> pBox = (*it).Predict();
+        cv::Rect_<float> pBox = (*it).Predict();
         if (pBox.x >= 0 && pBox.y >= 0)
         {
             predicted_boxes.push_back(pBox);
@@ -57,7 +57,7 @@ void SortTracker::Update(const vector<TrackingBox> &detFrameData)
     det_num = detFrameData.size();
 
     iou_matrix.clear();
-    iou_matrix.resize(trk_num, vector<double>(det_num, 0));
+    iou_matrix.resize(trk_num, std::vector<double>(det_num, 0));
     // compute iou matrix as a distance matrix
     for (unsigned int i = 0; i < trk_num; i++)
     {
@@ -92,9 +92,9 @@ void SortTracker::Update(const vector<TrackingBox> &detFrameData)
         for (unsigned int i = 0; i < trk_num; ++i)
             matched_items.insert(assignment[i]);
         // 找到没有配对上的检测框
-        set_difference(all_items.begin(), all_items.end(),
+        std::set_difference(all_items.begin(), all_items.end(),
                        matched_items.begin(), matched_items.end(),
-                       insert_iterator<set<int>>(unmatched_detections, unmatched_detections.begin()));
+                       std::insert_iterator<std::set<int>>(unmatched_detections, unmatched_detections.begin()));
     }
     else if (det_num < trk_num) // there are unmatched trajectory/predictions
     {
@@ -156,12 +156,12 @@ void SortTracker::Update(const vector<TrackingBox> &detFrameData)
         }
     }
 
-    cycle_time = (double)(getTickCount() - start_time);
-    total_time += cycle_time / getTickFrequency();
+    cycle_time = (double)(cv::getTickCount() - start_time);
+    total_time += cycle_time / cv::getTickFrequency();
 }
 
 
-vector<TrackingBox> SortTracker::GetReport(){
+std::vector<TrackingBox> SortTracker::GetReport(){
     // get trackers' output
     frame_tracking_result.clear();
     for (auto it = trackers.begin(); it != trackers.end(); ++it)

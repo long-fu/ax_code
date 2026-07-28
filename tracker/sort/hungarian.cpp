@@ -18,7 +18,7 @@ HungarianAlgorithm::~HungarianAlgorithm() {}
 //********************************************************//
 // A single function wrapper for solving assignment problem.
 //********************************************************//
-double HungarianAlgorithm::Solve(vector<vector<double>> &DistMatrix, vector<int> &Assignment)
+double HungarianAlgorithm::Solve(std::vector<std::vector<double>> &DistMatrix, std::vector<int> &Assignment)
 {
 	unsigned int nRows = static_cast<unsigned int>(DistMatrix.size());
 	unsigned int nCols = static_cast<unsigned int>(DistMatrix[0].size());
@@ -85,7 +85,7 @@ void HungarianAlgorithm::AssignmentOptimal(int *assignment, double *cost, double
 	{
 		value = distMatrixIn[row];
 		if (value < 0)
-			cerr << "All matrix elements have to be non-negative." << endl;
+			std::cerr << "All matrix elements have to be non-negative." << std::endl;
 		distMatrix[row] = value;
 	}
 

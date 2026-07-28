@@ -69,7 +69,7 @@ public:
       frame_id_++;
       tracker_.Update(det_frame_data);
 
-      vector<TrackingBox> tracking_results = tracker_.GetReport();
+      std::vector<TrackingBox> tracking_results = tracker_.GetReport();
       // LOG_INFO("tracker out: {}", tracking_results.size());
 
       TIME_END(test_sort);

@@ -10,11 +10,11 @@ void KalmanTracker::InitKf(StateType stateMat)
 {
 	int stateNum = 7;  // 一个7维的状态更新向量：[u,v,s,r,u^,v^,s^]T。Note：u^,v^,s^表示运动速度
 	int measureNum = 4;  // 一个4维的观测输入，即中心面积的形式[x,y,s,r]，即[检测框中心x坐标,y坐标,面积,宽高比]。
-	kf = KalmanFilter(stateNum, measureNum, 0);
+	kf = cv::KalmanFilter(stateNum, measureNum, 0);
 
 	// 状态转移矩阵(A)。默认两帧的时间间隔是1，无量纲
 	// Note：如果要计算实际运动速度，则右上角的三个1需要更改为两帧的时间间隔dt，并在每次调用predict()函数之前进行重置
-	kf.transitionMatrix = (Mat_<float>(stateNum, stateNum) << 
+	kf.transitionMatrix = (cv::Mat_<float>(stateNum, stateNum) <<
 						   1, 0, 0, 0, 1, 0, 0,
 						   0, 1, 0, 0, 0, 1, 0,
 						   0, 0, 1, 0, 0, 0, 1,
@@ -23,12 +23,12 @@ void KalmanTracker::InitKf(StateType stateMat)
 						   0, 0, 0, 0, 0, 1, 0,
 						   0, 0, 0, 0, 0, 0, 1);
 
-	measurement = Mat::zeros(measureNum, 1, CV_32F);		// 观测值，初始化为0
+	measurement = cv::Mat::zeros(measureNum, 1, CV_32F);		// 观测值，初始化为0
 	
-	setIdentity(kf.measurementMatrix);						// 测量矩阵 H
-	setIdentity(kf.processNoiseCov, Scalar::all(1e-2));		// 系统误差 Q
-	setIdentity(kf.measurementNoiseCov, Scalar::all(1e-1)); // 测量误差 R
-	setIdentity(kf.errorCovPost, Scalar::all(1));			// 最小均方误差 P'(k))
+	cv::setIdentity(kf.measurementMatrix);						// 测量矩阵 H
+	cv::setIdentity(kf.processNoiseCov, cv::Scalar::all(1e-2));		// 系统误差 Q
+	cv::setIdentity(kf.measurementNoiseCov, cv::Scalar::all(1e-1)); // 测量误差 R
+	cv::setIdentity(kf.errorCovPost, cv::Scalar::all(1));			// 最小均方误差 P'(k))
 
 	// initialize state vector with bounding box in [cx,cy,s,r] style
 	kf.statePost.at<float>(0, 0) = stateMat.x + stateMat.width / 2;	 // 检测框中心x坐标
@@ -41,7 +41,7 @@ void KalmanTracker::InitKf(StateType stateMat)
 StateType KalmanTracker::Predict()
 {
 	// predict // 计算预测的状态值，一个7维的状态更新向量，最后三个元素是运动速度
-	Mat p = kf.predict();
+	cv::Mat p = kf.predict();
 	age += 1;
 	
 	if (time_since_update > max_missing_observed_num)
@@ -82,7 +82,7 @@ void KalmanTracker::Update(TrackingBox track_box)
 // Return the current state vector
 StateType KalmanTracker::GetState()
 {
-	Mat s = kf.statePost;
+	cv::Mat s = kf.statePost;
 	return GetRectXysr(s.at<float>(0, 0), s.at<float>(1, 0), s.at<float>(2, 0), s.at<float>(3, 0));
 }
 
