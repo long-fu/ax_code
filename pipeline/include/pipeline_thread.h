@@ -6,7 +6,7 @@
 #include "logger.h"
 #include "thread_safe_queue.h"
 
-#define INVALID_INSTANCE_ID (-1)
+constexpr int kInvalidInstanceId = -1;
 
 class PipelineThread {
  public:
@@ -31,6 +31,6 @@ class PipelineThread {
 struct PipelineThreadParam {
   PipelineThread* thread_inst = nullptr;
   std::string thread_inst_name = "";
-  int thread_inst_id = INVALID_INSTANCE_ID;
+  int thread_inst_id = kInvalidInstanceId;
   uint32_t queue_size = 256;
 };

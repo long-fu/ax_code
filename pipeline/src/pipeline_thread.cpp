@@ -5,7 +5,7 @@
 #include "logger.h"
 
 PipelineThread::PipelineThread()
-    : instance_id_(INVALID_INSTANCE_ID),
+    : instance_id_(kInvalidInstanceId),
       instance_name_(""),
       is_base_configed_(false) {}
 

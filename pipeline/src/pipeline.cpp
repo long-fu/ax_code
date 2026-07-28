@@ -31,16 +31,16 @@ int Pipeline::Init() {
 //                                    const std::string& inst_name,
 //                                    uint32_t msg_queue_size) {
 //   int inst_id = CreatePipelineThreadMgr(th_inst, inst_name, msg_queue_size);
-//   if (inst_id == INVALID_INSTANCE_ID) {
+//   if (inst_id == kInvalidInstanceId) {
 //     LOG_ERROR("Add thread instance {} failed", inst_name);
-//     return INVALID_INSTANCE_ID;
+//     return kInvalidInstanceId;
 //   }
 
 //   thread_list_[inst_id]->CreateThread();
 //   int ret = thread_list_[inst_id]->WaitThreadInitEnd();
 //   if (ret != 0) {
 //     LOG_ERROR("Create thread failed, error {}", ret);
-//     return INVALID_INSTANCE_ID;
+//     return kInvalidInstanceId;
 //   }
 
 //   return inst_id;
@@ -51,14 +51,14 @@ int Pipeline::CreatePipelineThreadMgr(PipelineThread* th_inst,
                                       uint32_t msg_queue_size) {
   if (!CheckThreadNameUnique(inst_name)) {
     LOG_ERROR("The thread instance name is not unique");
-    return INVALID_INSTANCE_ID;
+    return kInvalidInstanceId;
   }
 
   int inst_id = thread_list_.size();
   int ret = th_inst->BaseConfig(inst_id, inst_name);
   if (ret != 0) {
     LOG_ERROR("Create thread instance failed for error {}", ret);
-    return INVALID_INSTANCE_ID;
+    return kInvalidInstanceId;
   }
 
   auto* th_mgr = new PipelineThreadMgr(th_inst, inst_name, msg_queue_size);
@@ -86,7 +86,7 @@ int Pipeline::Start(std::vector<PipelineThreadParam>& thread_param_tbl) {
     int inst_id = CreatePipelineThreadMgr(thread_param_tbl[i].thread_inst,
                                           thread_param_tbl[i].thread_inst_name,
                                           thread_param_tbl[i].queue_size);
-    if (inst_id == INVALID_INSTANCE_ID) {
+    if (inst_id == kInvalidInstanceId) {
       LOG_ERROR("Create thread instance failed");
       return -1;
     }
@@ -112,7 +112,7 @@ int Pipeline::Start(std::vector<PipelineThreadParam>& thread_param_tbl) {
 int Pipeline::GetPipelineThreadIdByName(const std::string& thread_name) {
   if (thread_name.empty()) {
     LOG_ERROR("search name is empty");
-    return INVALID_INSTANCE_ID;
+    return kInvalidInstanceId;
   }
 
   for (uint32_t i = 0; i < thread_list_.size(); i++) {
@@ -121,7 +121,7 @@ int Pipeline::GetPipelineThreadIdByName(const std::string& thread_name) {
     }
   }
 
-  return INVALID_INSTANCE_ID;
+  return kInvalidInstanceId;
 }
 
 int Pipeline::SendMessage(int dest, int msg_id,

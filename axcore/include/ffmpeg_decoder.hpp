@@ -26,11 +26,11 @@ enum DecodeStatus {
   kDecodeFinished = 5
 };
 
-#define INVALID_CHANNEL_ID (-1)
-#define INVALID_STREAM_FORMAT (-1)
-#define VIDEO_CHANNEL_MAX (256)
-#define RTSP_TRANSPORT_UDP "udp"
-#define RTSP_TRANSPORT_TCP "tcp"
+constexpr int kInvalidChannelId = -1;
+constexpr int kInvalidStreamFormat = -1;
+constexpr int kVideoChannelMax = 256;
+constexpr const char* kRtspTransportUdp = "udp";
+constexpr const char* kRtspTransportTcp = "tcp";
 
 typedef int (*FrameProcessCallBack)(void* callback_param, void* frame_data,
                                     int frame_size);
