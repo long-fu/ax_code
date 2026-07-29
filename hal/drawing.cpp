@@ -33,7 +33,21 @@ FrameBuf GetFrameBuf(AX_VIDEO_FRAME_INFO_T* f) {
     };
 }
 
-// Fast horizontal line — memset Y, stride loop UV
+// Pre-filled UV pattern for memcpy (128 bytes = 64 UV pairs)
+inline const uint8_t* UvPattern128(const YUVColor& c) {
+    alignas(64) static uint8_t kPat[128];
+    static YUVColor kCached = {0, 0, 0};  // guard against first-use race (benign)
+    if (kCached.y != c.y || kCached.u != c.u || kCached.v != c.v) {
+        for (int i = 0; i < 128; i += 2) {
+            kPat[i] = c.u;
+            kPat[i + 1] = c.v;
+        }
+        kCached = c;
+    }
+    return kPat;
+}
+
+// Fast horizontal line — memset Y, memcpy UV
 void DrawHorizLine(const FrameBuf& fb, int x1, int x2, int y, const YUVColor& c) {
     if (y < 0 || y >= fb.height) return;
     if (x1 > x2) std::swap(x1, x2);
@@ -44,18 +58,27 @@ void DrawHorizLine(const FrameBuf& fb, int x1, int x2, int y, const YUVColor& c)
     // Y plane: one memset
     memset(fb.y + y * fb.stride + x1, c.y, x2 - x1 + 1);
 
-    // UV plane: write pairs (each pair covers 2 Y pixels)
+    // UV plane: memcpy in 128-byte chunks, then tail loop
     int uvRow = (y / 2) * fb.stride;
-    int uvStart = x1 & ~1;
-    int uvEnd = x2;
-    uint8_t* uvRowPtr = fb.uv + uvRow;
-    for (int x = uvStart; x <= uvEnd; x += 2) {
-        uvRowPtr[x] = c.u;
-        uvRowPtr[x + 1] = c.v;
+    int uvStart = x1 & ~1;       // round down to even
+    int uvBytes = x2 - uvStart + 2;
+    uint8_t* dst = fb.uv + uvRow + uvStart;
+    const uint8_t* pat = UvPattern128(c);
+
+    while (uvBytes >= 128) {
+        memcpy(dst, pat, 128);
+        dst += 128;
+        uvBytes -= 128;
+    }
+    while (uvBytes >= 2) {
+        dst[0] = c.u;
+        dst[1] = c.v;
+        dst += 2;
+        uvBytes -= 2;
     }
 }
 
-// Fast vertical line — stride loop for Y, stride loop for UV
+// Fast vertical line — stride loop for Y, stride loop for UV (skip even-row dupes)
 void DrawVertLine(const FrameBuf& fb, int x, int y1, int y2, const YUVColor& c) {
     if (x < 0 || x >= fb.width) return;
     if (y1 > y2) std::swap(y1, y2);
@@ -65,8 +88,15 @@ void DrawVertLine(const FrameBuf& fb, int x, int y1, int y2, const YUVColor& c) 
 
     int uvX = x & ~1;
 
+    // Y: one write per row
     for (int y = y1; y <= y2; y++) {
         fb.y[y * fb.stride + x] = c.y;
+    }
+
+    // UV: each pair covers 2 Y rows — write only on odd y (or y1 if range < 2)
+    int uvY1 = y1 | 1;  // round up to next odd
+    if (uvY1 > y2) uvY1 = y1;
+    for (int y = uvY1; y <= y2; y += 2) {
         int off = (y / 2) * fb.stride + uvX;
         fb.uv[off] = c.u;
         fb.uv[off + 1] = c.v;

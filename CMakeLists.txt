@@ -44,7 +44,6 @@ link_directories(
     3rdpart/opencv/lib
     3rdpart/ffmpeg/lib
     3rdpart/x264/lib
-    3rdpart/spdlog/lib
     3rdpart/freetype/lib
     3rdpart/nlohmann/
     3rdpart/curl/lib
