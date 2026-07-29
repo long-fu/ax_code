@@ -1,132 +1,201 @@
+#include "drawing.h"
 
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <cstring>
 #include <stdint.h>
-#include <string>
-#include <stdio.h>
-#include "drawing.h"
-#include <tuple>
 #include <opencv2/opencv.hpp>
 #include "freetype_helper.h"
+
 using namespace cv;
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+// ============================================================
+//  Internal helpers
+// ============================================================
 
-void SetPixel(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const YUVColor &color)
-{
-    // (frame_info=0xffffd4001490, x=751, y=1084, color=...)
-    // YUV 绘制
-    if (frame_info == nullptr)
-    {
-        return;
-    }
+namespace {
 
-    int _x = 0;
-    int _y = 0;
+struct FrameBuf {
+    uint8_t* y;
+    uint8_t* uv;
+    int stride;
+    int width;
+    int height;
+};
 
-    _x = x < 0 ? 0 : x;
-
-    _y = y < 0 ? 0 : y;
-
-    _x = _x >= static_cast<int>(frame_info->stVFrame.u32Width) ? (frame_info->stVFrame.u32Width - 1) : _x;
-
-    _y = _y >= static_cast<int>(frame_info->stVFrame.u32Height) ? (frame_info->stVFrame.u32Height - 1) : _y;
-
-    AX_VOID *pLumaVirAddr = (AX_VOID *)((AX_ULONG)frame_info->stVFrame.u64VirAddr[0]);
-    AX_VOID *pChromaVirAddr = (AX_VOID *)((AX_ULONG)frame_info->stVFrame.u64VirAddr[1]);
-
-    int yStride = frame_info->stVFrame.u32PicStride[0];
-
-    uint8_t *yPt = static_cast<uint8_t *>(pLumaVirAddr);
-    uint8_t *uvPt = static_cast<uint8_t *>(pChromaVirAddr);
-
-    int y_offset = _y * yStride + _x;
-    uint8_t *lpt = yPt + y_offset;
-    *lpt = color.y; // y
-
-    int uv_offset = (_x / 2 * 2) + ((_y / 2) * yStride);
-    uvPt += uv_offset;
-    uvPt[0] = color.u; // u
-    uvPt[1] = color.v; // v
+FrameBuf GetFrameBuf(AX_VIDEO_FRAME_INFO_T* f) {
+    return {
+        static_cast<uint8_t*>((void*)f->stVFrame.u64VirAddr[0]),
+        static_cast<uint8_t*>((void*)f->stVFrame.u64VirAddr[1]),
+        static_cast<int>(f->stVFrame.u32PicStride[0]),
+        static_cast<int>(f->stVFrame.u32Width),
+        static_cast<int>(f->stVFrame.u32Height),
+    };
 }
 
-void DrawText(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const std::string &text, const YUVColor &color)
-{
-    RenderText(frame_info, x, y, text, &color);
+// Fast horizontal line — memset Y, stride loop UV
+void DrawHorizLine(const FrameBuf& fb, int x1, int x2, int y, const YUVColor& c) {
+    if (y < 0 || y >= fb.height) return;
+    if (x1 > x2) std::swap(x1, x2);
+    x1 = std::max(0, x1);
+    x2 = std::min(fb.width - 1, x2);
+    if (x1 > x2) return;
+
+    // Y plane: one memset
+    memset(fb.y + y * fb.stride + x1, c.y, x2 - x1 + 1);
+
+    // UV plane: write pairs (each pair covers 2 Y pixels)
+    int uvRow = (y / 2) * fb.stride;
+    int uvStart = x1 & ~1;
+    int uvEnd = x2;
+    uint8_t* uvRowPtr = fb.uv + uvRow;
+    for (int x = uvStart; x <= uvEnd; x += 2) {
+        uvRowPtr[x] = c.u;
+        uvRowPtr[x + 1] = c.v;
+    }
 }
 
-int DrawLine(AX_VIDEO_FRAME_INFO_T *frame_info, int stx, int sty, int edx, int edy, const YUVColor &color, int lineWidth)
-{
+// Fast vertical line — stride loop for Y, stride loop for UV
+void DrawVertLine(const FrameBuf& fb, int x, int y1, int y2, const YUVColor& c) {
+    if (x < 0 || x >= fb.width) return;
+    if (y1 > y2) std::swap(y1, y2);
+    y1 = std::max(0, y1);
+    y2 = std::min(fb.height - 1, y2);
+    if (y1 > y2) return;
 
-    if (frame_info->stVFrame.u64VirAddr[0] == 0)
-    {
-        return -1;
+    int uvX = x & ~1;
+
+    for (int y = y1; y <= y2; y++) {
+        fb.y[y * fb.stride + x] = c.y;
+        int off = (y / 2) * fb.stride + uvX;
+        fb.uv[off] = c.u;
+        fb.uv[off + 1] = c.v;
+    }
+}
+
+// Filled horizontal band: lineWidth rows, each using memset
+void DrawHorizBand(const FrameBuf& fb, int x1, int x2, int y, int lineWidth,
+                   const YUVColor& c) {
+    for (int i = 0; i < lineWidth; i++) {
+        DrawHorizLine(fb, x1, x2, y + i, c);
+    }
+}
+
+// Filled vertical band: lineWidth columns, each using stride loop
+void DrawVertBand(const FrameBuf& fb, int x, int y1, int y2, int lineWidth,
+                  const YUVColor& c) {
+    for (int i = 0; i < lineWidth; i++) {
+        DrawVertLine(fb, x + i, y1, y2, c);
+    }
+}
+
+}  // namespace
+
+// ============================================================
+//  Public API
+// ============================================================
+
+void SetPixel(AX_VIDEO_FRAME_INFO_T* frame, int x, int y, const YUVColor& color) {
+    if (!frame || !frame->stVFrame.u64VirAddr[0]) return;
+
+    int w = static_cast<int>(frame->stVFrame.u32Width);
+    int h = static_cast<int>(frame->stVFrame.u32Height);
+    if (x < 0 || x >= w || y < 0 || y >= h) return;
+
+    auto fb = GetFrameBuf(frame);
+
+    fb.y[y * fb.stride + x] = color.y;
+
+    int uvOff = (y / 2) * fb.stride + (x & ~1);
+    fb.uv[uvOff] = color.u;
+    fb.uv[uvOff + 1] = color.v;
+}
+
+void DrawText(AX_VIDEO_FRAME_INFO_T* frame, int x, int y,
+              const std::string& text, const YUVColor& color) {
+    RenderText(frame, x, y, text, &color);
+}
+
+int DrawLine(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
+             const YUVColor& color, int lineWidth) {
+    if (!frame || !frame->stVFrame.u64VirAddr[0]) return -1;
+    if (lineWidth < 1) lineWidth = 1;
+
+    int w = static_cast<int>(frame->stVFrame.u32Width);
+    int h = static_cast<int>(frame->stVFrame.u32Height);
+
+    // Special case: horizontal line → memset
+    if (y1 == y2) {
+        // Clamp to bounds
+        if (y1 < 0 || y1 >= h) return 0;
+        if (x1 > x2) std::swap(x1, x2);
+        // Draw band for thickness
+        for (int i = 0; i < lineWidth; i++) {
+            int yy = y1 + i - lineWidth / 2;
+            if (yy >= 0 && yy < h) {
+                int sx = std::max(0, x1);
+                int ex = std::min(w - 1, x2);
+                if (sx <= ex) {
+                    auto fb = GetFrameBuf(frame);
+                    DrawHorizLine(fb, sx, ex, yy, color);
+                }
+            }
+        }
+        return 0;
     }
 
-    if (lineWidth == 0)
-        lineWidth = 1;
-
-    int width = frame_info->stVFrame.u32Width;
-    int height = frame_info->stVFrame.u32Height;
-
-    for (int i = 0; i < lineWidth; i++)
-    {
-
-        uint32_t x0 = stx, y0 = sty;
-        uint32_t x1 = edx, y1 = edy;
-
-        x0 = (x0 >= static_cast<uint32_t>(width)) ? (x0 - lineWidth) : x0;
-        x1 = (x1 >= static_cast<uint32_t>(width)) ? (x1 - lineWidth) : x1;
-        y0 = (y0 >= static_cast<uint32_t>(height)) ? (y0 - lineWidth) : y0;
-        y1 = (y1 >= static_cast<uint32_t>(height)) ? (y1 - lineWidth) : y1;
-
-        int dx = (x0 > x1) ? (x0 - x1) : (x1 - x0);
-        int dy = (y0 > y1) ? (y0 - y1) : (y1 - y0);
-
-        if (dx <= dy)
-        {
-            x0 += i;
-            x1 += i;
+    // Special case: vertical line → stride loop
+    if (x1 == x2) {
+        if (x1 < 0 || x1 >= w) return 0;
+        if (y1 > y2) std::swap(y1, y2);
+        for (int i = 0; i < lineWidth; i++) {
+            int xx = x1 + i - lineWidth / 2;
+            if (xx >= 0 && xx < w) {
+                int sy = std::max(0, y1);
+                int ey = std::min(h - 1, y2);
+                if (sy <= ey) {
+                    auto fb = GetFrameBuf(frame);
+                    DrawVertLine(fb, xx, sy, ey, color);
+                }
+            }
         }
-        else
-        {
-            y0 += i;
-            y1 += i;
+        return 0;
+    }
+
+    // General case: Bresenham with centered thickness
+    int halfW = lineWidth / 2;
+    for (int i = 0; i < lineWidth; i++) {
+        int off = i - halfW;
+        int x0 = x1, y0 = y1, x1o = x2, y1o = y2;
+
+        int dx = std::abs(x2 - x1);
+        int dy = std::abs(y2 - y1);
+
+        if (dx > dy) {
+            y0 += off;
+            y1o += off;
+        } else {
+            x0 += off;
+            x1o += off;
         }
 
-        int xstep = (x0 < x1) ? 1 : -1;
-        int ystep = (y0 < y1) ? 1 : -1;
+        int xstep = (x0 < x1o) ? 1 : -1;
+        int ystep = (y0 < y1o) ? 1 : -1;
         int nstep = 0, eps = 0;
 
-        // 布雷森汉姆算法画线
-        if (dx > dy)
-        {
-            while (nstep <= dx)
-            {
-                SetPixel(frame_info, x0, y0, color);
+        if (dx > dy) {
+            while (nstep <= dx) {
+                SetPixel(frame, x0, y0, color);
                 eps += dy;
-                if ((eps << 1) >= dx)
-                {
-                    y0 += ystep;
-                    eps -= dx;
-                }
+                if ((eps << 1) >= dx) { y0 += ystep; eps -= dx; }
                 x0 += xstep;
                 nstep++;
             }
-        }
-        else
-        {
-            while (nstep <= dy)
-            {
-                SetPixel(frame_info, x0, y0, color);
+        } else {
+            while (nstep <= dy) {
+                SetPixel(frame, x0, y0, color);
                 eps += dx;
-                if ((eps << 1) >= dy)
-                {
-                    x0 += xstep;
-                    eps -= dy;
-                }
+                if ((eps << 1) >= dy) { x0 += xstep; eps -= dy; }
                 y0 += ystep;
                 nstep++;
             }
@@ -135,128 +204,59 @@ int DrawLine(AX_VIDEO_FRAME_INFO_T *frame_info, int stx, int sty, int edx, int e
     return 0;
 }
 
-// polylines
-
-void DrawClosedLines(AX_VIDEO_FRAME_INFO_T *frame_info, std::vector<std::tuple<int, int>> points, const YUVColor &color, int lineWidth)
-{
-
-    std::tuple<int, int> st;
-    std::tuple<int, int> en;
-    for (size_t i = 0; i < points.size(); i++)
-    {
-        st = points[i];
-        if (i == points.size() - 1)
-        {
-            en = points[0];
-        }
-        else
-        {
-            en = points[i + 1];
-        }
-
-        DrawLine(frame_info, std::get<0>(st), std::get<1>(st), std::get<0>(en), std::get<1>(en), color, lineWidth);
+void DrawClosedLines(AX_VIDEO_FRAME_INFO_T* frame,
+                     std::vector<std::tuple<int, int>> points,
+                     const YUVColor& color, int lineWidth) {
+    if (points.size() < 2) return;
+    for (size_t i = 0; i < points.size(); i++) {
+        auto [sx, sy] = points[i];
+        auto [ex, ey] = points[(i + 1) % points.size()];
+        DrawLine(frame, sx, sy, ex, ey, color, lineWidth);
     }
 }
 
-void DrawRect(AX_VIDEO_FRAME_INFO_T *frame_info, int x1, int y1, int x2, int y2, const YUVColor &color, int lineWidth)
-{
+void DrawRect(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
+              const YUVColor& color, int lineWidth) {
+    if (!frame || !frame->stVFrame.u64VirAddr[0]) return;
+    if (lineWidth < 1) lineWidth = 1;
 
-    if (x1 > x2)
-    {
-        std::swap(x1, x2);
-    }
+    if (x1 > x2) std::swap(x1, x2);
+    if (y1 > y2) std::swap(y1, y2);
 
-    if (y1 > y2)
-    {
-        std::swap(y1, y2);
-    }
+    auto fb = GetFrameBuf(frame);
 
-    int i, j;
-    int iBound, jBound;
-    int iStart, jStart;
-    int width = (int)frame_info->stVFrame.u32Width;
-    int height = (int)frame_info->stVFrame.u32Height;
+    // Top / bottom edges → horizontal bands
+    DrawHorizBand(fb, x1, x2, y1, lineWidth, color);
+    DrawHorizBand(fb, x1, x2, y2 - lineWidth + 1, lineWidth, color);
 
-    jBound = std::min(height, y1 + lineWidth);
-    iBound = std::min(width - 1, x2);
+    // Left / right edges → vertical bands (skip overlap with top/bottom)
+    DrawVertBand(fb, x1, y1 + lineWidth, y2 - lineWidth, lineWidth, color);
+    DrawVertBand(fb, x2 - lineWidth + 1, y1 + lineWidth, y2 - lineWidth,
+                 lineWidth, color);
+}
 
-    for (j = y1; j < jBound; ++j)
-    {
-        for (i = x1; i <= iBound; ++i)
-        {
-            SetPixel(frame_info, i, j, color);
-        }
-    }
+void DrawCircle(AX_VIDEO_FRAME_INFO_T* frame, int cx, int cy, int radius,
+                YUVColor color) {
+    if (!frame || !frame->stVFrame.u64VirAddr[0]) return;
+    int w = static_cast<int>(frame->stVFrame.u32Width);
+    int h = static_cast<int>(frame->stVFrame.u32Height);
+    if (cx < 0 || cx >= w || cy < 0 || cy >= h || radius <= 0) return;
 
-    jStart = std::max(0, y2 - lineWidth + 1);
-    jBound = std::min(height - 1, y2);
+    auto fb = GetFrameBuf(frame);
 
-    iStart = std::max(0, x1);
-    iBound = std::min(width - 1, x2);
-
-    for (j = jStart; j <= jBound; ++j)
-    {
-        for (i = iStart; i <= iBound; ++i)
-        {
-            SetPixel(frame_info, i, j, color);
-        }
-    }
-
-    iBound = std::min(width, x1 + lineWidth);
-    jBound = std::min(height - 1, y2);
-
-    for (i = x1; i < iBound; ++i)
-    {
-        for (j = y1; j <= jBound; ++j)
-        {
-            SetPixel(frame_info, i, j, color);
-        }
-    }
-
-    iStart = std::max(0, (x2 - lineWidth + 1));
-    iBound = std::min(width - 1, x2);
-
-    jStart = std::max(0, y1);
-    jBound = std::min(height - 1, y2);
-
-    for (i = iStart; i <= iBound; ++i)
-    {
-        for (j = jStart; j <= jBound; ++j)
-        {
-            SetPixel(frame_info, i, j, color);
+    // Bresenham midpoint circle — fills with horizontal lines
+    int x = radius, y = 0, err = 1 - radius;
+    while (x >= y) {
+        DrawHorizLine(fb, cx - x, cx + x, cy - y, color);
+        DrawHorizLine(fb, cx - x, cx + x, cy + y, color);
+        DrawHorizLine(fb, cx - y, cx + y, cy - x, color);
+        DrawHorizLine(fb, cx - y, cx + y, cy + x, color);
+        y++;
+        if (err <= 0) {
+            err += 2 * y + 1;
+        } else {
+            x--;
+            err += 2 * (y - x) + 1;
         }
     }
 }
-
-void draw_horiz_line(AX_VIDEO_FRAME_INFO_T *frame_info, uint32_t x1, uint32_t x2, uint32_t y, YUVColor color)
-{
-    for (uint32_t x = x1; x <= x2; ++x)
-        SetPixel(frame_info, x, y, color);
-}
-
-void DrawCircle(AX_VIDEO_FRAME_INFO_T *frame_info, int32_t xCenter, int32_t yCenter, int32_t radius, YUVColor color)
-{
-
-    if (xCenter < 0 || xCenter >= static_cast<int32_t>(frame_info->stVFrame.u32Width))
-    {
-        return;
-    }
-    if (yCenter < 0 || yCenter >= static_cast<int32_t>(frame_info->stVFrame.u32Height))
-    {
-        return;
-    }
-    if (radius <= 0 || radius >= 30)
-    {
-        return;
-    }
-
-    int32_t r2 = radius * radius;
-
-    for (int y = -radius; y <= radius; y++)
-    {
-        int32_t x = (int)(sqrt(r2 - y * y) + 0.5);
-        draw_horiz_line(frame_info, xCenter - x, xCenter + x, yCenter - y, color);
-    }
-}
-
-#pragma GCC pop_options
