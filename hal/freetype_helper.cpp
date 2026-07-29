@@ -85,9 +85,7 @@ class GlyphContext {
  private:
     GlyphContext() {
         static const char* kFonts[] = {
-            "./resource/GB2312.ttf",
-            "./resource/arial.ttf",
-            "./resource/simsun.ttc",
+            "./resource/LiberationMono-Regular.ttf",
         };
         if (FT_Init_FreeType(&library_)) return;
         for (auto* path : kFonts) {
