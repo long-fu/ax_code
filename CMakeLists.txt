@@ -22,15 +22,13 @@ include_directories(
     3rdpart/opencv/include
     3rdpart/ffmpeg/include
     3rdpart/x264/include
-    include
     tracker/sort
     common
-    axcore
+    hal
     3rdpart/freetype/include/freetype
     pipeline
-    core
-    utils/
-    img_s_img/
+    nodes
+    image_search
     3rdpart/curl/include
     3rdpart/libuuid/include
     3rdpart/include
@@ -42,7 +40,6 @@ include_directories(
 
 link_directories(
     3rdpart/ax/lib
-    # 3rdpart/opencv-4.5.5/lib/opencv4
     3rdpart/opencv/lib
     3rdpart/ffmpeg/lib
     3rdpart/x264/lib
@@ -55,20 +52,32 @@ link_directories(
     3rdpart/zlib/lib
     3rdpart/libidn2/lib
 )
-aux_source_directory(axcore AX_SRCS)
+
+aux_source_directory(hal HAL_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
 aux_source_directory(tracker/sort TRACKER_SRCS)
-aux_source_directory(core CORE_SRCS)
+aux_source_directory(nodes NODES_SRCS)
 aux_source_directory(common COMMON_SRCS)
 
-add_executable(ax_core main_rtsp.cpp ${AX_SRCS} ${CORE_SRCS} ${TRACKER_SRCS} ${PIP_SRCS} ${COMMON_SRCS}
-    pipeline/error.h)
+add_executable(ax_core
+    apps/main_rtsp.cpp
+    ${HAL_SRCS}
+    ${NODES_SRCS}
+    ${TRACKER_SRCS}
+    ${PIP_SRCS}
+    ${COMMON_SRCS}
+    pipeline/error.h
+)
 
 # Suppress warnings in detection.cpp (model utility library with many inference backends)
-set_source_files_properties(axcore/detection.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-but-set-variable")
+set_source_files_properties(hal/detection.cpp PROPERTIES COMPILE_FLAGS
+    "-Wno-unused-function -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-but-set-variable")
 
 # Suppress warnings in jpeg_help.cpp (fread result checks and sign-compare with off_t)
-set_source_files_properties(axcore/jpeg_help.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-result -Wno-sign-compare")
+set_source_files_properties(hal/jpeg_help.cpp PROPERTIES COMPILE_FLAGS
+    "-Wno-unused-result -Wno-sign-compare")
+
+# ── Link libraries ──────────────────────────────────────────
 
 set(SYSTEM_LIBS
     pthread
