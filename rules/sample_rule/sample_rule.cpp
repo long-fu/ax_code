@@ -1,5 +1,5 @@
 // rules/sample_rule/sample_rule.cpp
-#include "box_rule.hpp"
+#include "box_rule.h"
 #include "logger.h"
 #include <cmath>
 #include <utility>

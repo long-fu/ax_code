@@ -2,6 +2,7 @@
 #define PIPELINE_TASK_NODE_MGR_H
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include "thread_safe_queue.h"
@@ -58,7 +59,7 @@ public:
 
 private:
     bool is_exit_;
-    TaskNodeStatus status_;
+    std::atomic<TaskNodeStatus> status_;
     TaskNode* user_instance_;
     std::string name_;
     ThreadSafeQueue<std::shared_ptr<TaskMessage>> msg_queue_;

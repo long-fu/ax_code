@@ -1,5 +1,5 @@
 // common/BoxRule.cpp
-#include "box_rule.hpp"
+#include "box_rule.h"
 
 RuleFactory& RuleFactory::Instance() {
     static RuleFactory inst;

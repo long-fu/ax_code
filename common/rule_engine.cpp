@@ -1,5 +1,5 @@
 // common/RuleEngine.cpp
-#include "rule_engine.hpp"
+#include "rule_engine.h"
 #include "logger.h"
 #include <dlfcn.h>
 #include <sstream>

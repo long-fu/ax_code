@@ -1,7 +1,7 @@
 #include <memory>
-#include "img_s_img.hpp"
+#include "img_s_img.h"
 #include "ax_venc_api.h"
-#include "yolov5.hpp"
+#include "yolov5.h"
 
 int AX_INIT()
 {

@@ -2,10 +2,10 @@
 #include <memory>
 
 #include "task_scheduler.h"
-#include "pre_process.hpp"
-#include "inf_process.hpp"
-#include "bus_process.hpp"
-#include "enc_process.hpp"
+#include "pre_process.h"
+#include "inf_process.h"
+#include "bus_process.h"
+#include "enc_process.h"
 #include "process_msg.h"
 #include "logger.h"
 #include "resource.h"

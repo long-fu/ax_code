@@ -74,7 +74,8 @@ TaskError TaskNodeMgr::WaitThreadInitEnd() {
         } else if (status_ > kRunning) {
             std::string& inst_name = user_instance_->InstanceName();
             PIPELINE_LOG_ERROR("Thread instance %s status change to %d, "
-                               "app start failed", inst_name.c_str(), status_);
+                               "app start failed", inst_name.c_str(),
+                               static_cast<int>(status_.load()));
             return kStartThread;
         } else {
             std::this_thread::sleep_for(kInitPollInterval);
@@ -86,7 +87,8 @@ TaskError TaskNodeMgr::WaitThreadInitEnd() {
 TaskError TaskNodeMgr::PushMessage(std::shared_ptr<TaskMessage>& message) {
     if (status_ != kRunning) {
         PIPELINE_LOG_ERROR("Thread instance %s status(%d) is invalid, "
-                           "can not receive message", name_.c_str(), status_);
+                           "can not receive message", name_.c_str(),
+                           static_cast<int>(status_.load()));
         return kThreadAbnormal;
     }
     return msg_queue_.Push(message) ? kOk : kEnqueue;

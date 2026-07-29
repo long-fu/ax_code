@@ -2,6 +2,7 @@
 #define PIPELINE_TASK_SCHEDULER_H
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -48,8 +49,8 @@ private:
 
     static constexpr int kMainThreadId = 0;
 
-    bool is_released_;
-    bool wait_end_;
+    std::atomic<bool> is_released_;
+    std::atomic<bool> wait_end_;
     std::vector<TaskNodeMgr*> thread_list_;
 };
 
