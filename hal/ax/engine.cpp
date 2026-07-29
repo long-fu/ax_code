@@ -3,6 +3,8 @@
 #include <cstring>
 #include <vector>
 
+#include "ax_sys_api.h"
+
 #include "logger.h"
 #include "file.h"
 #include "io.h"

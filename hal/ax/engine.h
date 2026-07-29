@@ -3,9 +3,8 @@
 #include <iostream>
 #include <string>
 #include <vector>
-
 #include "ax_engine_api.h"
-#include "ax_sys_api.h"
+
 #include "detection.h"
 
 struct EngineConfig {
