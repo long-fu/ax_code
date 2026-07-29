@@ -85,11 +85,7 @@ class PreProcess : public TaskNode {
   int Proprocess(std::shared_ptr<ImageData> img_data) {
     ImageData dest;
     ImageData src = *img_data.get();
-    static uint64 index = 0;
-    if (index >= 250 * 6) {
-      pipeline::SendMessage(0, kMsgAppExit, nullptr);
-    }
-    index++;
+    
     int ret = ivps_->Process(dest, src);
     if (ret != 0) {
       LOG_ERROR("CSC failed, ret={}", ret);

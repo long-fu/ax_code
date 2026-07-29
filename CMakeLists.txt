@@ -70,6 +70,54 @@ set_source_files_properties(axcore/detection.cpp PROPERTIES COMPILE_FLAGS "-Wno-
 # Suppress warnings in jpeg_help.cpp (fread result checks and sign-compare with off_t)
 set_source_files_properties(axcore/jpeg_help.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-result -Wno-sign-compare")
 
-target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat spdlog freetype dl uuid curl crypto z idn2)
+set(SYSTEM_LIBS
+    pthread
+    dl
+)
+
+set(OPENCV_LIBS
+    opencv_imgcodecs
+    opencv_core
+    opencv_imgproc
+    opencv_video
+    opencv_videoio
+    opencv_highgui
+)
+
+set(AX_LIBS
+    ax_sys
+    ax_ive
+    ax_ives
+    ax_ivps
+    ax_engine
+    ax_venc
+    ax_vdec
+    ax_interpreter
+)
+
+set(FFMPEG_LIBS
+    avcodec
+    avutil
+    swscale
+    avformat
+)
+
+set(THIRDPARTY_LIBS
+    spdlog
+    freetype
+    curl
+    uuid
+    crypto
+    z
+    idn2
+)
+
+target_link_libraries(ax_core PUBLIC
+    ${SYSTEM_LIBS}
+    ${OPENCV_LIBS}
+    ${AX_LIBS}
+    ${FFMPEG_LIBS}
+    ${THIRDPARTY_LIBS}
+)
 
 add_subdirectory(rules)
