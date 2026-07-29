@@ -1,4 +1,8 @@
+
 #include "image_data.h"
+#include "jpeg_help.h"
+#include <ax_sys_api.h>
+#include <vector>
 
 #ifndef ALIGN_UP
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
@@ -328,10 +332,7 @@ int Clone(ImageData &dest, ImageData const &src)
 	return 0;
 }
 
-#include <vector>
-#include "ax_venc_api.h"
-#include "ax_ivps_api.h"
-#include "jpeg_help.h"
+
 
 /// @brief 把Image编码成Jpeg格式的图片
 /// @param dest

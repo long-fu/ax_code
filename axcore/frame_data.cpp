@@ -1,6 +1,9 @@
 #include "frame_data.h"
-
-#include "logger.h"
+#include <ax_sys_api.h>
+#include <ax_ivps_api.h>
+#include <ax_venc_api.h>
+#include <ax_vdec_api.h>
+#include <stdlib.h>
 
 int FrameData::Destroy() {
   if (mem_id_ == kMemIdSys) {
@@ -194,7 +197,6 @@ int FrameData::Destroy() {
   }
 
   if (mem_id_ == kMemIdIvps) {
-    // LOG_INFO("Destory IVPS Info");
     (void)AX_IVPS_ReleaseChnFrame(grp_, chn_, &frame_data_->stVFrame);
   } else if (mem_id_ == kMemIdVdec) {
     (void)AX_VDEC_ReleaseChnFrame(grp_, chn_, frame_data_);

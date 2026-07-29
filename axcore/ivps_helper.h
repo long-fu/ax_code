@@ -1,8 +1,6 @@
 #pragma once
 
-#include <memory>
-#include <mutex>
-#include <vector>
+
 
 #include "image_data.h"
 #include "ax_ivps_api.h"

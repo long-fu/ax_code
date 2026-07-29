@@ -1,17 +1,17 @@
 
 #pragma once
 
-#include <string.h>
+#include <string>
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream>
+
 
 
 extern "C"
 {
-#include "libavcodec/avcodec.h"
-#include "libavformat/avformat.h"
-#include "libavutil/imgutils.h"
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
 }
 
 class FFmpegEncoder

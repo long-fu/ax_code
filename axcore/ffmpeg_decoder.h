@@ -1,10 +1,6 @@
 #pragma once
 
-#include <cstdint>
-#include <memory>
 #include <string>
-#include <thread>
-#include <vector>
 
 extern "C" {
 #include <libavcodec/avcodec.h>

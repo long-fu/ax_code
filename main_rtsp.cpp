@@ -52,7 +52,7 @@ int main(int argc, char const *argv[])
     // auto lvl = spdlog::level::from_str(spdlog::level::debug);
     // InitLogger(cfg.log_file, lvl);
 
-  LOG_INIT("logs/app.log", spdlog::level::debug);
+  InitLogger("logs/app.log", spdlog::level::debug);
     // ── 信号处理（logger 初始化后注册）──────────────────────────────────────
   std::signal(SIGINT, SignalHandler);
   std::signal(SIGTERM, SignalHandler);

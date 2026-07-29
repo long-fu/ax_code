@@ -1,17 +1,8 @@
 #pragma once
 
-#include <iostream>
 #include <memory>
-#include <string>
-
-#include "ax_buffer_tool.h"
 #include "ax_global_type.h"
-#include "ax_ivps_api.h"
-#include "ax_ivps_type.h"
-#include "ax_pool_type.h"
-#include "ax_sys_api.h"
-#include "ax_vdec_api.h"
-#include "ax_vdec_type.h"
+
 
 enum MemId {
   kMemIdMin = 0x00,

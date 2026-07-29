@@ -1,10 +1,14 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <iostream>
 #include "logger.h"
 #include "ffmpeg_encoder.h"
-
+extern "C"
+{
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/imgutils.h>
+}
 
 FFmpegEncoder::FFmpegEncoder(std::string stream_name, int frame_rate,
                              size_t pic_width, size_t pic_height, AVPixelFormat pix_fmt,

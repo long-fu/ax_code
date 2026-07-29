@@ -4,7 +4,6 @@
 #include <vector>
 
 #include "logger.h"
-#include "detection.h"
 #include "file.h"
 #include "io.h"
 

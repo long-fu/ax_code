@@ -5,7 +5,6 @@
 
 #include "ffmpeg_decoder.h"
 #include "ffmpeg_encoder.h"
-#include "task_scheduler.h"
 #include "task_node.h"
 #include "process_msg.h"
 #include "venc_helper.h"

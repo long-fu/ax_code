@@ -51,7 +51,7 @@ int AX_INIT()
 int main(int argc, char const *argv[])
 {
 
-  LOG_INIT("logs/app.log", spdlog::level::debug);
+  InitLogger("logs/app.log", spdlog::level::debug);
 
   AX_INIT();
 

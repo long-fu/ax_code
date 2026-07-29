@@ -3,7 +3,6 @@
 
 #include <unistd.h>
 #include <string>
-#include <memory>
 #include "drawing.h"
 
 // void SetPixel(AX_VIDEO_FRAME_INFO_T *image, int x, int y, const YUVColor &color);

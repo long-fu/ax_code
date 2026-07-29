@@ -3,6 +3,9 @@
 #include <unistd.h>
 #include <string.h>
 #include "logger.h"
+#include "ax_vdec_api.h"
+#include "frame_data.h"
+
 #define AX_COMM_ALIGN(value, n) (((value) + (n) - 1) & ~((n) - 1))
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
 

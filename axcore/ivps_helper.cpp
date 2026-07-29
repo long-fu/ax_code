@@ -2,6 +2,10 @@
 #include "ax_base_type.h"
 #include "ax_ivps_api.h"
 #include "logger.h"
+
+#include <memory>
+#include <vector>
+
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
 /*
 ** ------------------------------- CONSTRUCTOR --------------------------------

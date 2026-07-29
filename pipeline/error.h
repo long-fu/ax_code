@@ -2,6 +2,14 @@
 #define PIPELINE_ERROR_H
 #pragma once
 
+// Pipeline log macros delegate to spdlog-based LOG_* macros
+#include "logger.h"
+
+#define PIPELINE_LOG_ERROR(...)   LOG_ERROR(__VA_ARGS__)
+#define PIPELINE_LOG_INFO(...)    LOG_INFO(__VA_ARGS__)
+#define PIPELINE_LOG_WARNING(...) LOG_WARN(__VA_ARGS__)
+#define PIPELINE_LOG_DEBUG(...)   LOG_DEBUG(__VA_ARGS__)
+
 namespace pipeline {
 
 typedef int TaskError;
@@ -29,38 +37,6 @@ const int kMallocDevice = 102;
 const int kAccessFile = 201;
 const int kInvalidFile = 202;
 const int kOpenFile = 203;
-
-/**
- * @brief Write error level log to host log
- * @param [in] fmt: the input format string
- * @return none
- */
-#define PIPELINE_LOG_ERROR(fmt, ...) \
-    do {fprintf(stdout, "[ERROR]  " fmt "\n", ##__VA_ARGS__);}while (0)
-
-/**
- * @brief Write info level log to host log
- * @param [in] fmt: the input format string
- * @return none
- */
-#define PIPELINE_LOG_INFO(fmt, ...) \
-    do {fprintf(stdout, "[INFO]  " fmt "\n", ##__VA_ARGS__);}while (0)
-
-/**
- * @brief Write warning level log to host log
- * @param [in] fmt: the input format string
- * @return none
- */
-#define PIPELINE_LOG_WARNING(fmt, ...) \
-    do {fprintf(stdout, "[WARNING]  " fmt "\n", ##__VA_ARGS__);}while (0)
-
-/**
- * @brief Write debug level log to host log
- * @param [in] fmt: the input format string
- * @return none
- */
-#define PIPELINE_LOG_DEBUG(fmt, ...) \
-    do { fprintf(stdout, "[DEBUG]  " fmt "\n", ##__VA_ARGS__);}while (0)
 
 } // namespace pipeline
 #endif

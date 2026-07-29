@@ -1,13 +1,10 @@
 #pragma once
 
 #include <atomic>
-#include <string>
 
-#include "frame_data.h"
 #include "image_data.h"
-#include "thread_safe_queue.h"
 #include "ax_global_type.h"
-#include "ax_vdec_api.h"
+#include "ax_vdec_type.h"
 
 typedef int (*VdecProcessCallback)(ImageData imageData, int grp, int chn,
                                    void* user_data);

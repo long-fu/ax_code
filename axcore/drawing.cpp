@@ -9,7 +9,6 @@
 #include <tuple>
 #include <opencv2/opencv.hpp>
 #include "freetype_helper.h"
-#include "logger.h"
 using namespace cv;
 
 #pragma GCC push_options

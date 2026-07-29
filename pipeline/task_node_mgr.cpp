@@ -42,8 +42,8 @@ void TaskNodeMgr::ThreadEntry(void* arg) {
 
     int ret = user_instance->Init();
     if (ret) {
-        PIPELINE_LOG_ERROR("Thread %s init error %d, thread exit",
-                           inst_name.c_str(), ret);
+        PIPELINE_LOG_ERROR("Thread {} init error {}, thread exit",
+                           inst_name, ret);
         mgr->SetStatus(kError);
         return;
     }
@@ -58,8 +58,8 @@ void TaskNodeMgr::ThreadEntry(void* arg) {
         ret = user_instance->Process(msg->msg_id, msg->data);
         msg->data = nullptr;
         if (ret) {
-            PIPELINE_LOG_ERROR("Thread %s process function return "
-                               "error %d, thread exit", inst_name.c_str(), ret);
+            PIPELINE_LOG_ERROR("Thread {} process function return "
+                               "error {}, thread exit", inst_name, ret);
             mgr->SetStatus(kError);
             return;
         }
@@ -73,8 +73,8 @@ TaskError TaskNodeMgr::WaitThreadInitEnd() {
             break;
         } else if (status_ > kRunning) {
             std::string& inst_name = user_instance_->InstanceName();
-            PIPELINE_LOG_ERROR("Thread instance %s status change to %d, "
-                               "app start failed", inst_name.c_str(),
+            PIPELINE_LOG_ERROR("Thread instance {} status change to {}, "
+                               "app start failed", inst_name,
                                static_cast<int>(status_.load()));
             return kStartThread;
         } else {
@@ -86,8 +86,8 @@ TaskError TaskNodeMgr::WaitThreadInitEnd() {
 
 TaskError TaskNodeMgr::PushMessage(std::shared_ptr<TaskMessage>& message) {
     if (status_ != kRunning) {
-        PIPELINE_LOG_ERROR("Thread instance %s status(%d) is invalid, "
-                           "can not receive message", name_.c_str(),
+        PIPELINE_LOG_ERROR("Thread instance {} status({}) is invalid, "
+                           "can not receive message", name_,
                            static_cast<int>(status_.load()));
         return kThreadAbnormal;
     }

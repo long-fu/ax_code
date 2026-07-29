@@ -28,13 +28,13 @@ TaskError TaskScheduler::Init() {
 int TaskScheduler::CreateTaskNode(TaskNode* node, const std::string& node_name) {
     int inst_id = CreateTaskNodeMgr(node, node_name);
     if (inst_id == kInvalidInstanceId) {
-        PIPELINE_LOG_ERROR("Add node instance %s failed", node_name.c_str());
+        PIPELINE_LOG_ERROR("Add node instance {} failed", node_name);
         return kInvalidInstanceId;
     }
     thread_list_[inst_id]->CreateThread();
     TaskError ret = thread_list_[inst_id]->WaitThreadInitEnd();
     if (ret != kOk) {
-        PIPELINE_LOG_ERROR("Create node failed, error %d", ret);
+        PIPELINE_LOG_ERROR("Create node failed, error {}", ret);
         return kInvalidInstanceId;
     }
     return inst_id;
@@ -49,7 +49,7 @@ int TaskScheduler::CreateTaskNodeMgr(TaskNode* node,
     int inst_id = static_cast<int>(thread_list_.size());
     TaskError ret = node->BaseConfig(inst_id, node_name);
     if (ret != kOk) {
-        PIPELINE_LOG_ERROR("Create node instance failed for error %d", ret);
+        PIPELINE_LOG_ERROR("Create node instance failed for error {}", ret);
         return kInvalidInstanceId;
     }
     auto* mgr = new TaskNodeMgr(node, node_name);
@@ -88,8 +88,8 @@ int TaskScheduler::Start(std::vector<TaskNodeParam>& node_params) {
         int inst_id = node_params[i].node_id;
         TaskError ret = thread_list_[inst_id]->WaitThreadInitEnd();
         if (ret != kOk) {
-            PIPELINE_LOG_ERROR("Create node %s failed, error %d",
-                               node_params[i].node_name.c_str(), ret);
+            PIPELINE_LOG_ERROR("Create node {} failed, error {}",
+                               node_params[i].node_name, ret);
             return ret;
         }
     }
@@ -112,7 +112,7 @@ int TaskScheduler::TaskNodeIdByName(const std::string& node_name) {
 TaskError TaskScheduler::SendMessage(int dest, int msg_id,
                                      std::shared_ptr<void> data) {
     if (static_cast<uint32_t>(dest) >= thread_list_.size()) {
-        PIPELINE_LOG_ERROR("Send message to %d failed for node not exist", dest);
+        PIPELINE_LOG_ERROR("Send message to {} failed for node not exist", dest);
         return kDestInvalid;
     }
     auto message = std::make_shared<TaskMessage>();
@@ -156,7 +156,7 @@ void TaskScheduler::Wait(TaskMsgProcess msg_process, void* param) {
         int ret = msg_process(msg->msg_id, msg->data, param);
         if (ret) {
             PIPELINE_LOG_ERROR(
-                "TaskScheduler exit for message %d process error:%d",
+                "TaskScheduler exit for message {} process error:{}",
                 msg->msg_id, ret);
             break;
         }
@@ -187,7 +187,7 @@ void TaskScheduler::ReleaseThreads() {
             if (thread_list_[i]->Status() > kExiting) {
                 delete thread_list_[i];
                 thread_list_[i] = nullptr;
-                PIPELINE_LOG_INFO("TaskNode thread %zu released", i);
+                PIPELINE_LOG_INFO("TaskNode thread {} released", i);
             } else {
                 exit_finish = false;
             }

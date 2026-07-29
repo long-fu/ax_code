@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 #include <tuple>
-#include "ax_global_type.h"
+#include <ax_global_type.h>
+#include <stdint.h>
 struct YUVColor
 {
     YUVColor(){}

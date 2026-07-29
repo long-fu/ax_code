@@ -1,10 +1,9 @@
 #pragma once
 
 #include <atomic>
-#include <string>
 
 #include "image_data.h"
-#include "logger.h"
+
 #include "ax_global_type.h"
 #include "ax_venc_api.h"
 

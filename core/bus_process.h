@@ -54,22 +54,22 @@ public:
       TIME_START(test_sort);
 
       auto in_data = std::static_pointer_cast<InfData>(msg_data);
-      std::vector<TrackingBox> det_frame_data;
-      for (size_t i = 0; i < in_data->objects.size(); i++)
-      {
-        auto &item = in_data->objects[i];
-        TrackingBox cur_box;
-        if (item.label == 1)
-        {
-          cur_box.box = item.rect;
-          cur_box.frame_id = frame_id_;
-          det_frame_data.push_back(cur_box);
-        }
-      }
-      frame_id_++;
-      tracker_.Update(det_frame_data);
+      // std::vector<TrackingBox> det_frame_data;
+      // for (size_t i = 0; i < in_data->objects.size(); i++)
+      // {
+      //   auto &item = in_data->objects[i];
+      //   TrackingBox cur_box;
+      //   if (item.label == 1)
+      //   {
+      //     cur_box.box = item.rect;
+      //     cur_box.frame_id = frame_id_;
+      //     det_frame_data.push_back(cur_box);
+      //   }
+      // }
+      // frame_id_++;
+      // tracker_.Update(det_frame_data);
 
-      std::vector<TrackingBox> tracking_results = tracker_.GetReport();
+      // std::vector<TrackingBox> tracking_results = tracker_.GetReport();
       // LOG_INFO("tracker out: {}", tracking_results.size());
 
       TIME_END(test_sort);
@@ -80,15 +80,19 @@ public:
       RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);
 
       TIME_START(test_draw);
+      
       Map(in_data->image);
-      for (size_t i = 0; i < tracking_results.size(); i++)
-      {
-        auto item = tracking_results[i];
-        DrawText(in_data->image.data->FrameInfo(), item.box.x, item.box.y + 5, std::to_string(item.track_id), {255, 255, 255});
 
-        DrawRect(in_data->image.data->FrameInfo(), item.box.x, item.box.y, item.box.x + item.box.width, item.box.y + item.box.height, {255, 255, 255}, 2);
+      for (size_t i = 0; i < in_data->objects.size(); i++)
+      {
+        auto item = in_data->objects[i];
+        DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, std::to_string(item.label), {255, 255, 255});
+
+        DrawRect(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y, item.rect.x + item.rect.width, item.rect.y + item.rect.height, {255, 255, 255}, 2);
       }
+
       Unmap(in_data->image);
+
       TIME_END(test_draw);
       // TIME_USEC_SHOW(test_draw);
 
@@ -107,7 +111,7 @@ public:
   }
 
 private:
-  SortTracker tracker_;
+  // SortTracker tracker_;
   uint64_t frame_id_ = 0;
   int next_thread_id_ = -1;
 };
