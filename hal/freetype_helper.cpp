@@ -66,6 +66,8 @@ class GlyphContext {
     int DrawChar(char32_t ch, int x, int y, const YUVColor* color,
                  AX_VIDEO_FRAME_INFO_T* image) {
         if (!image || !image->stVFrame.u64VirAddr[0]) return 0;
+        if (image->stVFrame.u32Width == 0 || image->stVFrame.u32Height == 0) return 0;
+        if (image->stVFrame.u32PicStride[0] < image->stVFrame.u32Width) return 0;
 
         auto it = cache_.find(ch);
         if (it == cache_.end()) {

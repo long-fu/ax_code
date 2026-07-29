@@ -1,6 +1,7 @@
 #include "drawing.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstring>
 #include <stdint.h>
@@ -8,6 +9,27 @@
 #include "freetype_helper.h"
 
 using namespace cv;
+
+// ============================================================
+//  Defensive validation
+// ============================================================
+namespace {
+
+bool IsFrameValid(const AX_VIDEO_FRAME_INFO_T* f) {
+    if (!f) return false;
+    if (!f->stVFrame.u64VirAddr[0]) return false;
+    if (f->stVFrame.u32Width == 0 || f->stVFrame.u32Height == 0) return false;
+    if (f->stVFrame.u32PicStride[0] < f->stVFrame.u32Width) return false;
+    return true;
+}
+
+// Debug-build assertion; release-build silent false
+#define ASSERT_OR_RETURN(cond) \
+    do { if (!(cond)) { assert(cond); return; } } while (0)
+#define ASSERT_OR_RETURN_VAL(cond, val) \
+    do { if (!(cond)) { assert(cond); return (val); } } while (0)
+
+}
 
 // ============================================================
 //  Internal helpers
@@ -126,7 +148,7 @@ void DrawVertBand(const FrameBuf& fb, int x, int y1, int y2, int lineWidth,
 // ============================================================
 
 void SetPixel(AX_VIDEO_FRAME_INFO_T* frame, int x, int y, const YUVColor& color) {
-    if (!frame || !frame->stVFrame.u64VirAddr[0]) return;
+    ASSERT_OR_RETURN(IsFrameValid(frame));
 
     int w = static_cast<int>(frame->stVFrame.u32Width);
     int h = static_cast<int>(frame->stVFrame.u32Height);
@@ -148,7 +170,7 @@ void DrawText(AX_VIDEO_FRAME_INFO_T* frame, int x, int y,
 
 int DrawLine(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
              const YUVColor& color, int lineWidth) {
-    if (!frame || !frame->stVFrame.u64VirAddr[0]) return -1;
+    ASSERT_OR_RETURN_VAL(IsFrameValid(frame), -1);
     if (lineWidth < 1) lineWidth = 1;
 
     int w = static_cast<int>(frame->stVFrame.u32Width);
@@ -247,7 +269,7 @@ void DrawClosedLines(AX_VIDEO_FRAME_INFO_T* frame,
 
 void DrawRect(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
               const YUVColor& color, int lineWidth) {
-    if (!frame || !frame->stVFrame.u64VirAddr[0]) return;
+    ASSERT_OR_RETURN(IsFrameValid(frame));
     if (lineWidth < 1) lineWidth = 1;
 
     if (x1 > x2) std::swap(x1, x2);
@@ -267,7 +289,7 @@ void DrawRect(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
 
 void DrawCircle(AX_VIDEO_FRAME_INFO_T* frame, int cx, int cy, int radius,
                 YUVColor color) {
-    if (!frame || !frame->stVFrame.u64VirAddr[0]) return;
+    ASSERT_OR_RETURN(IsFrameValid(frame));
     int w = static_cast<int>(frame->stVFrame.u32Width);
     int h = static_cast<int>(frame->stVFrame.u32Height);
     if (cx < 0 || cx >= w || cy < 0 || cy >= h || radius <= 0) return;
