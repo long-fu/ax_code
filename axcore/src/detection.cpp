@@ -247,7 +247,7 @@ namespace detection
                     {
                         float softmax_sum = 0;
                         float class_score = -FLT_MAX;
-                        int class_index = 0;
+                        int class_index __attribute__((unused)) = 0;
                         for (int s = 0; s < cls_num + 1; s++)
                         {
                             softmax_sum += std::exp(ptr_score[s]);

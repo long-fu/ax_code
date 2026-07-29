@@ -31,9 +31,9 @@ void SetPixel(AX_VIDEO_FRAME_INFO_T *frame_info, int x, int y, const YUVColor &c
 
     _y = y < 0 ? 0 : y;
 
-    _x = _x >= frame_info->stVFrame.u32Width ? (frame_info->stVFrame.u32Width - 1) : _x;
+    _x = _x >= static_cast<int>(frame_info->stVFrame.u32Width) ? (frame_info->stVFrame.u32Width - 1) : _x;
 
-    _y = _y >= frame_info->stVFrame.u32Height ? (frame_info->stVFrame.u32Height - 1) : _y;
+    _y = _y >= static_cast<int>(frame_info->stVFrame.u32Height) ? (frame_info->stVFrame.u32Height - 1) : _y;
 
     AX_VOID *pLumaVirAddr = (AX_VOID *)((AX_ULONG)frame_info->stVFrame.u64VirAddr[0]);
     AX_VOID *pChromaVirAddr = (AX_VOID *)((AX_ULONG)frame_info->stVFrame.u64VirAddr[1]);
@@ -78,10 +78,10 @@ int DrawLine(AX_VIDEO_FRAME_INFO_T *frame_info, int stx, int sty, int edx, int e
         uint32_t x0 = stx, y0 = sty;
         uint32_t x1 = edx, y1 = edy;
 
-        x0 = (x0 >= width) ? (x0 - lineWidth) : x0;
-        x1 = (x1 >= width) ? (x1 - lineWidth) : x1;
-        y0 = (y0 >= height) ? (y0 - lineWidth) : y0;
-        y1 = (y1 >= height) ? (y1 - lineWidth) : y1;
+        x0 = (x0 >= static_cast<uint32_t>(width)) ? (x0 - lineWidth) : x0;
+        x1 = (x1 >= static_cast<uint32_t>(width)) ? (x1 - lineWidth) : x1;
+        y0 = (y0 >= static_cast<uint32_t>(height)) ? (y0 - lineWidth) : y0;
+        y1 = (y1 >= static_cast<uint32_t>(height)) ? (y1 - lineWidth) : y1;
 
         int dx = (x0 > x1) ? (x0 - x1) : (x1 - x0);
         int dy = (y0 > y1) ? (y0 - y1) : (y1 - y0);
@@ -238,11 +238,11 @@ void draw_horiz_line(AX_VIDEO_FRAME_INFO_T *frame_info, uint32_t x1, uint32_t x2
 void DrawCircle(AX_VIDEO_FRAME_INFO_T *frame_info, int32_t xCenter, int32_t yCenter, int32_t radius, YUVColor color)
 {
 
-    if (xCenter < 0 || xCenter >= frame_info->stVFrame.u32Width)
+    if (xCenter < 0 || xCenter >= static_cast<int32_t>(frame_info->stVFrame.u32Width))
     {
         return;
     }
-    if (yCenter < 0 || yCenter >= frame_info->stVFrame.u32Height)
+    if (yCenter < 0 || yCenter >= static_cast<int32_t>(frame_info->stVFrame.u32Height))
     {
         return;
     }

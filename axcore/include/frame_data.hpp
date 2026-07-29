@@ -56,10 +56,10 @@ class FrameData {
  private:
   explicit FrameData(AX_VIDEO_FRAME_INFO_T* frame_data, AX_S32 grp, AX_S32 chn,
                      MemId mem_id)
-      : frame_data_(frame_data), grp_(grp), chn_(chn), mem_id_(mem_id) {}
+      : mem_id_(mem_id), grp_(grp), chn_(chn), frame_data_(frame_data) {}
 
   explicit FrameData(AX_VIDEO_FRAME_INFO_T* frame_data, MemId mem_id)
-      : frame_data_(frame_data), grp_(-1), chn_(-1), mem_id_(mem_id) {}
+      : mem_id_(mem_id), grp_(-1), chn_(-1), frame_data_(frame_data) {}
 
   int Init() { return 0; }
   int Destroy();

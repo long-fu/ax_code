@@ -53,6 +53,7 @@ link_directories(
     3rdpart/openssl/lib64
     3rdpart/zlib/lib
     3rdpart/libidn2/lib
+    3rdpart/libidn2/lib
 )
 aux_source_directory(axcore/src AX_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
@@ -62,6 +63,12 @@ aux_source_directory(common COMMON_SRCS)
 
 add_executable(ax_core main_rtsp.cpp ${AX_SRCS} ${CORE_SRCS} ${TRACKER_SRCS} ${PIP_SRCS} ${COMMON_SRCS}
     pipeline/error.h)
+
+# Suppress warnings in detection.cpp (model utility library with many inference backends)
+set_source_files_properties(axcore/src/detection.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-function -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-but-set-variable")
+
+# Suppress warnings in jpeg_help.cpp (fread result checks and sign-compare with off_t)
+set_source_files_properties(axcore/src/jpeg_help.cpp PROPERTIES COMPILE_FLAGS "-Wno-unused-result -Wno-sign-compare")
 
 target_link_libraries(ax_core PUBLIC pthread opencv_imgcodecs opencv_core opencv_imgproc opencv_video opencv_videoio opencv_highgui ax_sys ax_ive ax_ives ax_ivps ax_engine ax_venc ax_vdec ax_interpreter avcodec avutil swscale avformat spdlog freetype dl uuid curl crypto z idn2)
 

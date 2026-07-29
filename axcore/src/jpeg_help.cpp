@@ -77,8 +77,8 @@ static int GetJPEGWidthHeight(const char *path, unsigned int *punWidth, unsigned
 
         if (id >= M_APP0 && id <= M_APPF)
         {
-            fread(&ucHigh, sizeof(char), 1, pfRead);
-            fread(&ucLow, sizeof(char), 1, pfRead);
+            (void)fread(&ucHigh, sizeof(char), 1, pfRead);
+            (void)fread(&ucLow, sizeof(char), 1, pfRead);
             temp = MAKEUS(ucHigh, ucLow);
             if (temp >= 2)
             {
@@ -107,8 +107,8 @@ static int GetJPEGWidthHeight(const char *path, unsigned int *punWidth, unsigned
         case M_DHT:
         case M_DNL:
         case M_DRI:
-            fread(&ucHigh, sizeof(char), 1, pfRead);
-            fread(&ucLow, sizeof(char), 1, pfRead);
+            (void)fread(&ucHigh, sizeof(char), 1, pfRead);
+            (void)fread(&ucLow, sizeof(char), 1, pfRead);
             temp = MAKEUS(ucHigh, ucLow);
             if (temp >= 2)
             {
@@ -128,11 +128,11 @@ static int GetJPEGWidthHeight(const char *path, unsigned int *punWidth, unsigned
 
         case M_SOF0:
             fseek(pfRead, 3L, SEEK_CUR);
-            fread(&ucHigh, sizeof(char), 1, pfRead);
-            fread(&ucLow, sizeof(char), 1, pfRead);
+            (void)fread(&ucHigh, sizeof(char), 1, pfRead);
+            (void)fread(&ucLow, sizeof(char), 1, pfRead);
             *punHeight = (unsigned int)MAKEUS(ucHigh, ucLow);
-            fread(&ucHigh, sizeof(char), 1, pfRead);
-            fread(&ucLow, sizeof(char), 1, pfRead);
+            (void)fread(&ucHigh, sizeof(char), 1, pfRead);
+            (void)fread(&ucLow, sizeof(char), 1, pfRead);
             *punWidth = (unsigned int)MAKEUS(ucHigh, ucLow);
             return 0;
 
@@ -143,8 +143,8 @@ static int GetJPEGWidthHeight(const char *path, unsigned int *punWidth, unsigned
             break;
 
         default:
-            fread(&ucHigh, sizeof(char), 1, pfRead);
-            fread(&ucLow, sizeof(char), 1, pfRead);
+            (void)fread(&ucHigh, sizeof(char), 1, pfRead);
+            (void)fread(&ucLow, sizeof(char), 1, pfRead);
             // printf("[GetJPEGWidthHeight]:unknown id: 0x%x ;  length=%hd\n", id, MAKEUS(ucHigh, ucLow));
 
             temp = MAKEUS(ucHigh, ucLow);

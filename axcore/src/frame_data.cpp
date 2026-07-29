@@ -51,11 +51,7 @@ int FrameData::Destroy() {
   }
 
   AX_U32 n_pixel_size;
-  AX_S32 s32_ret1 = 0;
-  AX_S32 s32_ret2 = 0;
-  AX_S32 s32_ret3 = 0;
   AX_S32 bit_num = 0;
-  AX_S32 s_ret = 0;
   AX_U8 n_storage_planar_num = 0;
 
   n_pixel_size = static_cast<AX_U32>(
@@ -127,11 +123,11 @@ int FrameData::Destroy() {
               frame_data_->stVFrame.enImgFormat) {
         if ((frame_data_->stVFrame.u64VirAddr[0] != 0) &&
             (frame_data_->stVFrame.u64VirAddr[1] != 0)) {
-          s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
               reinterpret_cast<AX_VOID*>(
                   static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[0])),
               n_pixel_size);
-          s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
               reinterpret_cast<AX_VOID*>(
                   static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[1])),
               n_pixel_size);
@@ -141,11 +137,11 @@ int FrameData::Destroy() {
       } else {
         if ((frame_data_->stVFrame.u64VirAddr[0] != 0) &&
             (frame_data_->stVFrame.u64VirAddr[1] != 0)) {
-          s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
               reinterpret_cast<AX_VOID*>(
                   static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[0])),
               n_pixel_size);
-          s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
               reinterpret_cast<AX_VOID*>(
                   static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[1])),
               n_pixel_size / 2);
@@ -158,15 +154,15 @@ int FrameData::Destroy() {
       if ((frame_data_->stVFrame.u64VirAddr[0] != 0) &&
           (frame_data_->stVFrame.u64VirAddr[1] != 0) &&
           (frame_data_->stVFrame.u64VirAddr[2] != 0)) {
-        s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
             reinterpret_cast<AX_VOID*>(
                 static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[0])),
             n_pixel_size);
-        s32_ret2 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
             reinterpret_cast<AX_VOID*>(
                 static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[1])),
             n_pixel_size / 2);
-        s32_ret3 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
             reinterpret_cast<AX_VOID*>(
                 static_cast<AX_ULONG>(frame_data_->stVFrame.u64VirAddr[2])),
             n_pixel_size / 2);
@@ -179,7 +175,7 @@ int FrameData::Destroy() {
     default:
       if (frame_data_->stVFrame.u32FrameSize) {
         if (frame_data_->stVFrame.u64VirAddr[0] != 0) {
-          s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
               reinterpret_cast<AX_VOID*>(static_cast<AX_ULONG>(
                   frame_data_->stVFrame.u64VirAddr[0])),
               frame_data_->stVFrame.u32FrameSize);
@@ -187,7 +183,7 @@ int FrameData::Destroy() {
         }
       } else {
         if (frame_data_->stVFrame.u64VirAddr[0] != 0) {
-          s32_ret1 = AX_SYS_Munmap(
+    (void)AX_SYS_Munmap(
               reinterpret_cast<AX_VOID*>(static_cast<AX_ULONG>(
                   frame_data_->stVFrame.u64VirAddr[0])),
               n_pixel_size * 3);
@@ -199,9 +195,9 @@ int FrameData::Destroy() {
 
   if (mem_id_ == kMemIdIvps) {
     // LOG_INFO("Destory IVPS Info");
-    s_ret = AX_IVPS_ReleaseChnFrame(grp_, chn_, &frame_data_->stVFrame);
+    (void)AX_IVPS_ReleaseChnFrame(grp_, chn_, &frame_data_->stVFrame);
   } else if (mem_id_ == kMemIdVdec) {
-    s_ret = AX_VDEC_ReleaseChnFrame(grp_, chn_, frame_data_);
+    (void)AX_VDEC_ReleaseChnFrame(grp_, chn_, frame_data_);
   }
   
   return 0;

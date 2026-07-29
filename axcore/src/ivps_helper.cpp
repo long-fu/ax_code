@@ -246,9 +246,7 @@ AX_S32 IvpsHelper::DestroyResource()
 ** --------------------------------- METHODS ----------------------------------
 */
 
-// #define SHARED_IVPS_FRAMEINFO(VdGrp, VdChn, frameInfo)                                                                     \
-// 	(std::shared_ptr<AX_VIDEO_FRAME_INFO_T>((AX_VIDEO_FRAME_INFO_T *)(frameInfo), [VdGrp, VdChn](AX_VIDEO_FRAME_INFO_T *p) \
-// 											{ AX_IVPS_ReleaseChnFrame(VdGrp, VdChn ,&p->stVFrame); delete p; }))
+/* (removed unused macro) */
 
 AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 						   ImageData const &src_frame)

@@ -5,19 +5,19 @@
 
 struct BoundingBox
 {
-    float score;
-    int class_id;  // 类别ID
-    int bbox_id;  // bbox id in current frame
+    float score = 0.0f;
+    int class_id = -1;  // 类别ID
+    int bbox_id = -1;  // bbox id in current frame
     cv::Rect_<float> rect;
 };
 
 
 struct TrackingBox
 {
-    int frame_id;
-    int track_id;
-    int class_id;
-    float obj_conf;  // 是否为前景的置信度
+    int frame_id = 0;
+    int track_id = -1;
+    int class_id = -1;
+    float obj_conf = 0.0f;  // 是否为前景的置信度
     cv::Rect_<float> box;
 
     // 构造函数

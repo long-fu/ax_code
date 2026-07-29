@@ -51,7 +51,7 @@ public:
                  AX_VIDEO_FRAME_INFO_T *image)
     {
         FT_UInt glyph_idx = 0;
-        FT_Face face;
+        FT_Face face = nullptr;
         int fontIdx = 0;
         int fontListSize = faces.size();
         for (fontIdx = 0; fontIdx < fontListSize; ++fontIdx)
@@ -72,7 +72,7 @@ public:
             return -1;
         }
 
-        if (x < 0 || x > image->stVFrame.u32Width || y < 0 || y > image->stVFrame.u32Height)
+        if (x < 0 || x > static_cast<int>(image->stVFrame.u32Width) || y < 0 || y > static_cast<int>(image->stVFrame.u32Height))
         {
             return -1;
         }
@@ -86,10 +86,10 @@ public:
 
         int imageY = y - slot->bitmap_top + fontSize;
 
-        for (int i = 0; i < slot->bitmap.rows && imageY < h; ++i, ++imageY)
+        for (int i = 0; i < static_cast<int>(slot->bitmap.rows) && imageY < h; ++i, ++imageY)
         {
             int imageX = x + slot->bitmap_left;
-            for (int j = 0; j < slot->bitmap.width && imageX < w; ++j, ++imageX)
+            for (int j = 0; j < static_cast<int>(slot->bitmap.width) && imageX < w; ++j, ++imageX)
             {
                 auto bitmap_val = slot->bitmap.buffer[i * slot->bitmap.width + j];
                 if (bitmap_val > 0)
@@ -112,7 +112,7 @@ private:
 
         for (const char *fontPath : fontList)
         {
-            FT_Face face;
+            FT_Face face = nullptr;
             CHECK_FREETYPE(FT_Init_FreeType(&library));
             CHECK_FREETYPE(FT_New_Face(library, fontPath, 0, &face));
 

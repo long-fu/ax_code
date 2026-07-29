@@ -4,88 +4,90 @@
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
 #endif
 
-static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E eType, AX_U32 nAlign)
-{
-	AX_U32 nBpp = 0;
-	if (nW == 0 || nH == 0)
-	{
-		// LOG_ERROR("Invalid width %d or height %d!", nW, nH);
-		// LOG(ERROR) << "Invalid width or height " << nW << "x" << nH;
-		return 0;
-	}
-
-	if (0 == nStride)
-	{
-		nStride = (0 == nAlign) ? nW : ALIGN_UP(nW, nAlign);
-	}
-	else
-	{
-		if (nAlign > 0)
-		{
-			if (nStride % nAlign)
-			{
-				// LOG_ERROR("stride: %u not %u aligned.!", nStride, nAlign);
-				// LOG(ERROR) << "stride: not aligned.!" << nStride << " " << nAlign;
-				return 0;
-			}
-		}
-	}
-
-	switch (eType)
-	{
-	case AX_FORMAT_YUV400:
-		nBpp = 8;
-		break;
-	case AX_FORMAT_YUV420_PLANAR:
-	case AX_FORMAT_YUV420_SEMIPLANAR:
-	case AX_FORMAT_YUV420_SEMIPLANAR_VU:
-		nBpp = 12;
-		break;
-	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P101010:
-		nBpp = 15;
-		break;
-	case AX_FORMAT_YUV422_INTERLEAVED_YUYV:
-	case AX_FORMAT_YUV422_INTERLEAVED_UYVY:
-	case AX_FORMAT_YUV422_SEMIPLANAR:
-	case AX_FORMAT_RGB565:
-	case AX_FORMAT_BGR565:
-	case AX_FORMAT_ARGB4444:
-	case AX_FORMAT_RGBA4444:
-	case AX_FORMAT_ABGR4444:
-	case AX_FORMAT_BGRA4444:
-	case AX_FORMAT_RGBA5551:
-	case AX_FORMAT_ARGB1555:
-	case AX_FORMAT_ABGR1555:
-	case AX_FORMAT_BGRA5551:
-		nBpp = 16;
-		break;
-	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P101010:
-		nBpp = 20;
-		break;
-	case AX_FORMAT_YUV444_PACKED:
-	case AX_FORMAT_RGB888:
-	case AX_FORMAT_BGR888:
-	case AX_FORMAT_ARGB8565:
-	case AX_FORMAT_RGBA5658:
-	case AX_FORMAT_ABGR8565:
-	case AX_FORMAT_BGRA5658:
-	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P010:
-		nBpp = 24;
-		break;
-	case AX_FORMAT_RGBA8888:
-	case AX_FORMAT_ARGB8888:
-	case AX_FORMAT_BGRA8888:
-	case AX_FORMAT_ABGR8888:
-	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P010:
-		nBpp = 32;
-		break;
-	default:
-		nBpp = 0;
-		break;
-	}
-
-	return nStride * nH * nBpp / 8;
-}
+#if 0
+//static AX_U32 CalcImgSize(AX_U32 nStride, AX_U32 nW, AX_U32 nH, AX_IMG_FORMAT_E eType, AX_U32 nAlign)
+//{
+//	AX_U32 nBpp = 0;
+//	if (nW == 0 || nH == 0)
+//	{
+//		// LOG_ERROR("Invalid width %d or height %d!", nW, nH);
+//		// LOG(ERROR) << "Invalid width or height " << nW << "x" << nH;
+//		return 0;
+//	}
+//
+//	if (0 == nStride)
+//	{
+//		nStride = (0 == nAlign) ? nW : ALIGN_UP(nW, nAlign);
+//	}
+//	else
+//	{
+//		if (nAlign > 0)
+//		{
+//			if (nStride % nAlign)
+//			{
+//				// LOG_ERROR("stride: %u not %u aligned.!", nStride, nAlign);
+//				// LOG(ERROR) << "stride: not aligned.!" << nStride << " " << nAlign;
+//				return 0;
+//			}
+//		}
+//	}
+//
+//	switch (eType)
+//	{
+//	case AX_FORMAT_YUV400:
+//		nBpp = 8;
+//		break;
+//	case AX_FORMAT_YUV420_PLANAR:
+//	case AX_FORMAT_YUV420_SEMIPLANAR:
+//	case AX_FORMAT_YUV420_SEMIPLANAR_VU:
+//		nBpp = 12;
+//		break;
+//	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P101010:
+//		nBpp = 15;
+//		break;
+//	case AX_FORMAT_YUV422_INTERLEAVED_YUYV:
+//	case AX_FORMAT_YUV422_INTERLEAVED_UYVY:
+//	case AX_FORMAT_YUV422_SEMIPLANAR:
+//	case AX_FORMAT_RGB565:
+//	case AX_FORMAT_BGR565:
+//	case AX_FORMAT_ARGB4444:
+//	case AX_FORMAT_RGBA4444:
+//	case AX_FORMAT_ABGR4444:
+//	case AX_FORMAT_BGRA4444:
+//	case AX_FORMAT_RGBA5551:
+//	case AX_FORMAT_ARGB1555:
+//	case AX_FORMAT_ABGR1555:
+//	case AX_FORMAT_BGRA5551:
+//		nBpp = 16;
+//		break;
+//	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P101010:
+//		nBpp = 20;
+//		break;
+//	case AX_FORMAT_YUV444_PACKED:
+//	case AX_FORMAT_RGB888:
+//	case AX_FORMAT_BGR888:
+//	case AX_FORMAT_ARGB8565:
+//	case AX_FORMAT_RGBA5658:
+//	case AX_FORMAT_ABGR8565:
+//	case AX_FORMAT_BGRA5658:
+//	case AX_FORMAT_YUV420_SEMIPLANAR_10BIT_P010:
+//		nBpp = 24;
+//		break;
+//	case AX_FORMAT_RGBA8888:
+//	case AX_FORMAT_ARGB8888:
+//	case AX_FORMAT_BGRA8888:
+//	case AX_FORMAT_ABGR8888:
+//	case AX_FORMAT_YUV422_SEMIPLANAR_10BIT_P010:
+//		nBpp = 32;
+//		break;
+//	default:
+//		nBpp = 0;
+//		break;
+//	}
+//
+//	return nStride * nH * nBpp / 8;
+//}
+#endif
 
 #include <memory.h>
 
@@ -106,7 +108,6 @@ int Clone(ImageData &dest, ImageData const &src)
 	memset(&frameInfo->stVFrame, 0x0, sizeof(AX_VIDEO_FRAME_T));
 	memcpy(&frameInfo->stVFrame, &src.data->FrameInfo()->stVFrame, sizeof(AX_VIDEO_FRAME_T));
 
-	AX_S32 sRet = 0;
 	AX_S32 bit_num = 0;
 	AX_U8 nStoragePlanarNum = 0;
 
@@ -158,6 +159,7 @@ int Clone(ImageData &dest, ImageData const &src)
 		return -2;
 	}
 	AX_MEMORY_ADDR_T tBufAddr;
+	AX_S32 sRet = 0;
 	switch (nStoragePlanarNum)
 	{
 	case 2:
@@ -366,7 +368,6 @@ int Copy2Host(std::vector<uint8_t> &dest, ImageData const &src)
 	AX_VIDEO_FRAME_INFO_T *frameInfo = src.data->FrameInfo();
 	AX_U32 nPixelSize = (AX_U32)frameInfo->stVFrame.u32PicStride[0] * frameInfo->stVFrame.u32Height;
 
-	// AX_S32 sRet = 0;
 	AX_S32 bit_num = 0;
 	AX_U8 nStoragePlanarNum = 0;
 
@@ -505,10 +506,10 @@ int Copy2Host(std::vector<uint8_t> &dest, ImageData const &src)
 int Copy2Mat(cv::Mat &dest, ImageData const &src)
 {
 	// int ret = 0;
-	AX_S32 sRet = 0;
 	AX_U32 i;
 	uint8_t *p_lu = NULL;
 
+	AX_S32 sRet = 0;
 	AX_S32 s32Ret = 0;
 	AX_VOID *pLumaVirAddr = NULL;
 
@@ -691,9 +692,7 @@ int Unmap(ImageData &img)
 	AX_S32 s32Ret2 = 0;
 	AX_S32 s32Ret3 = 0;
 	AX_S32 bit_num = 0;
-	AX_S32 sRet = 0;
 	AX_U8 nStoragePlanarNum = 0;
-	AX_MEMORY_ADDR_T tBufAddr;
 
 	nPixelSize = (AX_U32)frameInfo->stVFrame.u32PicStride[0] * frameInfo->stVFrame.u32Height;
 

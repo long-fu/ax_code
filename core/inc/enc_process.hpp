@@ -57,14 +57,13 @@ class EncProcess : public pipeline::TaskNode {
   }
 
   int Process(int msg_id, std::shared_ptr<void> msg_data) override {
-    int ret = 0;
     switch (msg_id) {
       case kMsgAppStart:
-        ret = Start();
+        Start();
         break;
       case kMsgBusprocData: {
         auto in_data = std::static_pointer_cast<BusData>(msg_data);
-        ret = venc_->Write(&in_data->image, nullptr);
+        venc_->Write(&in_data->image, nullptr);
         break;
       }
       case kMsgAppExit:
