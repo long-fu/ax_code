@@ -1,14 +1,14 @@
 
 #include <memory>
 
-#include "pipeline.h"
+#include "task_scheduler.h"
 #include "pre_process.hpp"
 #include "inf_process.hpp"
 #include "bus_process.hpp"
 #include "enc_process.hpp"
 #include "process_msg.h"
 #include "logger.h"
-#include "pipeline_resource.h"
+#include "resource.h"
 
 static std::atomic<bool> g_running{true};
 static void SignalHandler(int sig)
@@ -22,8 +22,8 @@ int MainThreadProcess(uint32_t msg_id,
 {
   if (msg_id == kMsgAppExit)
   {
-    Pipeline &app = GetPipelineInstance();
-    app.WaitEnd();
+    pipeline::TaskScheduler &app = pipeline::GetTaskSchedulerInstance();
+    app.SignalWaitEnd();
   }
 
   LOG_INFO("Receive exit message, exit now");
@@ -31,14 +31,14 @@ int MainThreadProcess(uint32_t msg_id,
   return 0;
 }
 
-void ExitPipeline(Pipeline &app,
-                  std::vector<PipelineThreadParam> &thread_tbl)
+void ExitPipeline(pipeline::TaskScheduler &app,
+                  std::vector<pipeline::TaskNodeParam> &thread_tbl)
 {
   LOG_INFO("ExitPipeline {}", thread_tbl.size());
   for (size_t i = 0; i < thread_tbl.size(); i++)
   {
-    LOG_INFO("ExitPipeline delete thread_inst {} {}", i,thread_tbl[i].thread_inst->SelfInstanceName());
-    delete thread_tbl[i].thread_inst;
+    LOG_INFO("ExitPipeline delete thread_inst {} {}", i,thread_tbl[i].node->InstanceName());
+    delete thread_tbl[i].node;
     LOG_INFO("ExitPipeline delete thread_inst {}", i);
   }
 
@@ -57,7 +57,7 @@ int main(int argc, char const *argv[])
   std::signal(SIGINT, SignalHandler);
   std::signal(SIGTERM, SignalHandler);
 
-  PipelineResource aclDev = PipelineResource();
+  pipeline::Resource aclDev = pipeline::Resource();
   int ret = aclDev.Init();
   if (ret != 0)
   {
@@ -81,38 +81,38 @@ int main(int argc, char const *argv[])
     return -1;
   }
 
-  std::vector<PipelineThreadParam> thread_tbl;
+  std::vector<pipeline::TaskNodeParam> thread_tbl;
 
   {
-    PipelineThreadParam param;
-    param.thread_inst = new PreProcess(&ff_decoder);
-    param.thread_inst_name.assign("PreProcess");
+    pipeline::TaskNodeParam param;
+    param.node = new PreProcess(&ff_decoder);
+    param.node_name.assign("PreProcess");
     thread_tbl.push_back(param);
   }
 
   {
-    PipelineThreadParam param;
-    param.thread_inst = new InfProccess("", &ff_decoder);
-    param.thread_inst_name.assign("InfProccess");
+    pipeline::TaskNodeParam param;
+    param.node = new InfProccess("", &ff_decoder);
+    param.node_name.assign("InfProccess");
     thread_tbl.push_back(param);
   }
 
   {
-    PipelineThreadParam param;
-    param.thread_inst = new BusProcess();
-    param.thread_inst_name.assign("BusProcess");
+    pipeline::TaskNodeParam param;
+    param.node = new BusProcess();
+    param.node_name.assign("BusProcess");
     thread_tbl.push_back(param);
   }
 
   {
-    PipelineThreadParam param;
-    param.thread_inst = new EncProcess(
+    pipeline::TaskNodeParam param;
+    param.node = new EncProcess(
         "rtmp://123:123@22.10.57.15/mylive/live", &ff_decoder);
-    param.thread_inst_name.assign("EncProcess");
+    param.node_name.assign("EncProcess");
     thread_tbl.push_back(param);
   }
 
-  Pipeline &app = CreatePipelineInstance();
+  pipeline::TaskScheduler &app = pipeline::CreateTaskSchedulerInstance();
   ret = app.Start(thread_tbl);
   if (ret != 0)
   {
@@ -123,11 +123,11 @@ int main(int argc, char const *argv[])
 
   for (size_t i = 0; i < thread_tbl.size(); i++)
   {
-    ret = SendMessage(thread_tbl[i].thread_inst_id, kMsgAppStart, nullptr);
+    ret = pipeline::SendMessage(thread_tbl[i].node_id, kMsgAppStart, nullptr);
     if (ret != 0)
     {
       LOG_ERROR("Start MSG app failed, error {} {}",
-                    thread_tbl[i].thread_inst_id, ret);
+                    thread_tbl[i].node_id, ret);
     }
   }
 

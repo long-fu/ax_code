@@ -4,12 +4,14 @@
 
 #include "ffmpeg_decoder.hpp"
 #include "ivps_helper.hpp"
-#include "pipeline.h"
-#include "pipeline_thread.h"
+#include "task_scheduler.h"
+#include "task_node.h"
 #include "process_msg.h"
 #include "vdec_helper.hpp"
 
-class PreProcess : public PipelineThread {
+using namespace pipeline;
+
+class PreProcess : public TaskNode {
  public:
   explicit PreProcess(FFmpegDecoder* ff_decoder)
       : ff_decoder_(ff_decoder) {
@@ -45,7 +47,7 @@ class PreProcess : public PipelineThread {
       return -2;
     }
 
-    next_thread_id_ = GetPipelineThreadIdByName("InfProccess");
+    next_thread_id_ = TaskNodeIdByName("InfProccess");
     return 0;
   }
 
@@ -62,7 +64,7 @@ class PreProcess : public PipelineThread {
     data->time_point = std::chrono::steady_clock::now();
 
     auto self = static_cast<PreProcess*>(user_data);
-    int ret = SendMessage(self->SelfInstanceId(), kMsgVdecData, data);
+    pipeline::SendMessage(self->InstanceId(), kMsgVdecData, data);
 
     return 0;
   }
@@ -85,7 +87,7 @@ class PreProcess : public PipelineThread {
     ImageData src = *img_data.get();
     static uint64 index = 0;
     if (index >= 250 * 6) {
-      SendMessage(g_main_thread_id, kMsgAppExit, nullptr);
+      pipeline::SendMessage(0, kMsgAppExit, nullptr);
     }
     index++;
     int ret = ivps_->Process(dest, src);
@@ -98,7 +100,7 @@ class PreProcess : public PipelineThread {
     data->image = src;
     Copy2Host(data->data, dest);
 
-    int send_ret = SendMessage(next_thread_id_, kMsgPreprocData, data);
+    pipeline::SendMessage(next_thread_id_, kMsgPreprocData, data);
 
     return 0;
   }

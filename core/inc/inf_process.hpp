@@ -4,12 +4,12 @@
 #include <string>
 
 #include "ffmpeg_decoder.hpp"
-#include "pipeline.h"
-#include "pipeline_thread.h"
+#include "task_scheduler.h"
+#include "task_node.h"
 #include "process_msg.h"
 #include "yolov5.hpp"
 
-class InfProccess : public PipelineThread {
+class InfProccess : public pipeline::TaskNode {
  public:
   InfProccess(const std::string& model_config, FFmpegDecoder* ff_decoder)
       : yolov5_(model_config), ff_decoder_(ff_decoder) {}
@@ -19,7 +19,7 @@ class InfProccess : public PipelineThread {
   };
 
   int Init() override {
-    next_thread_id_ = GetPipelineThreadIdByName("BusProcess");
+    next_thread_id_ = pipeline::TaskNodeIdByName("BusProcess");
     // LOG_INFO("BusProcess: {}", next_thread_id_);
     return yolov5_.Init();
   }

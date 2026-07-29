@@ -4,14 +4,14 @@
 #include <fstream>
 #include <sstream>
 
-#include "pipeline.h"
-#include "pipeline_thread.h"
+#include "task_scheduler.h"
+#include "task_node.h"
 #include "process_msg.h"
 #include "sort_track.h"
 #include "drawing.h"
 #include "rule_engine.hpp"
 
-class BusProcess : public PipelineThread
+class BusProcess : public pipeline::TaskNode
 {
 public:
   BusProcess() = default;
@@ -19,7 +19,7 @@ public:
 
   int Init() override
   {
-    next_thread_id_ = GetPipelineThreadIdByName("EncProcess");
+    next_thread_id_ = pipeline::TaskNodeIdByName("EncProcess");
 
     // Load rule engine configuration
     std::ifstream config_file("config.yaml");
@@ -94,7 +94,7 @@ public:
 
       auto out_data = std::make_shared<BusData>();
       out_data->image = in_data->image;
-      ret = SendMessage(next_thread_id_, kMsgBusprocData, out_data);
+      ret = pipeline::SendMessage(next_thread_id_, kMsgBusprocData, out_data);
       break;
     }
     case kMsgAppExit:

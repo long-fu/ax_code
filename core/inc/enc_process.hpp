@@ -5,12 +5,12 @@
 
 #include "ffmpeg_decoder.hpp"
 #include "ffmpeg_encoder.hpp"
-#include "pipeline.h"
-#include "pipeline_thread.h"
+#include "task_scheduler.h"
+#include "task_node.h"
 #include "process_msg.h"
 #include "venc_helper.hpp"
 
-class EncProcess : public PipelineThread {
+class EncProcess : public pipeline::TaskNode {
  public:
   EncProcess(const std::string& rtmp, FFmpegDecoder* ff_decoder) {
     venc_ = new VencHelper(0, ff_decoder->GetFrameWidth(),
