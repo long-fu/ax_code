@@ -25,6 +25,7 @@ include_directories(
     tracker/sort
     common
     hal
+    hal/ax
     3rdpart/freetype/include/freetype
     pipeline
     nodes
@@ -54,6 +55,7 @@ link_directories(
 )
 
 aux_source_directory(hal HAL_SRCS)
+aux_source_directory(hal/ax AX_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
 aux_source_directory(tracker/sort TRACKER_SRCS)
 aux_source_directory(nodes NODES_SRCS)
@@ -62,6 +64,7 @@ aux_source_directory(common COMMON_SRCS)
 add_executable(ax_core
     apps/main_rtsp.cpp
     ${HAL_SRCS}
+    ${AX_SRCS}
     ${NODES_SRCS}
     ${TRACKER_SRCS}
     ${PIP_SRCS}
