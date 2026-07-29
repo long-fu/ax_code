@@ -53,7 +53,6 @@ link_directories(
     3rdpart/openssl/lib64
     3rdpart/zlib/lib
     3rdpart/libidn2/lib
-    3rdpart/libidn2/lib
 )
 aux_source_directory(axcore/src AX_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
