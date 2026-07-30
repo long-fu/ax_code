@@ -5,3 +5,4 @@ build/
 resource/
 logs/
 .claude
+third-party/
