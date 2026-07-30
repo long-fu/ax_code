@@ -1,0 +1,51 @@
+#!/bin/bash
+./configure \
+--prefix=/usr/local/ffmpeg \
+--bindir=/usr/local/bin \
+--enable-gpl \
+--enable-version3 \
+--enable-nonfree \
+--enable-shared \
+--enable-pthreads \
+--disable-debug \
+--disable-static \
+--enable-cuda \
+--enable-cuda-nvcc \
+--enable-nvenc \
+--enable-nvdec \
+--enable-cuvid \
+--enable-ffnvcodec \
+--nvccflags="-gencode arch=compute_86,code=sm_86" \
+--extra-cflags="-I/usr/local/cuda/include" \
+--extra-ldflags="-L/usr/local/cuda/lib64" \
+--enable-libx264 \
+--enable-libx265 \
+--enable-libvpx \
+--enable-libfdk-aac \
+--enable-libmp3lame \
+--enable-libopus \
+--enable-libvorbis \
+--enable-libass \
+--enable-libfreetype \
+--enable-libfribidi \
+--enable-libfontconfig \
+--enable-libwebp \
+--enable-libopenjpeg \
+--enable-opencl \
+--enable-zlib \
+--enable-bzlib \
+--enable-lzma \
+--enable-sdl2
+
+ffmpeg \
+-f x11grab \
+-video_size 2560x1600 \
+-framerate 30 \
+-i :1.0 \
+-c:v h264_nvenc \
+-preset p4 \
+-tune ll \
+-g 30 \
+-rtsp_transport tcp \
+-f rtsp \
+rtsp://192.168.8.10:8554/screen

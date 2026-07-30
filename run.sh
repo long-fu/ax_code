@@ -18,5 +18,6 @@ echo "${LIB_PATH}"
 export LD_LIBRARY_PATH=$LIB_PATH:$LD_LIBRARY_PATH
 export PATH=/home/workspace/3rdparty/gdb/bin:$PATH 
 rm rf ./logs/*
-gdb ./build/ax_core
+./build/ax_core
+# gdb ./build/ax_core
 # ./build/ax_core

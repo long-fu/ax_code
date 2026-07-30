@@ -47,7 +47,7 @@ class InfProccess : public pipeline::TaskNode {
             return pp_ret;
         }
 
-        ret = SendMessage(next_thread_id_, kMsgInfprocData, out_data);
+        pipeline::SendMessage(next_thread_id_, kMsgInfprocData, out_data);
         break;
       }
       case kMsgAppExit:

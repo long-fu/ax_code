@@ -3,11 +3,12 @@
 #include <memory>
 #include <fstream>
 #include <sstream>
+#include <string>
 
 #include "task_scheduler.h"
 #include "task_node.h"
 #include "process_msg.h"
-#include "sort_track.h"
+// #include "sort_track.h"
 #include "drawing.h"
 #include "rule_engine.h"
 
@@ -21,23 +22,23 @@ public:
   {
     next_thread_id_ = pipeline::TaskNodeIdByName("EncProcess");
 
-    // Load rule engine configuration
-    std::ifstream config_file("config.yaml");
-    if (config_file.is_open()) {
-      std::stringstream buf;
-      buf << config_file.rdbuf();
-      std::string yaml_content = buf.str();
+    // // Load rule engine configuration
+    // std::ifstream config_file("config.yaml");
+    // if (config_file.is_open()) {
+    //   std::stringstream buf;
+    //   buf << config_file.rdbuf();
+    //   std::string yaml_content = buf.str();
 
-      // Extract rules section
-      size_t pos = yaml_content.find("rules:");
-      if (pos != std::string::npos) {
-        size_t first_item = yaml_content.find("- ", pos);
-        if (first_item != std::string::npos) {
-          std::string rules_yaml = yaml_content.substr(first_item);
-          RuleEngine::Instance().Load(rules_yaml);
-        }
-      }
-    }
+    //   // Extract rules section
+    //   size_t pos = yaml_content.find("rules:");
+    //   if (pos != std::string::npos) {
+    //     size_t first_item = yaml_content.find("- ", pos);
+    //     if (first_item != std::string::npos) {
+    //       std::string rules_yaml = yaml_content.substr(first_item);
+    //       RuleEngine::Instance().Load(rules_yaml);
+    //     }
+    //   }
+    // }
 
     return 0;
   }
@@ -76,8 +77,8 @@ public:
       // TIME_USEC_SHOW(test_sort);
 
       // Rule engine judgment — evaluate all objects against loaded rules
-      std::vector<bool> rule_results;
-      RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);
+      // std::vector<bool> rule_results;
+      // RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);
 
       TIME_START(test_draw);
       
@@ -86,9 +87,10 @@ public:
       for (size_t i = 0; i < in_data->objects.size(); i++)
       {
         auto item = in_data->objects[i];
-        DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, std::to_string(item.label), {255, 255, 255});
+        std::string txt = std::to_string(item.label) + " " + std::to_string(item.prob);
+        DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, txt, YUVColors::kRed);
 
-        DrawRect(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y, item.rect.x + item.rect.width, item.rect.y + item.rect.height, {255, 255, 255}, 2);
+        DrawRect(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y, item.rect.x + item.rect.width, item.rect.y + item.rect.height, YUVColors::kRed, 2);
       }
 
       Unmap(in_data->image);

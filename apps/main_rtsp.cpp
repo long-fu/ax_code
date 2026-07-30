@@ -70,7 +70,7 @@ int main(int argc, char const *argv[])
     return -1;
   }
 
-  std::string rtsp = "rtsp://123:123@22.10.57.33:8554/live10";
+  std::string rtsp = "rtsp://192.168.8.10:8554/screen";
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
