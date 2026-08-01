@@ -90,7 +90,8 @@ public:
         std::string txt = std::to_string(item.label) + " " + std::to_string(item.prob);
         DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, txt, YUVColors::kRed);
 
-        DrawRect(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y, item.rect.x + item.rect.width, item.rect.y + item.rect.height, YUVColors::kRed, 2);
+        // DrawRect_(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y, item.rect.x + item.rect.width, item.rect.y + item.rect.height, YUVColors::kRed, 2);
+        DrawRect_(in_data->image.data->FrameInfo());
       }
 
       Unmap(in_data->image);

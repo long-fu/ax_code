@@ -62,5 +62,7 @@ void DrawClosedLines(AX_VIDEO_FRAME_INFO_T* frame,
 void DrawRect(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
               const YUVColor& color, int lineWidth);
 
+              bool DrawRect_(AX_VIDEO_FRAME_INFO_T* image);
+
 void DrawCircle(AX_VIDEO_FRAME_INFO_T* frame, int cx, int cy, int radius,
                 YUVColor color);

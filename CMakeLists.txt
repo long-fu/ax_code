@@ -74,6 +74,7 @@ aux_source_directory(common COMMON_SRCS)
 
 add_executable(ax_core
     apps/main_rtsp.cpp
+    hal/drawing.cpp
     ${HAL_SRCS}
     ${AX_SRCS}
     ${NODES_SRCS}
@@ -139,6 +140,7 @@ target_link_libraries(ax_core PUBLIC
     ${AX_LIBS}
     ${FFMPEG_LIBS}
     ${THIRDPARTY_LIBS}
+    
 )
 
 add_subdirectory(rules)

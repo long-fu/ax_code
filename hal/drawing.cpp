@@ -31,6 +31,8 @@ bool IsFrameValid(const AX_VIDEO_FRAME_INFO_T* f) {
 
 }
 
+
+
 // ============================================================
 //  Internal helpers
 // ============================================================
@@ -54,6 +56,12 @@ FrameBuf GetFrameBuf(AX_VIDEO_FRAME_INFO_T* f) {
         static_cast<int>(f->stVFrame.u32Height),
     };
 }
+
+#include "ax_ivps_api.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 
 // Pre-filled UV pattern for memcpy (128 bytes = 64 UV pairs)
 inline const uint8_t* UvPattern128(const YUVColor& c) {
@@ -266,6 +274,65 @@ void DrawClosedLines(AX_VIDEO_FRAME_INFO_T* frame,
         DrawLine(frame, sx, sy, ex, ey, color, lineWidth);
     }
 }
+
+
+bool DrawRect_(AX_VIDEO_FRAME_INFO_T* image) {
+    // if (canvas == nullptr) {
+    //     return false;
+    // }
+
+    AX_VIDEO_FRAME_T frame{};
+    frame = image->stVFrame;
+    if (frame.u64VirAddr[0] == 0) {
+        return false;
+    }
+    AX_IVPS_RGN_CANVAS_INFO_T* canvas = new AX_IVPS_RGN_CANVAS_INFO_T();
+    std::memset(canvas, 0, sizeof(*canvas));
+    canvas->nPhyAddr = frame.u64PhyAddr[0];
+    canvas->pVirAddr = reinterpret_cast<AX_VOID*>(static_cast<std::uintptr_t>(frame.u64VirAddr[0]));
+    canvas->nStride = frame.u32PicStride[0];
+    canvas->nW = static_cast<AX_U16>(frame.u32Width);
+
+    // MSP region draw APIs are not fully consistent across versions:
+    // some builds ignore nUVOffset and derive the UV base as `pVirAddr + nStride * nH`,
+    // while others mis-handle non-zero nUVOffset and can corrupt the frame.
+    // Follow MSP samples: compute nH from the UV physical offset when possible and keep nUVOffset=0.
+    AX_U16 canvas_h = static_cast<AX_U16>(frame.u32Height);
+    if (frame.u32PicStride[0] != 0 && frame.u64PhyAddr[1] > frame.u64PhyAddr[0]) {
+        const AX_U64 delta = frame.u64PhyAddr[1] - frame.u64PhyAddr[0];
+        const AX_U64 h64 = delta / static_cast<AX_U64>(frame.u32PicStride[0]);
+        if (h64 > 0 && h64 <= static_cast<AX_U64>(std::numeric_limits<AX_U16>::max())) {
+            canvas_h = static_cast<AX_U16>(h64);
+        }
+    }
+    canvas->nH = canvas_h;
+    canvas->nUVOffset = 0;
+    canvas->eFormat = frame.enImgFormat;
+
+    AX_IVPS_GDI_ATTR_T attr{};
+    attr.nThick = 1;
+    attr.nAlpha = 2;
+    attr.nColor = 232;
+    attr.bSolid = AX_TRUE;
+    attr.bAbsCoo = AX_FALSE;
+
+    AX_IVPS_RECT_T ax_rect{};
+    ax_rect.nX = static_cast<AX_S16>(20);
+    ax_rect.nY = static_cast<AX_S16>(20);
+    ax_rect.nW = static_cast<AX_U16>(100);
+    ax_rect.nH = static_cast<AX_U16>(100);
+
+    // AX_S32 AX_IVPS_DrawLine(const AX_IVPS_RGN_CANVAS_INFO_T *ptCanvas, AX_IVPS_GDI_ATTR_T tAttr,
+    //                         const AX_IVPS_POINT_T tPoint[], AX_U32 nPointNum);
+    // AX_S32 AX_IVPS_DrawPolygon(const AX_IVPS_RGN_CANVAS_INFO_T *ptCanvas, AX_IVPS_GDI_ATTR_T tAttr,
+    //                            const AX_IVPS_POINT_T tPoint[], AX_U32 nPointNum);
+    auto ret = AX_IVPS_DrawRect(canvas, attr,
+                            ax_rect);  
+    printf("AX_IVPS_DrawRect ret=%d\n", ret);
+    delete canvas;
+    return true;
+}
+
 
 void DrawRect(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
               const YUVColor& color, int lineWidth) {
