@@ -4,6 +4,8 @@
 #include <ax_venc_api.h>
 #include <ax_vdec_api.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <memory.h>
 
 int FrameData::Destroy() {
   if (mem_id_ == kMemIdSys) {

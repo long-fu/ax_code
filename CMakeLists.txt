@@ -8,6 +8,7 @@ project(ax_core VERSION 0.1.0 LANGUAGES C CXX)
 # set(CMAKE_CXX_COMPILER clang-15)
 
 # add_compile_options(-std=c++11)
+# set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_C_COMPILER aarch64-none-linux-gnu-gcc)
