@@ -3,27 +3,28 @@
 #include <cmath>
 #include <vector>
 
+#include "detection.h"
 #include "logger.h"
 
 Yolov5::~Yolov5() {}
 
 int Yolov5::Postprocess(int pic_width, int pic_height,
                         std::vector<detection::Object>& objects) {
-  EngineConfig config = GetConfig();
+  // EngineConfig config = GetConfig();
   std::vector<float> anchors;
-  for (size_t i = 0; i < config.anchors.size(); i++) {
-    for (size_t j = 0; j < config.anchors[i].size(); j++) {
-      anchors.push_back(config.anchors[i][j]);
+  for (size_t i = 0; i < config_.anchors.size(); i++) {
+    for (size_t j = 0; j < config_.anchors[i].size(); j++) {
+      anchors.push_back(config_.anchors[i][j]);
     }
   }
 
-  std::vector<int> strides = config.strides;
-  std::vector<std::string> labels = config.labels;
+  std::vector<int> strides = config_.strides;
+  std::vector<std::string> labels = config_.labels;
 
-  float prob_threshold = config.prob_threshold;
-  float nms_threshold = config.nms_threshold;
-  int letterbox_cols = config.inputs[2];
-  int letterbox_rows = config.inputs[3];
+  float prob_threshold = config_.prob_threshold;
+  float nms_threshold = config_.nms_threshold;
+  int letterbox_cols = config_.inputs[2];
+  int letterbox_rows = config_.inputs[3];
 
   int cls_num = labels.size();
   float prob_threshold_u_sigmoid =
@@ -37,10 +38,16 @@ int Yolov5::Postprocess(int pic_width, int pic_height,
   std::vector<detection::Object> proposals;
 
   for (uint32_t i = 0; i < GetInfo()->nOutputSize; ++i) {
+
     auto& output = GetOutput().pOutputs[i];
+    
     auto ptr = static_cast<float*>(output.pVirAddr);
+
+    // auto& info = GetInfo()->pOutputs[i];
     auto out_size = output.nSize;
-    int32_t stride = strides[i];
+    
+    // int32_t stride = strides[i];
+    int32_t stride = (1 << i) * 8;
 
     size_t countSize =
         (letterbox_cols / stride) * (letterbox_cols / stride) *
@@ -51,12 +58,13 @@ int Yolov5::Postprocess(int pic_width, int pic_height,
       return -2;
     }
 
-    detection::GenerateProposalsYolov5(
-        stride, i + 1, ptr, prob_threshold, proposals, letterbox_cols,
-        letterbox_rows, anchors.data(), 3, prob_threshold_u_sigmoid, cls_num);
+    detection::generate_proposals_yolov5(stride, ptr, prob_threshold, proposals, letterbox_cols, letterbox_rows, anchors.data(), prob_threshold_u_sigmoid);
+    // detection::GenerateProposalsYolov5(
+    //     stride, i + 1, ptr, prob_threshold, proposals, letterbox_cols,
+    //     letterbox_rows, anchors.data(), 3, prob_threshold_u_sigmoid, cls_num);
   }
-
-  detection::GetOutBbox(proposals, objects, nms_threshold, letterbox_rows,
-                          letterbox_cols, pic_height, pic_width);
+  detection::get_out_bbox(proposals, objects, nms_threshold, letterbox_rows, letterbox_cols, pic_height, pic_width);
+  // detection::GetOutBbox(proposals, objects, nms_threshold, letterbox_rows,
+  //                         letterbox_cols, pic_height, pic_width);
   return 0;
 }

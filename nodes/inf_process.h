@@ -12,7 +12,7 @@
 class InfProccess : public pipeline::TaskNode {
  public:
   InfProccess(const std::string& model_config, FFmpegDecoder* ff_decoder)
-      : yolov5_(model_config), ff_decoder_(ff_decoder) {}
+      : yolov5_(Yolov5Config(model_config)), ff_decoder_(ff_decoder) {}
 
   ~InfProccess() {
     LOG_INFO("~InfProccess");

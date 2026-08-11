@@ -9,13 +9,13 @@
 #include "file.h"
 #include "io.h"
 
-Engine::Engine(const std::string& model_config) : config_(model_config) {}
+Engine::Engine(const std::string& model_path) : model_path_(model_path) {}
 
 Engine::~Engine() { Destroy(); }
 
 int Engine::Init() {
   
-  config_.Init();
+  // config_.Init();
 
   AX_ENGINE_NPU_ATTR_T npu_attr;
   memset(&npu_attr, 0, sizeof(npu_attr));
@@ -27,14 +27,14 @@ int Engine::Init() {
   }
   engine_inited_ = true;
 
-  LOG_INFO("model file:{}",config_.model_file);
+  LOG_INFO("model file:{}",model_path_);
   std::vector<char> model_buffer;
-  if (!utilities::ReadFile(config_.model_file, model_buffer)) {
+  if (!utilities::ReadFile(model_path_, model_buffer)) {
     LOG_ERROR("Read Run-Joint model file failed. file: {}",
-                  config_.model_file);
+                  model_path_);
     return -1;
   }
-  LOG_INFO("model file:{} size:{}",config_.model_file,model_buffer.size());
+  LOG_INFO("model file:{} size:{}",model_path_,model_buffer.size());
   ret = AX_ENGINE_CreateHandle(&handle_, model_buffer.data(),
                                model_buffer.size());
   if (0 != ret) {
