@@ -1,36 +1,32 @@
-#ifndef __DATATRANS_H
-#define __DATATRANS_H
+#pragma once
 
 #include <opencv2/opencv.hpp>
 
-using namespace std;
 
-struct Bbox
+struct BoundingBox
 {
-    float score;
-    int class_id;  // 类别ID
-    int bbox_id;  // bbox id in current frame
+    float score = 0.0f;
+    int class_id = -1;  // 类别ID
+    int bbox_id = -1;  // bbox id in current frame
     cv::Rect_<float> rect;
 };
 
 
 struct TrackingBox
 {
-    int frame_id;
-    int track_id;
-    int class_id;
-    float obj_conf;  // 是否为前景的置信度
+    int frame_id = 0;
+    int track_id = -1;
+    int class_id = -1;
+    float obj_conf = 0.0f;  // 是否为前景的置信度
     cv::Rect_<float> box;
 
     // 构造函数
     TrackingBox(){}  
     // 重载构造函数
-    TrackingBox(Bbox obj){
+    TrackingBox(BoundingBox obj){
         box = obj.rect;
         obj_conf = obj.score;
         class_id = obj.class_id;
         track_id = -1;  // 初始化为-1
     }
 };
-
-#endif // DATATRANS_H

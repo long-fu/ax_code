@@ -1,6 +1,6 @@
 // rules/sample_rule/sample_rule.cpp
-#include "BoxRule.hpp"
-#include "Logger.h"
+#include "box_rule.h"
+#include "logger.h"
 #include <cmath>
 #include <utility>
 #include <stdexcept>
@@ -50,7 +50,7 @@ public:
         return 0;
     }
 
-    int Process(const std::vector<Object_>& objects,
+    int Process(const std::vector<DetectionObject>& objects,
                 std::vector<bool>& results) override {
         for (size_t i = 0; i < objects.size(); ++i) {
             const auto& obj = objects[i];

@@ -4,3 +4,5 @@ build/
 *.axmodel
 resource/
 logs/
+.claude
+third-party/
