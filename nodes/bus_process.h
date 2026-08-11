@@ -81,20 +81,29 @@ public:
       // RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);
 
       TIME_START(test_draw);
-      
-      Map(in_data->image);
 
-      for (size_t i = 0; i < in_data->objects.size(); i++)
-      {
-        auto item = in_data->objects[i];
-        std::string txt = std::to_string(item.label) + " " + std::to_string(item.prob);
-        DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, txt, YUVColors::kRed);
-
-        // DrawRect_(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y, item.rect.x + item.rect.width, item.rect.y + item.rect.height, YUVColors::kRed, 2);
-        DrawRect_(in_data->image.data->FrameInfo());
+      if (Map(in_data->image) != 0) {
+        LOG_ERROR("BusProcess Map failed, skip draw");
+      } else if (in_data->image.data == nullptr ||
+                 in_data->image.data->FrameInfo() == nullptr ||
+                 in_data->image.data->FrameInfo()->stVFrame.u64VirAddr[0] == 0) {
+        LOG_ERROR("BusProcess mapped frame invalid, skip draw");
+        Unmap(in_data->image);
+      } else {
+        for (size_t i = 0; i < in_data->objects.size(); i++)
+        {
+          auto item = in_data->objects[i];
+          std::string txt = std::to_string(item.label) + " " + std::to_string(item.prob);
+          DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, txt, YUVColors::kRed);
+          DrawRect(in_data->image.data->FrameInfo(),
+                   static_cast<int>(item.rect.x),
+                   static_cast<int>(item.rect.y),
+                   static_cast<int>(item.rect.x + item.rect.width),
+                   static_cast<int>(item.rect.y + item.rect.height),
+                   YUVColors::kRed, 2);
+        }
+        Unmap(in_data->image);
       }
-
-      Unmap(in_data->image);
 
       TIME_END(test_draw);
       // TIME_USEC_SHOW(test_draw);

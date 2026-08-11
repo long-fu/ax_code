@@ -30,12 +30,13 @@ class InfProccess : public pipeline::TaskNode {
       case kMsgAppStart:
         break;
       case kMsgPreprocData: {
-        // if (is_exit_) {
-        //   return 0;
-        // }
         auto in_data = std::static_pointer_cast<PreData>(msg_data);
-        yolov5_.Process(in_data->data);
+        int infer_ret = yolov5_.Process(in_data->data);
         in_data->data.clear();
+        if (infer_ret != 0) {
+            LOG_ERROR("Yolov5 Process failed, ret={}", infer_ret);
+            return 0;  // drop frame; do not kill node
+        }
 
         auto out_data = std::make_shared<InfData>();
         out_data->image = in_data->image;
@@ -44,7 +45,7 @@ class InfProccess : public pipeline::TaskNode {
                                           out_data->objects);
         if (pp_ret != 0) {
             LOG_ERROR("Yolov5 Postprocess failed, ret={}", pp_ret);
-            return pp_ret;
+            return 0;  // drop frame; do not kill node
         }
 
         pipeline::SendMessage(next_thread_id_, kMsgInfprocData, out_data);

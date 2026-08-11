@@ -46,14 +46,28 @@ int AX_INIT()
     return ret;
   }
   LOG_INFO("SYS INIT SUCCCESS !!!");
-};
+  return 0;
+}
+
+static void AX_DEINIT() {
+  AX_VENC_Deinit();
+  AX_VDEC_Deinit();
+  AX_SYS_Deinit();
+}
 
 int main(int argc, char const *argv[])
 {
 
+  (void)argc;
+  (void)argv;
   InitLogger("logs/app.log", spdlog::level::debug);
 
-  AX_INIT();
+  if (AX_INIT() != 0) {
+    LOG_ERROR("AX_INIT failed");
+    LOG_FLUSH();
+    LOG_SHUTDOWN();
+    return -1;
+  }
 
   // ImgSimg::Config config;
 
@@ -66,45 +80,50 @@ int main(int argc, char const *argv[])
   int ret = yolov5.Init();
   if (ret != 0)
   {
+    AX_DEINIT();
     return -1;
   }
 
   ret = m_Ivps.Resize(AX_IVPS_ASPECT_RATIO_AUTO, 640, 640);
   if (ret != 0)
   {
+    AX_DEINIT();
     return ret;
   }
 
   std::string root = "/home/workspace/AF_fire";
   auto filenames = getAllFilesInDirectory(root);
-  // list.clear();
-  // std::string filenames;
-  // std::vector<std::string> filenames;
-  // filenames = {
-  //   "AF_fire.2026-05-29 00:02:39.793825.430_05554-05554-22.45.64.87_05554_place_2.jpg",
-  //   "AF_fire.2026-05-29 00:04:47.019851.866_05554-05554-22.45.64.87_05554_place_2.jpg"
-  // };
   int fire_count = 0;
   for (size_t i = 0; i < filenames.size(); i++)
   {
     ImageData img;
     std::string file = root + "/" + filenames[i];
 
-    JpegDecode(img, file);
+    if (JpegDecode(img, file) != 0) {
+      LOG_ERROR("JpegDecode failed: {}", file);
+      continue;
+    }
 
-    // size_t data_size = 640 * 640 * 3 / 2;
     ImageData resizeInfo;
     std::vector<uint8_t> data;
-    int ret = m_Ivps.Process(resizeInfo, img);
+    ret = m_Ivps.Process(resizeInfo, img);
+    if (ret != 0) {
+      LOG_ERROR("Ivps Process failed: {}", ret);
+      continue;
+    }
     Copy2Host(data, resizeInfo);
     ret = yolov5.Process(data);
+    if (ret != 0) {
+      LOG_ERROR("yolov5 Process failed: {}", ret);
+      continue;
+    }
     std::vector<detection::Object> objects;
     yolov5.Postprocess(img.width, img.height, objects);
 
     LOG_INFO("---------------------------------");
-    for (size_t i = 0; i < objects.size(); i++)
+    for (size_t j = 0; j < objects.size(); j++)
     {
-      auto item = objects[i];
+      auto item = objects[j];
       LOG_INFO("box: {} {} {} {} {} {}", item.label, item.prob, item.rect.x, item.rect.y, item.rect.width, item.rect.height);
       if (item.label == 0)
       {
@@ -112,14 +131,12 @@ int main(int argc, char const *argv[])
         break;
       }
     }
-
-    // std::string uuid;
-    // isi.Search(uuid,"time",img,file,{"123"});
   }
 
   LOG_INFO("fire image cout: {}", fire_count);
   LOG_INFO("Exit App");
 
+  AX_DEINIT();
   LOG_FLUSH();
   LOG_SHUTDOWN();
   return 0;

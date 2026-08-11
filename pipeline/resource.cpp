@@ -33,6 +33,7 @@ TaskError Resource::Init() {
   ret = AX_VDEC_Init(&st_mod_attr);
   if (AX_SUCCESS != ret) {
     LOG_ERROR("AX_VDEC_Init Failed!! {:#x}", ret);
+    AX_SYS_Deinit();
     return ret;
   }
 
@@ -44,6 +45,8 @@ TaskError Resource::Init() {
   ret = AX_VENC_Init(&st_enc_mod_attr);
   if (AX_SUCCESS != ret) {
     LOG_ERROR("AX_VENC_Init Failed!! {:#x}", ret);
+    AX_VDEC_Deinit();
+    AX_SYS_Deinit();
     return ret;
   }
   LOG_INFO("SYS INIT SUCCCESS !!!");
@@ -55,10 +58,7 @@ void Resource::Release() {
     return;
   }
 
-int ret = 0;
-  if (is_released_) {
-    return;
-  }
+  int ret = 0;
 
   ret = AX_VENC_Deinit();
   if (AX_SUCCESS != ret) {
@@ -74,8 +74,6 @@ int ret = 0;
   if (AX_SUCCESS != ret) {
     LOG_ERROR("AX_SYS_Deinit failed! Error Code:{:#X}", ret);
   }
-
-  
 
   is_released_ = true;
 }

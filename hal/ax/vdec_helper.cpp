@@ -2,6 +2,7 @@
 #include "ax_buffer_tool.h"
 #include <unistd.h>
 #include <string.h>
+#include <mutex>
 #include "logger.h"
 #include "ax_vdec_api.h"
 #include "frame_data.h"
@@ -270,13 +271,13 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 		AX_VIDEO_FRAME_INFO_T *frameInfo = new AX_VIDEO_FRAME_INFO_T();
 		memset(frameInfo, 0x0, sizeof(AX_VIDEO_FRAME_INFO_T));
 
-		// 0：非阻塞 -1：阻塞
-		sRet = AX_VDEC_GetChnFrame(VdGrp, VdChn, frameInfo, -1);
+		// 0：非阻塞 -1：阻塞；有限超时避免 StopDecode 时永久卡住
+		sRet = AX_VDEC_GetChnFrame(VdGrp, VdChn, frameInfo, 100);
 		// frameInfo->stVFrame.u64UserData
 		if (sRet != AX_SUCCESS)
 		{
 			LOG_ERROR("AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{:#x}, msg:{}", VdGrp, VdChn, (uint32_t)sRet, AX_VdecRetStr(sRet));
-			AX_VDEC_ReleaseChnFrame(VdGrp, VdChn, frameInfo);
+			// Never ReleaseChnFrame on a frame that was not successfully acquired.
 			delete frameInfo;
 		}
 		else
@@ -298,7 +299,16 @@ void *VdecHelper::RecvStreamFunc(void *argv)
 			image.width = frameInfo->stVFrame.u32Width;
 			image.height = frameInfo->stVFrame.u32Height;
 
-			self->callback_(image, VdGrp, VdChn, self->user_data_);
+			VdecProcessCallback cb = nullptr;
+			void* ud = nullptr;
+			{
+				std::lock_guard<std::mutex> lock(self->callback_mutex_);
+				cb = self->callback_;
+				ud = self->user_data_;
+			}
+			if (cb != nullptr) {
+				cb(image, VdGrp, VdChn, ud);
+			}
 
 			// std::shared_ptr<FrameData> data = std::make_shared<FrameData>(frameInfo, VdGrp, VdChn, kMemIdVdec);
 
@@ -361,8 +371,10 @@ int VdecHelper::Decode(VdecProcessCallback callbac, void *user_data)
 		return sRet;
 	}
 
+	callback_mutex_.lock();
 	callback_ = callbac;
 	user_data_ = user_data;
+	callback_mutex_.unlock();
 
 	pthread_create(&recv_tid_, nullptr, RecvStreamFunc, this);
 
@@ -402,22 +414,31 @@ int VdecHelper::StopDecode()
 	}
 	// 等待线程退出
 
-	// get all frame
-	while (1)
+	// Drain remaining frames with bounded timeout to avoid hang in destructor.
+	constexpr int kDrainTimeoutMs = 100;
+	constexpr int kMaxDrainIters = 100;
+	for (int i = 0; i < kMaxDrainIters; ++i)
 	{
 		AX_VIDEO_FRAME_INFO_T pstFrameInfo;
 		AX_VDEC_GRP_STATUS_T pstGrpStatus;
+		memset(&pstFrameInfo, 0, sizeof(pstFrameInfo));
+		memset(&pstGrpStatus, 0, sizeof(pstGrpStatus));
 
-		sRet = AX_VDEC_GetChnFrame(vd_grp_, 0, &pstFrameInfo, -1);
+		sRet = AX_VDEC_GetChnFrame(vd_grp_, 0, &pstFrameInfo, kDrainTimeoutMs);
 
 		if (sRet == AX_SUCCESS)
 		{
-			sRet = AX_VDEC_ReleaseChnFrame(vd_grp_, 0, &pstFrameInfo);
+			AX_VDEC_ReleaseChnFrame(vd_grp_, 0, &pstFrameInfo);
 		}
 
-		sRet = AX_VDEC_QueryStatus(vd_grp_, &pstGrpStatus);
-		if (pstGrpStatus.u32LeftStreamBytes == 0 && pstGrpStatus.u32LeftPics[0] == 0)
+		AX_S32 query_ret = AX_VDEC_QueryStatus(vd_grp_, &pstGrpStatus);
+		if (query_ret == AX_SUCCESS &&
+			pstGrpStatus.u32LeftStreamBytes == 0 &&
+			pstGrpStatus.u32LeftPics[0] == 0)
 		{
+			break;
+		}
+		if (sRet != AX_SUCCESS && sRet != AX_ERR_VDEC_QUEUE_EMPTY) {
 			break;
 		}
 	}

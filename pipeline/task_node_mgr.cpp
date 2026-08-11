@@ -19,6 +19,7 @@ TaskNodeMgr::TaskNodeMgr(TaskNode* user_instance, const std::string& node_name)
 }
 
 TaskNodeMgr::~TaskNodeMgr() {
+    Join();
     user_instance_ = nullptr;
     while (!msg_queue_.Empty()) {
         msg_queue_.Pop();
@@ -26,8 +27,17 @@ TaskNodeMgr::~TaskNodeMgr() {
 }
 
 void TaskNodeMgr::CreateThread() {
-    std::thread engine(&TaskNodeMgr::ThreadEntry, static_cast<void*>(this));
-    engine.detach();
+    if (worker_.joinable()) {
+        PIPELINE_LOG_ERROR("TaskNodeMgr {} already has a running thread", name_);
+        return;
+    }
+    worker_ = std::thread(&TaskNodeMgr::ThreadEntry, static_cast<void*>(this));
+}
+
+void TaskNodeMgr::Join() {
+    if (worker_.joinable()) {
+        worker_.join();
+    }
 }
 
 void TaskNodeMgr::ThreadEntry(void* arg) {
@@ -58,10 +68,10 @@ void TaskNodeMgr::ThreadEntry(void* arg) {
         ret = user_instance->Process(msg->msg_id, msg->data);
         msg->data = nullptr;
         if (ret) {
-            PIPELINE_LOG_ERROR("Thread {} process function return "
-                               "error {}, thread exit", inst_name, ret);
-            mgr->SetStatus(kError);
-            return;
+            // Hot-path / backpressure errors must not kill the node.
+            PIPELINE_LOG_ERROR("Thread {} process function return error {}, "
+                               "drop and continue", inst_name, ret);
+            continue;
         }
     }
     mgr->SetStatus(kExited);

@@ -26,12 +26,14 @@ double HungarianAlgorithm::Solve(std::vector<std::vector<double>> &DistMatrix, s
 	// 异常值检查。此处增加异常值检查是因为由于在工程开发中遇到过异常报错。
     if (nRows > 10000 || nCols > 10000)
     {
+        Assignment.clear();
         return -1.0;  // 避免数据类型转换导致产生异常大的值，(int, unsigned int, size_t)
     }
     for (unsigned int i = 0; i < nRows; i++){
         for (unsigned int j = 0; j < nCols; j++){
             if (DistMatrix[i][j] < 0 || DistMatrix[i][j] > 1 || !std::isfinite(DistMatrix[i][j]))
             {
+                Assignment.clear();
                 return -1.0;
             }
         }

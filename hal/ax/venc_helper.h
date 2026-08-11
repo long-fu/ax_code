@@ -1,6 +1,8 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
+#include <cstring>
 
 #include "image_data.h"
 
@@ -53,4 +55,5 @@ class VencHelper {
   pthread_t recv_thd_;
   void* user_data_ = nullptr;
   VencProcessCallback callback_ = nullptr;
+  std::mutex callback_mutex_;
 };

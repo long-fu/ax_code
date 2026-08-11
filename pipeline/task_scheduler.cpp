@@ -6,7 +6,6 @@
 namespace pipeline {
 namespace {
 const auto kWaitInterval = std::chrono::microseconds(10000);
-const uint32_t kThreadExitRetry = 3;
 }
 
 TaskScheduler::TaskScheduler()
@@ -143,6 +142,11 @@ void TaskScheduler::Wait(TaskMsgProcess msg_process, void* param) {
     TaskNodeMgr* main_mgr = thread_list_[0];
     if (main_mgr == nullptr) {
         PIPELINE_LOG_ERROR(
+            "TaskScheduler wait exit for main TaskNodeMgr is nullptr");
+        return;
+    }
+    if (msg_process == nullptr) {
+        PIPELINE_LOG_ERROR(
             "TaskScheduler wait exit for message process function is nullptr");
         return;
     }
@@ -170,7 +174,9 @@ void TaskScheduler::Exit() {
 
 void TaskScheduler::ReleaseThreads() {
     if (is_released_) return;
-    thread_list_[kMainThreadId]->SetStatus(kExited);
+    if (!thread_list_.empty() && thread_list_[kMainThreadId] != nullptr) {
+        thread_list_[kMainThreadId]->SetStatus(kExited);
+    }
 
     for (size_t i = 1; i < thread_list_.size(); i++) {
         if ((thread_list_[i] != nullptr) &&
@@ -179,23 +185,21 @@ void TaskScheduler::ReleaseThreads() {
         }
     }
 
-    int retry = kThreadExitRetry;
-    while (retry >= 0) {
-        bool exit_finish = true;
-        for (size_t i = 0; i < thread_list_.size(); i++) {
-            if (thread_list_[i] == nullptr) continue;
-            if (thread_list_[i]->Status() > kExiting) {
-                delete thread_list_[i];
-                thread_list_[i] = nullptr;
-                PIPELINE_LOG_INFO("TaskNode thread {} released", i);
-            } else {
-                exit_finish = false;
-            }
-        }
-        if (exit_finish) break;
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-        retry--;
+    // Join joinable workers before deleting TaskNodeMgr (no detach/UAF).
+    for (size_t i = 1; i < thread_list_.size(); i++) {
+        if (thread_list_[i] == nullptr) continue;
+        thread_list_[i]->Join();
+        delete thread_list_[i];
+        thread_list_[i] = nullptr;
+        PIPELINE_LOG_INFO("TaskNode thread {} released", i);
     }
+
+    if (!thread_list_.empty() && thread_list_[kMainThreadId] != nullptr) {
+        delete thread_list_[kMainThreadId];
+        thread_list_[kMainThreadId] = nullptr;
+        PIPELINE_LOG_INFO("TaskNode thread {} released", kMainThreadId);
+    }
+
     is_released_ = true;
 }
 

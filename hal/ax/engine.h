@@ -47,10 +47,12 @@ class Engine {
   EngineConfig GetConfig() const { return config_; }
 
  private:
-  AX_ENGINE_HANDLE handle_;
-  AX_ENGINE_IO_INFO_T* io_info_;
-  AX_ENGINE_IO_T io_data_;
+  AX_ENGINE_HANDLE handle_ = nullptr;
+  AX_ENGINE_IO_INFO_T* io_info_ = nullptr;
+  AX_ENGINE_IO_T io_data_{};
   bool is_released_ = false;
+  bool engine_inited_ = false;
+  bool handle_valid_ = false;
   uint32_t model_width_ = 640;
   uint32_t model_height_ = 640;
   EngineConfig config_;

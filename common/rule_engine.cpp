@@ -74,6 +74,23 @@ int RuleEngine::Load(const std::string& yaml_config) {
         LoadedRule loaded;
         loaded.config = cfg;
 
+        // Restrict plugin paths: no empty, no "..", must end with .so, prefer rules/ prefix.
+        if (cfg.so_path.empty() ||
+            cfg.so_path.find("..") != std::string::npos ||
+            cfg.so_path.size() < 3 ||
+            cfg.so_path.substr(cfg.so_path.size() - 3) != ".so") {
+            LOG_ERROR("Reject unsafe rule plugin path: {}", cfg.so_path);
+            continue;
+        }
+        const bool allowed =
+            cfg.so_path.rfind("./rules/", 0) == 0 ||
+            cfg.so_path.rfind("rules/", 0) == 0 ||
+            cfg.so_path.rfind("/home/", 0) == 0;  // allow absolute under home for device deploy
+        if (!allowed) {
+            LOG_ERROR("Rule plugin path not in whitelist: {}", cfg.so_path);
+            continue;
+        }
+
         loaded.handle = dlopen(cfg.so_path.c_str(), RTLD_NOW);
         if (!loaded.handle) {
             LOG_ERROR("dlopen failed: {}, error: {}", cfg.so_path, dlerror());

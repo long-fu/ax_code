@@ -153,17 +153,20 @@ void FFmpegDecoder::Decode(FrameProcessCallback callback,
   AVFormatContext* av_format_context = avformat_alloc_context();
 
   if (!OpenVideo(av_format_context)) {
+    avformat_close_input(&av_format_context);
     return;
   }
 
   int video_index = GetVideoIndex(av_format_context);
   if (video_index == kInvalidVideoIndex) {
     LOG_ERROR("Rtsp {} index is -1", stream_name_);
+    avformat_close_input(&av_format_context);
     return;
   }
 
   AVBSFContext* bsf_ctx = nullptr;
   if (!InitVideoParams(video_index, av_format_context, bsf_ctx)) {
+    avformat_close_input(&av_format_context);
     return;
   }
 
@@ -203,11 +206,13 @@ int FFmpegDecoder::GetVideoInfo() {
   bool ret = OpenVideo(av_format_context);
   if (!ret) {
     LOG_ERROR("Open {} failed", stream_name_);
+    avformat_close_input(&av_format_context);
     return -1;
   }
 
   if (avformat_find_stream_info(av_format_context, NULL) < 0) {
     LOG_ERROR("Get stream info of {} failed", stream_name_);
+    avformat_close_input(&av_format_context);
     return -1;
   }
 

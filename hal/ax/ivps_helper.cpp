@@ -84,8 +84,6 @@ AX_S32 IvpsHelper::CreateGrp()
 {
 	AX_S32 ret = 0;
 
-	// TODO：错误一场需要 直接停止
-
 	memset(&grp_attr_, 0x0, sizeof(AX_IVPS_GRP_ATTR_T));
 	grp_attr_.ePipeline = AX_IVPS_PIPELINE_DEFAULT;
 	grp_attr_.nInFifoDepth = 1;
@@ -93,6 +91,13 @@ AX_S32 IvpsHelper::CreateGrp()
 	memset(&pool_attr_, 0x0, sizeof(AX_IVPS_POOL_ATTR_T));
 	pool_attr_.ePoolSrc = POOL_SOURCE_USER;
 	pool_attr_.PoolId = pool_id_;
+
+	auto rollback = [this](IVPS_CHN enabled_upto) {
+		for (IVPS_CHN chn = 0; chn < enabled_upto; ++chn) {
+			AX_IVPS_DisableChn(ivps_grp_, chn);
+		}
+		AX_IVPS_DestoryGrp(ivps_grp_);
+	};
 
 	// 1.
 	ret = AX_IVPS_CreateGrp(ivps_grp_, &grp_attr_);
@@ -107,16 +112,17 @@ AX_S32 IvpsHelper::CreateGrp()
 	if (IVPS_SUCC != ret)
 	{
 		LOG_ERROR("AX_IVPS_SetPipelineAttr failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
+		AX_IVPS_DestoryGrp(ivps_grp_);
 		return -1;
 	}
 
 	for (IVPS_CHN chn = 0; chn < pipeline_attr_.nOutChnNum; chn++)
 	{
-		// LOG_INFO("chn id :%d", chn);
 		ret = AX_IVPS_SetChnPoolAttr(ivps_grp_, chn, &pool_attr_);
 		if (IVPS_SUCC != ret)
 		{
 			LOG_ERROR("AX_IVPS_SetChnPoolAttr failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
+			rollback(chn);
 			return -3;
 		}
 		// 3.
@@ -124,6 +130,7 @@ AX_S32 IvpsHelper::CreateGrp()
 		if (IVPS_SUCC != ret)
 		{
 			LOG_ERROR("AX_IVPS_EnableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
+			rollback(chn);
 			return -1;
 		}
 	}
@@ -133,6 +140,7 @@ AX_S32 IvpsHelper::CreateGrp()
 	if (IVPS_SUCC != ret)
 	{
 		LOG_ERROR("AX_IVPS_StartGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
+		rollback(pipeline_attr_.nOutChnNum);
 		return -1;
 	}
 
@@ -265,7 +273,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 
 	int grp = ivps_grp_;
 	int chn = 0;
-	int ret = AX_IVPS_SendFrame(grp, &src_frame.data->FrameInfo()->stVFrame, -1);
+	int ret = AX_IVPS_SendFrame(grp, &src_frame.data->FrameInfo()->stVFrame, 1000);
 
 	AX_VIDEO_FRAME_INFO_T *tDstFrame = new AX_VIDEO_FRAME_INFO_T();
 	if (IVPS_SUCC != ret)
@@ -276,7 +284,7 @@ AX_S32 IvpsHelper::Process(ImageData &dest_frame,
 	}
 
 	memset(tDstFrame, 0x0, sizeof(AX_VIDEO_FRAME_INFO_T));
-	ret = AX_IVPS_GetChnFrame(grp, chn, &tDstFrame->stVFrame, -1);
+	ret = AX_IVPS_GetChnFrame(grp, chn, &tDstFrame->stVFrame, 1000);
 	if (IVPS_SUCC != ret)
 	{
 		LOG_ERROR("AX_IVPS_GetChnFrame failed! Grp:{}, Chn:{}, code:{:#x}", grp, chn, ret);

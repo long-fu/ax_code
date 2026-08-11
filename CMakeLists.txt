@@ -79,7 +79,6 @@ add_executable(ax_core
     ${HAL_SRCS}
     ${AX_SRCS}
     ${NODES_SRCS}
-    ${TRACKER_SRCS}
     ${PIP_SRCS}
     ${COMMON_SRCS}
     pipeline/error.h

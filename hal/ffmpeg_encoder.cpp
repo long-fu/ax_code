@@ -163,19 +163,26 @@ int FFmpegEncoder::Release()
     if (encoder_avfc_ != nullptr)
     {
         av_write_trailer(encoder_avfc_);
-
         avformat_close_input(&encoder_avfc_);
-
-        av_frame_free(&video_frame_);
-
         encoder_avfc_ = nullptr;
     }
-    
+
+    if (video_frame_ != nullptr) {
+        av_frame_free(&video_frame_);
+        video_frame_ = nullptr;
+    }
+
+    if (video_avcc_ != nullptr) {
+        avcodec_free_context(&video_avcc_);
+        video_avcc_ = nullptr;
+    }
+
     return 0;
 }
 
 int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
 {
+    (void)data_size;
     int ret = 0;
     av_image_fill_arrays(video_frame_->data, video_frame_->linesize, (const uint8_t *)data,
                          video_avcc_->pix_fmt, video_avcc_->width,
@@ -197,6 +204,11 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
         AVPacket pkt = {0};
         av_init_packet(&pkt);
         ret = avcodec_receive_packet(video_avcc_, &pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+        {
+            av_packet_unref(&pkt);
+            break;
+        }
         if (ret < 0)
         {
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
@@ -212,7 +224,7 @@ int FFmpegEncoder::WriteFrame(void *data, size_t data_size)
             char err_buf[AV_ERROR_MAX_STRING_SIZE] = {0};
             LOG_ERROR("av_interleaved_write_frame failed err code: {} Reason: {}", ret,
                       av_make_error_string(err_buf, AV_ERROR_MAX_STRING_SIZE, ret));
-
+            av_packet_unref(&pkt);
             return -1;
         }
         av_packet_unref(&pkt);

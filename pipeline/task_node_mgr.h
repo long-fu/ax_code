@@ -5,6 +5,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 #include "thread_safe_queue.h"
 #include "task_node.h"
 
@@ -46,6 +47,7 @@ public:
     }
 
     void CreateThread();
+    void Join();
 
     void SetStatus(TaskNodeStatus status) {
         status_ = status;
@@ -63,6 +65,7 @@ private:
     TaskNode* user_instance_;
     std::string name_;
     ThreadSafeQueue<std::shared_ptr<TaskMessage>> msg_queue_;
+    std::thread worker_;
 };
 
 } // namespace pipeline

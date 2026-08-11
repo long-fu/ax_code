@@ -25,6 +25,7 @@ int Engine::Init() {
     LOG_ERROR("AX_ENGINE_Init failed!!! code:{:#x}", static_cast<uint32_t> (ret));
     return ret;
   }
+  engine_inited_ = true;
 
   LOG_INFO("model file:{}",config_.model_file);
   std::vector<char> model_buffer;
@@ -38,14 +39,18 @@ int Engine::Init() {
                                model_buffer.size());
   if (0 != ret) {
     LOG_ERROR("AX_ENGINE_CreateHandle failed!!! code:{:#x}", static_cast<uint32_t> (ret));
-    // AX_ENGINE_DestroyHandle(handle_);
+    handle_ = nullptr;
+    handle_valid_ = false;
     return ret;
   }
+  handle_valid_ = true;
   LOG_INFO("Engine creating handle is done.");
 
   ret = AX_ENGINE_CreateContext(handle_);
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
+    handle_ = nullptr;
+    handle_valid_ = false;
     LOG_ERROR("AX_ENGINE_CreateContext failed!!! code:{:#x}", ret);
     return ret;
   }
@@ -54,6 +59,8 @@ int Engine::Init() {
   ret = AX_ENGINE_GetIOInfo(handle_, &io_info_);
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
+    handle_ = nullptr;
+    handle_valid_ = false;
     LOG_ERROR("AX_ENGINE_GetIOInfo failed!!! code:{:#x}", ret);
     return ret;
   }
@@ -64,6 +71,8 @@ int Engine::Init() {
       std::make_pair(AX_ENGINE_ABST_DEFAULT, AX_ENGINE_ABST_CACHED));
   if (0 != ret) {
     AX_ENGINE_DestroyHandle(handle_);
+    handle_ = nullptr;
+    handle_valid_ = false;
     LOG_ERROR("middleware::PrepareIo failed!!! code:{:#x}", ret);
     return ret;
   }
@@ -114,9 +123,17 @@ int Engine::Destroy() {
   is_released_ = true;
 
   middleware::FreeIo(&io_data_);
-  AX_S32 ret = AX_ENGINE_DestroyHandle(handle_);
+  AX_S32 ret = 0;
+  if (handle_valid_ && handle_ != nullptr) {
+    ret = AX_ENGINE_DestroyHandle(handle_);
+    handle_ = nullptr;
+    handle_valid_ = false;
+  }
 
-  AX_ENGINE_Deinit();
+  if (engine_inited_) {
+    AX_ENGINE_Deinit();
+    engine_inited_ = false;
+  }
 
   return ret;
 }

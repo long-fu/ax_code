@@ -347,8 +347,12 @@ int JpegDecode(ImageData &dest, std::string const &jpegFile)
 {
 	AX_VIDEO_FRAME_INFO_T *frame_info = nullptr;
 	int ret = JpegHelp::JpegDecode(&frame_info, jpegFile);
-	if(ret != 0) {
-		LOG_ERROR("JpegDecode {}",ret );
+	if (ret != 0 || frame_info == nullptr) {
+		LOG_ERROR("JpegDecode {}", ret);
+		if (frame_info != nullptr) {
+			delete frame_info;
+		}
+		return ret != 0 ? ret : -1;
 	}
 	dest.width = frame_info->stVFrame.u32Width;
 	dest.height = frame_info->stVFrame.u32Height;

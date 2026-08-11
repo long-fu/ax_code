@@ -1,5 +1,6 @@
 
 #include <string.h>
+#include <mutex>
 
 #include "venc_helper.h"
 #include "logger.h"
@@ -99,7 +100,16 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 		// stStream.stPack.u64SeqNum
 		if (AX_SUCCESS == ret)
 		{
-			self->callback_(stStream, self->chn_, self->user_data_);
+			VencProcessCallback cb = nullptr;
+			void* ud = nullptr;
+			{
+				std::lock_guard<std::mutex> lock(self->callback_mutex_);
+				cb = self->callback_;
+				ud = self->user_data_;
+			}
+			if (cb != nullptr) {
+				cb(stStream, self->chn_, ud);
+			}
 
 			// 这里释放数据
 			ret = AX_VENC_ReleaseStream(self->chn_, &stStream);
@@ -220,8 +230,11 @@ int VencHelper::Init()
 int VencHelper::Encode(VencProcessCallback callback, void *user_data)
 {
 	AX_S32 s32Ret;
-	callback_ = callback;
-	user_data_ = user_data;
+	{
+		std::lock_guard<std::mutex> lock(callback_mutex_);
+		callback_ = callback;
+		user_data_ = user_data;
+	}
 	AX_VENC_RECV_PIC_PARAM_T stRecvParam;
 	stRecvParam.s32RecvPicNum = -1;
 	s32Ret = AX_VENC_StartRecvFrame(chn_, &stRecvParam);
