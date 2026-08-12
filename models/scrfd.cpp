@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "detection.h"
 #include "logger.h"
 
 namespace {

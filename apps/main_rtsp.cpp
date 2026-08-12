@@ -101,8 +101,8 @@ int main(int argc, char const *argv[])
 
   {
     pipeline::TaskNodeParam param;
-    param.node = new InfProccess("configs/yolov5.yaml", &ff_decoder);
-    param.node_name.assign("InfProccess");
+    param.node = new InfProcess("configs/yolov5.yaml", &ff_decoder);
+    param.node_name.assign("InfProcess");
     thread_tbl.push_back(param);
   }
 

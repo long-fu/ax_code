@@ -5,7 +5,7 @@
 
 #include "image_data.h"
 #include "frame_data.h"
-#include "detection.h"
+#include "detection_types.h"
 
 namespace {
 

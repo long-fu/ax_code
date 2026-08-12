@@ -47,7 +47,7 @@ class PreProcess : public TaskNode {
       return -2;
     }
 
-    next_thread_id_ = TaskNodeIdByName("InfProccess");
+    next_thread_id_ = TaskNodeIdByName("InfProcess");
     return 0;
   }
 
@@ -82,7 +82,7 @@ class PreProcess : public TaskNode {
     return ret;
   }
 
-  int Proprocess(std::shared_ptr<ImageData> img_data) {
+  int Preprocess(std::shared_ptr<ImageData> img_data) {
     ImageData dest;
     ImageData src = *img_data.get();
     
@@ -109,7 +109,7 @@ class PreProcess : public TaskNode {
         break;
       case kMsgVdecData: {
         auto in_data = std::static_pointer_cast<ImageData>(msg_data);
-        ret = Proprocess(in_data);
+        ret = Preprocess(in_data);
         break;
       }
       case kMsgAppExit:

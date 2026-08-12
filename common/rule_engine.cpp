@@ -132,7 +132,7 @@ int RuleEngine::Load(const std::string& yaml_config) {
 }
 
 bool RuleEngine::ProcessBoxes(
-    const std::vector<DetectionObject>& objects,
+    const std::vector<detection::Object>& objects,
     std::vector<bool>& results) const {
     std::lock_guard<std::mutex> lock(mutex_);
 

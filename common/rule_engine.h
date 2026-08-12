@@ -24,7 +24,7 @@ public:
     // Process detection boxes, return hit results (OR of all rules)
     // Returns false if no rules are loaded or an internal error occurred
     bool ProcessBoxes(
-        const std::vector<DetectionObject>& objects,
+        const std::vector<detection::Object>& objects,
         std::vector<bool>& results) const;
 
     // Release all plugin resources

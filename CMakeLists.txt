@@ -40,7 +40,9 @@ include_directories(
     hal/ax
     third-party/freetype/include/freetype
     pipeline
-    nodes
+    stages
+    models
+    models/detail
     image_search
     third-party/curl/include
     third-party/libuuid/include
@@ -75,7 +77,8 @@ aux_source_directory(hal/ax AX_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
 
 # aux_source_directory(tracker/sort TRACKER_SRCS)
-aux_source_directory(nodes NODES_SRCS)
+aux_source_directory(stages STAGES_SRCS)
+aux_source_directory(models MODELS_SRCS)
 aux_source_directory(common COMMON_SRCS)
 
 add_executable(ax_core
@@ -83,15 +86,12 @@ add_executable(ax_core
     hal/drawing.cpp
     ${HAL_SRCS}
     ${AX_SRCS}
-    ${NODES_SRCS}
+    ${STAGES_SRCS}
+    ${MODELS_SRCS}
     ${PIP_SRCS}
     ${COMMON_SRCS}
     pipeline/error.h
 )
-
-# Suppress warnings in detection.cpp (model utility library with many inference backends)
-# set_source_files_properties(hal/ax/detection.cpp PROPERTIES COMPILE_FLAGS
-    # "-Wno-unused-function -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-but-set-variable")
 
 # Suppress warnings in jpeg_help.cpp (fread result checks and sign-compare with off_t)
 set_source_files_properties(hal/ax/jpeg_help.cpp PROPERTIES COMPILE_FLAGS

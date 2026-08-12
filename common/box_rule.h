@@ -17,7 +17,7 @@ public:
     // Process detection boxes, return judgment results
     // results: output for each object, index corresponds to objects
     virtual int Process(
-        const std::vector<DetectionObject>& objects,
+        const std::vector<detection::Object>& objects,
         std::vector<bool>& results) = 0;
 
     // Destroy resources

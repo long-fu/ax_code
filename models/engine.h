@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include "ax_engine_api.h"
-#include "detection.h"
+#include "detection_types.h"
 
 struct EngineConfig {
   virtual std::string ModelFile() const = 0;

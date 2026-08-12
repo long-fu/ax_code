@@ -11,12 +11,12 @@
 #include "task_node.h"
 #include "task_scheduler.h"
 
-class InfProccess : public pipeline::TaskNode {
+class InfProcess : public pipeline::TaskNode {
  public:
-  InfProccess(const std::string& model_config, FFmpegDecoder* ff_decoder)
+  InfProcess(const std::string& model_config, FFmpegDecoder* ff_decoder)
       : model_config_path_(model_config), ff_decoder_(ff_decoder) {}
 
-  ~InfProccess() { LOG_INFO("~InfProccess"); }
+  ~InfProcess() { LOG_INFO("~InfProcess"); }
 
   int Init() override {
     next_thread_id_ = pipeline::TaskNodeIdByName("BusProcess");
