@@ -1,17 +1,17 @@
 #pragma once
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include "ax_engine_api.h"
-
 #include "detection.h"
 
-
+struct EngineConfig {
+  virtual std::string ModelFile() const = 0;
+};
 
 class Engine {
  public:
-  explicit Engine(const std::string& model_path);
+  explicit Engine(const EngineConfig& config);
   virtual ~Engine();
 
   virtual int Init();
@@ -37,6 +37,4 @@ class Engine {
   bool is_released_ = false;
   bool engine_inited_ = false;
   bool handle_valid_ = false;
-  uint32_t model_width_ = 640;
-  uint32_t model_height_ = 640;
 };

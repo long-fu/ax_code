@@ -4,19 +4,18 @@
 #include <vector>
 
 #include "ax_sys_api.h"
+#include "ax_engine_api.h"
 
 #include "logger.h"
 #include "file.h"
 #include "io.h"
 
-Engine::Engine(const std::string& model_path) : model_path_(model_path) {}
+Engine::Engine(const EngineConfig& config) : model_path_(config.ModelFile()) {}
 
 Engine::~Engine() { Destroy(); }
 
 int Engine::Init() {
   
-  // config_.Init();
-
   AX_ENGINE_NPU_ATTR_T npu_attr;
   memset(&npu_attr, 0, sizeof(npu_attr));
   npu_attr.eHardMode = AX_ENGINE_VIRTUAL_NPU_STD;

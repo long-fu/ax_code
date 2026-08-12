@@ -58,7 +58,7 @@ int Yolov5::Postprocess(int pic_width, int pic_height,
       return -2;
     }
 
-    detection::generate_proposals_yolov5(stride, ptr, prob_threshold, proposals, letterbox_cols, letterbox_rows, anchors.data(), prob_threshold_u_sigmoid);
+    detection::generate_proposals_yolov5(stride, ptr, prob_threshold, proposals, letterbox_cols, letterbox_rows, anchors.data(), prob_threshold_u_sigmoid,cls_num);
     // detection::GenerateProposalsYolov5(
     //     stride, i + 1, ptr, prob_threshold, proposals, letterbox_cols,
     //     letterbox_rows, anchors.data(), 3, prob_threshold_u_sigmoid, cls_num);

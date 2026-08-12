@@ -1,4 +1,4 @@
-#include "det_10g.h"
+#include "scrfd.h"
 
 #include <cstdint>
 #include <unordered_map>
@@ -63,9 +63,9 @@ int StrideFromN(size_t n, int letterbox) {
 
 } // namespace
 
-Det10g::~Det10g() = default;
+Scrfd::~Scrfd() = default;
 
-int Det10g::Postprocess(int pic_width, int pic_height,
+int Scrfd::Postprocess(int pic_width, int pic_height,
                         std::vector<detection::Object> &objects) {
   objects.clear();
 

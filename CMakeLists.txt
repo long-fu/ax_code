@@ -21,6 +21,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Cross-link target shared libs (e.g. yaml-cpp.so) whose C++ ABI resolves on device.
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
+
 SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
@@ -46,6 +49,7 @@ include_directories(
     third-party/zlib/include
     third-party/libidn2/include
     third-party/include
+    third-party/yaml-cpp/include
 )
 
 link_directories(
@@ -63,6 +67,7 @@ link_directories(
     third-party/opencv-4.5.5/lib/opencv4/3rdparty
     third-party/opencv-4.5.5/lib
     third-party/openssl/lib64
+    third-party/yaml-cpp/lib
 )
 
 aux_source_directory(hal HAL_SRCS)
@@ -85,8 +90,8 @@ add_executable(ax_core
 )
 
 # Suppress warnings in detection.cpp (model utility library with many inference backends)
-set_source_files_properties(hal/ax/detection.cpp PROPERTIES COMPILE_FLAGS
-    "-Wno-unused-function -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-but-set-variable")
+# set_source_files_properties(hal/ax/detection.cpp PROPERTIES COMPILE_FLAGS
+    # "-Wno-unused-function -Wno-unknown-pragmas -Wno-sign-compare -Wno-unused-but-set-variable")
 
 # Suppress warnings in jpeg_help.cpp (fread result checks and sign-compare with off_t)
 set_source_files_properties(hal/ax/jpeg_help.cpp PROPERTIES COMPILE_FLAGS
@@ -132,6 +137,7 @@ set(THIRDPARTY_LIBS
     z
     idn2
     ssl
+    yaml-cpp
 )
 
 target_link_libraries(ax_core PUBLIC

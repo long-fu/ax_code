@@ -18,44 +18,33 @@
 // }
 
 
-struct ScrfdConfig {
+struct ScrfdConfig:public EngineConfig {
+  std::string config_path;
   std::string model_file = "model/det_10g.axmodel";
   std::string model_type = "scrfd";
-
   std::vector<int> inputs = {1, 3, 640, 640};
-
   float prob_threshold = 0.5f;
   float nms_threshold = 0.4f;
-
   std::vector<int> num_anchors = {2, 2, 2};
   std::vector<int> strides = {8, 16, 32};
-
   std::vector<std::string> labels = {"face"};
+  std::string ModelFile() const override { return model_file; }
 
-  std::string config_path;
-  explicit ScrfdConfig(const std::string& path = "") : config_path(path) {
-    if (!path.empty()) {
-      // Allow passing either a config path or a model path string.
-      model_file = path;
-    }
-  }
-  int Init() { return 0; }
-  int LoadConfig() { return 0; }
 };
 
-class Det10g : public Engine {
+class Scrfd : public Engine {
  public:
-  explicit Det10g(const ScrfdConfig& config):Engine(config.model_file), config_(config)  {
+  explicit Scrfd(const ScrfdConfig& config):Engine(config), config_(config)  {
 
 
   };
-  ~Det10g() override;
+  ~Scrfd() override;
 
   int Postprocess(int pic_width, int pic_height,
                   std::vector<detection::Object>& objects) override;
 
-  Det10g(const Det10g&) = delete;
-  Det10g& operator=(const Det10g&) = delete;
+  Scrfd(const Scrfd&) = delete;
+  Scrfd& operator=(const Scrfd&) = delete;
 
  private:
   ScrfdConfig config_;
