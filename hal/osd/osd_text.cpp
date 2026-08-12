@@ -4,7 +4,15 @@
 
 namespace {
 
+constexpr int kEnCellW = 8;
+constexpr int kZhCellW = 16;
+
+int FallbackAdvance(AX_U16 unicode) {
+  return (unicode > 0x7F) ? kZhCellW : kEnCellW;
+}
+
 // Decode one UTF-8 codepoint; returns bytes consumed (0 on truncated input).
+// Sets *out to 0 for unsupported supplementary-plane sequences (still consumes 4).
 size_t Utf8Next(const std::string& s, size_t i, AX_U16* out) {
   if (i >= s.size()) return 0;
   unsigned char c = static_cast<unsigned char>(s[i]);
@@ -53,21 +61,28 @@ void RenderOsdText(AX_VIDEO_FRAME_INFO_T* frame, int x, int y,
                    const std::string& text, const YUVColor& color) {
   if (!frame) return;
 
+  // `y` is the text baseline (same convention as FreeType RenderText).
   int cursor_x = x;
   for (size_t i = 0; i < text.size();) {
     AX_U16 unicode = 0;
     size_t n = Utf8Next(text, i, &unicode);
     if (n == 0) break;
     i += n;
-    if (unicode == 0) continue;
+
+    if (unicode == 0) {
+      // NUL or skipped supplementary-plane codepoint: keep layout spacing.
+      cursor_x += kEnCellW;
+      continue;
+    }
 
     FONT_BITMAP_T bmp{};
     if (GetFontBitmap(unicode, bmp) != 0) {
-      // Unknown glyph: advance by English cell width so layout stays stable.
-      cursor_x += 8;
+      cursor_x += FallbackAdvance(unicode);
       continue;
     }
-    BlitBitmap(frame, cursor_x, y, bmp, color);
+
+    // Place bitmap so its bottom edge sits on the baseline.
+    BlitBitmap(frame, cursor_x, y - static_cast<int>(bmp.nHeight), bmp, color);
     cursor_x += bmp.nWidth;
   }
 }

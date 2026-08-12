@@ -28,6 +28,9 @@ SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
+# DrawText backend: ON = bitmap OSD (default), OFF = FreeType.
+option(AX_USE_OSD_TEXT "Use bitmap OSD fonts for DrawText" ON)
+
 include_directories(
     third-party/ax/include
     third-party/opencv/include
@@ -39,7 +42,6 @@ include_directories(
     hal
     hal/ax
     hal/osd
-    third-party/freetype/include/freetype
     pipeline
     stages
     models
@@ -55,12 +57,16 @@ include_directories(
     third-party/yaml-cpp/include
 )
 
+# FreeType headers only needed when DrawText uses FreeType.
+if(NOT AX_USE_OSD_TEXT)
+  include_directories(third-party/freetype/include/freetype)
+endif()
+
 link_directories(
     third-party/ax/lib
     third-party/opencv/lib
     third-party/ffmpeg/lib
     third-party/x264/lib
-    third-party/freetype/lib
     third-party/nlohmann/
     third-party/curl/lib
     third-party/libuuid/lib
@@ -73,6 +79,10 @@ link_directories(
     third-party/yaml-cpp/lib
 )
 
+if(NOT AX_USE_OSD_TEXT)
+  link_directories(third-party/freetype/lib)
+endif()
+
 aux_source_directory(hal HAL_SRCS)
 aux_source_directory(hal/ax AX_SRCS)
 aux_source_directory(hal/osd OSD_SRCS)
@@ -83,8 +93,10 @@ aux_source_directory(stages STAGES_SRCS)
 aux_source_directory(models MODELS_SRCS)
 aux_source_directory(common COMMON_SRCS)
 
-# DrawText backend: ON = bitmap OSD (default), OFF = FreeType.
-option(AX_USE_OSD_TEXT "Use bitmap OSD fonts for DrawText" ON)
+# OSD-on: do not compile FreeType helper into ax_core.
+if(AX_USE_OSD_TEXT)
+  list(FILTER HAL_SRCS EXCLUDE REGEX "freetype_helper\\.cpp$")
+endif()
 
 add_executable(ax_core
     apps/main_rtsp.cpp
@@ -142,7 +154,6 @@ set(FFMPEG_LIBS
 )
 
 set(THIRDPARTY_LIBS
-    freetype
     curl
     uuid
     crypto
@@ -151,6 +162,11 @@ set(THIRDPARTY_LIBS
     ssl
     yaml-cpp
 )
+
+# FreeType only when DrawText uses the FreeType backend.
+if(NOT AX_USE_OSD_TEXT)
+  list(APPEND THIRDPARTY_LIBS freetype)
+endif()
 
 target_link_libraries(ax_core PUBLIC
     ${SYSTEM_LIBS}

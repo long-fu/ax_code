@@ -6,3 +6,4 @@ resource/
 logs/
 .claude
 third-party/
+model/
