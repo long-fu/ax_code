@@ -177,10 +177,11 @@ void SetPixel(AX_VIDEO_FRAME_INFO_T* frame, int x, int y, const YUVColor& color)
 }
 
 void DrawText(AX_VIDEO_FRAME_INFO_T* frame, int x, int y,
-              const std::string& text, const YUVColor& color) {
+              const std::string& text, const YUVColor& color, int font_size) {
 #if AX_USE_OSD_TEXT
-    RenderOsdText(frame, x, y, text, color);
+    RenderOsdText(frame, x, y, text, color, font_size);
 #else
+    (void)font_size;
     RenderText(frame, x, y, text, &color);
 #endif
 }

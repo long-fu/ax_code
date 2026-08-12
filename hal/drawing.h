@@ -55,7 +55,8 @@ inline constexpr YUVColor kPink   {163, 137, 196};
 void SetPixel(AX_VIDEO_FRAME_INFO_T* frame, int x, int y, const YUVColor& color);
 
 void DrawText(AX_VIDEO_FRAME_INFO_T* frame, int x, int y,
-              const std::string& text, const YUVColor& color);
+              const std::string& text, const YUVColor& color,
+              int font_size = 16);
 
 int DrawLine(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,
              const YUVColor& color, int lineWidth);
