@@ -6,7 +6,12 @@
 #include <cstring>
 #include <stdint.h>
 #include <opencv2/opencv.hpp>
+
+#if AX_USE_OSD_TEXT
+#include "osd_text.h"
+#else
 #include "freetype_helper.h"
+#endif
 
 using namespace cv;
 
@@ -173,7 +178,11 @@ void SetPixel(AX_VIDEO_FRAME_INFO_T* frame, int x, int y, const YUVColor& color)
 
 void DrawText(AX_VIDEO_FRAME_INFO_T* frame, int x, int y,
               const std::string& text, const YUVColor& color) {
+#if AX_USE_OSD_TEXT
+    RenderOsdText(frame, x, y, text, color);
+#else
     RenderText(frame, x, y, text, &color);
+#endif
 }
 
 int DrawLine(AX_VIDEO_FRAME_INFO_T* frame, int x1, int y1, int x2, int y2,

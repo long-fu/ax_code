@@ -6,6 +6,11 @@
 #include <vector>
 #include <ax_global_type.h>
 
+// DrawText backend: 1 = bitmap OSD (hal/osd), 0 = FreeType.
+#ifndef AX_USE_OSD_TEXT
+#define AX_USE_OSD_TEXT 1
+#endif
+
 struct YUVColor {
     constexpr YUVColor() = default;
     constexpr YUVColor(uint8_t y, uint8_t u, uint8_t v) : y(y), u(u), v(v) {}

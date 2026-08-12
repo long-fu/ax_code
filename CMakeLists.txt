@@ -38,6 +38,7 @@ include_directories(
     common
     hal
     hal/ax
+    hal/osd
     third-party/freetype/include/freetype
     pipeline
     stages
@@ -74,6 +75,7 @@ link_directories(
 
 aux_source_directory(hal HAL_SRCS)
 aux_source_directory(hal/ax AX_SRCS)
+aux_source_directory(hal/osd OSD_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
 
 # aux_source_directory(tracker/sort TRACKER_SRCS)
@@ -81,17 +83,27 @@ aux_source_directory(stages STAGES_SRCS)
 aux_source_directory(models MODELS_SRCS)
 aux_source_directory(common COMMON_SRCS)
 
+# DrawText backend: ON = bitmap OSD (default), OFF = FreeType.
+option(AX_USE_OSD_TEXT "Use bitmap OSD fonts for DrawText" ON)
+
 add_executable(ax_core
     apps/main_rtsp.cpp
     hal/drawing.cpp
     ${HAL_SRCS}
     ${AX_SRCS}
+    ${OSD_SRCS}
     ${STAGES_SRCS}
     ${MODELS_SRCS}
     ${PIP_SRCS}
     ${COMMON_SRCS}
     pipeline/error.h
 )
+
+if(AX_USE_OSD_TEXT)
+  target_compile_definitions(ax_core PRIVATE AX_USE_OSD_TEXT=1)
+else()
+  target_compile_definitions(ax_core PRIVATE AX_USE_OSD_TEXT=0)
+endif()
 
 # Suppress warnings in jpeg_help.cpp (fread result checks and sign-compare with off_t)
 set_source_files_properties(hal/ax/jpeg_help.cpp PROPERTIES COMPILE_FLAGS
