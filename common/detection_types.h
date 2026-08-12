@@ -23,6 +23,8 @@ typedef struct Object {
   std::vector<float> kps_feat;
   /* for yolov8-obb */
   float angle;
+  /* detector / model provenance for multi-model pipelines */
+  std::string model_name;
 } Object;
 
 /* for palm detection */
