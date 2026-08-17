@@ -71,9 +71,10 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
   objects.clear();
 
   // inputs = {N, C, H, W}
-  const int lb_h = config_.inputs.size() >= 4 ? config_.inputs[2] : 640;
-  const int lb_w = config_.inputs.size() >= 4 ? config_.inputs[3] : 640;
-
+  // const int lb_h = config_.inputs.size() >= 4 ? config_.inputs[2] : 640;
+  // const int lb_w = config_.inputs.size() >= 4 ? config_.inputs[3] : 640;
+  const int lb_h = 640;
+  const int lb_w = 640;
   auto *info = GetInfo();
   if (info == nullptr) {
     LOG_ERROR("Det10g Postprocess: io info is null");
@@ -94,33 +95,55 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
       return -2;
     }
     const size_t floats = out.nSize / sizeof(float);
-    size_t n = 0;
+    // size_t n = 0;
     int kind = 0; // 1=score, 4=bbox, 10=kps
-    if (floats == 12800 || floats == 3200 || floats == 800) {
-      n = floats;
-      kind = 1;
-    } else if (floats == 12800ull * 4 || floats == 3200ull * 4 ||
-               floats == 800ull * 4) {
-      n = floats / 4;
-      kind = 4;
-    } else if (floats == 12800ull * 10 || floats == 3200ull * 10 ||
-               floats == 800ull * 10) {
-      n = floats / 10;
-      kind = 10;
-    } else {
-      LOG_ERROR("Det10g Postprocess: unrecognized output size {} floats",
-                floats);
-      return -2;
-    }
+    int stride = 8;
 
-    const int stride = StrideFromN(n, lb_w);
-    if (stride == 0) {
-      LOG_ERROR("Det10g Postprocess: cannot map N={} to stride", n);
-      return -2;
-    }
+    if((12800 == floats) && (i < 3)) {
+      LOG_INFO("Det10g Postprocess: stride=8, score");
+      stride = 8; // 640/8=80, 80*80*2=12800
+      kind = 1;
+    } else if((3200 == floats) && (i < 3)) {
+      LOG_INFO("Det10g Postprocess: stride=16, score");
+      stride = 16; // 640/16=40, 40*40*2=3200
+      kind = 1;
+    } else if((800 == floats) && (i < 3)) {
+      LOG_INFO("Det10g Postprocess: stride=32, score");
+      stride = 32; // 640/32=20, 20*20*2=800
+      kind = 1;
+    } else 
+    
+    if(12800ull * 4 == floats) {
+      LOG_INFO("Det10g Postprocess: stride=8, bbox");
+      stride = 8; // 640/8=80, 80*80*2=12800
+      kind = 4;
+    } else if(3200ull * 4 == floats) {
+      LOG_INFO("Det10g Postprocess: stride=16, bbox");
+      stride = 16; // 640/16=40, 40*40*2=3200
+      kind = 4;
+    } else if(800ull * 4 == floats) {
+      LOG_INFO("Det10g Postprocess: stride=32, bbox");
+      stride = 32; // 640/32=20, 20*20*2=800
+      kind = 4;
+    } else
+    
+    if(12800ull * 10 == floats) {
+      LOG_INFO("Det10g Postprocess: stride=8, kps");
+      stride = 8; // 640/8=80, 80*80*2=12800
+      kind = 10;
+    } else if(3200ull * 10 == floats) {
+      LOG_INFO("Det10g Postprocess: stride=16, kps");
+      stride = 16; // 640/16=40, 40*40*2=3200
+      kind = 10;
+    } else if(800ull * 10 == floats) {
+      LOG_INFO("Det10g Postprocess: stride=32, kps");
+      stride = 32; // 640/32=20, 20*20*2=800
+      kind = 10;
+    }    
+    
     auto &level = levels[stride];
     level.stride = stride;
-    level.n = n;
+    // level.n = n;
     if (kind == 1) {
       level.score = ptr;
     } else if (kind == 4) {
@@ -135,7 +158,8 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
               levels.size());
     return -2;
   }
-
+  LOG_INFO("Det10g Postprocess: got stride levels {} {} {}", levels[8].stride,
+           levels[16].stride, levels[32].stride);
   std::vector<detection::Object> proposals;
   for (int stride : {8, 16, 32}) {
     auto it = levels.find(stride);
@@ -149,31 +173,22 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
       return -2;
     }
 
-    const int feat_w = lb_w / stride;
-    const int feat_h = lb_h / stride;
-    const int feat_size = feat_w * feat_h;
-    if (static_cast<size_t>(feat_size) * 2 != lv.n) {
-      LOG_ERROR("Det10g Postprocess: N mismatch stride {} feat {} N {}", stride,
-                feat_size, lv.n);
-      return -2;
-    }
+    auto score_chw = lv.score;
+    auto bbox_chw = lv.bbox;
+    auto kps_chw = lv.kps;
 
-    std::vector<float> score_chw;
-    std::vector<float> bbox_chw;
-    std::vector<float> kps_chw;
-    PackedToChw(lv.score, lv.bbox, lv.kps, lv.n, feat_size, score_chw, bbox_chw,
-                kps_chw);
 
-    // detection::GenerateProposalsScrfd(stride, score_chw.data(),
-    // bbox_chw.data(),
-    //                                   kps_chw.data(), cfg.prob_threshold,
-    //                                   proposals, lb_w, lb_h);
+    LOG_INFO("Det10g Postprocess: Processing stride {}", stride);
+
     // TODO: 这里应该可以直接传递执行结果的指针，避免拷贝
     detection::generate_proposals_scrfd(
-        stride, score_chw.data(), bbox_chw.data(), kps_chw.data(),
+        stride, score_chw, bbox_chw, kps_chw,
         config_.prob_threshold, proposals, lb_w, lb_h);
   }
+
+  LOG_INFO("Det10g Postprocess: {} proposals before NMS pic {}x{}", proposals.size(), pic_height, pic_width);
   detection::get_out_bbox(proposals, objects, config_.nms_threshold, lb_h, lb_w,
                           pic_height, pic_width);
+  LOG_INFO("out box size={}", objects.size());
   return 0;
 }
