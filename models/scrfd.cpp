@@ -168,6 +168,7 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
     // bbox_chw.data(),
     //                                   kps_chw.data(), cfg.prob_threshold,
     //                                   proposals, lb_w, lb_h);
+    // TODO: 这里应该可以直接传递执行结果的指针，避免拷贝
     detection::generate_proposals_scrfd(
         stride, score_chw.data(), bbox_chw.data(), kps_chw.data(),
         config_.prob_threshold, proposals, lb_w, lb_h);

@@ -52,9 +52,10 @@ public:
       break;
     case kMsgInfprocData:
     {
-      TIME_START(test_sort);
+      // TIME_START(test_sort);
 
       auto in_data = std::static_pointer_cast<InfData>(msg_data);
+      
       // std::vector<TrackingBox> det_frame_data;
       // for (size_t i = 0; i < in_data->objects.size(); i++)
       // {
@@ -69,13 +70,10 @@ public:
       // }
       // frame_id_++;
       // tracker_.Update(det_frame_data);
-
       // std::vector<TrackingBox> tracking_results = tracker_.GetReport();
       // LOG_INFO("tracker out: {}", tracking_results.size());
-
-      TIME_END(test_sort);
+      // TIME_END(test_sort);
       // TIME_USEC_SHOW(test_sort);
-
       // Rule engine judgment — evaluate all objects against loaded rules
       // std::vector<bool> rule_results;
       // RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);

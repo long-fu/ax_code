@@ -6,6 +6,7 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include "arcface.h"
 #include "logger.h"
 #include "scrfd.h"
 #include "yolov5.h"
@@ -76,6 +77,17 @@ void ApplyCommon(ConfigT& cfg, const YAML::Node& root,
   ReadStringVector(root, "labels", cfg.labels);
 }
 
+void ApplyArcface(ArcfaceConfig& cfg, const YAML::Node& root,
+                  const std::string& path) {
+  cfg.config_path = path;
+  cfg.model_file = root["model_file"].as<std::string>();
+  cfg.model_type = root["model_type"].as<std::string>();
+  ReadIntVector(root, "inputs", cfg.inputs);
+  ReadOptional(root, "feat_dim", cfg.feat_dim);
+  ReadOptional(root, "l2_normalize", cfg.l2_normalize);
+  ReadOptional(root, "expand_ratio", cfg.expand_ratio);
+}
+
 }  // namespace
 
 std::unique_ptr<Engine> CreateEngine(const std::string& config_path) {
@@ -120,6 +132,14 @@ std::unique_ptr<Engine> CreateEngine(const std::string& config_path) {
       LOG_INFO("engine_factory: create Scrfd from {} model_file={}",
                config_path, cfg.model_file);
       return std::make_unique<Scrfd>(cfg);
+    }
+
+    if (model_type == "arcface") {
+      ArcfaceConfig cfg;
+      ApplyArcface(cfg, root, config_path);
+      LOG_INFO("engine_factory: create Arcface from {} model_file={}",
+               config_path, cfg.model_file);
+      return std::make_unique<Arcface>(cfg);
     }
   } catch (const YAML::Exception& e) {
     LOG_ERROR("engine_factory: parse {} failed: {}", config_path, e.what());

@@ -79,7 +79,7 @@ int main(int argc, char const *argv[])
     return -1;
   }
 
-  std::string rtsp = "rtsp://192.168.8.10:8554/screen";
+  std::string rtsp = "rtsp://192.168.8.10:8554/camera3";
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
@@ -101,7 +101,7 @@ int main(int argc, char const *argv[])
 
   {
     pipeline::TaskNodeParam param;
-    param.node = new InfProcess("configs/yolov5.yaml", &ff_decoder);
+    param.node = new InfProcess("configs/scrfd.yaml", &ff_decoder);
     param.node_name.assign("InfProcess");
     thread_tbl.push_back(param);
   }
@@ -116,7 +116,7 @@ int main(int argc, char const *argv[])
   {
     pipeline::TaskNodeParam param;
     param.node = new EncProcess(
-        "rtmp://123:123@22.10.57.15/mylive/live", &ff_decoder);
+        "rtmp://123:123@192.168.8.108/mylive/live", &ff_decoder);
     param.node_name.assign("EncProcess");
     thread_tbl.push_back(param);
   }
@@ -150,7 +150,6 @@ int main(int argc, char const *argv[])
   LOG_INFO("Wait Exit App Done!!");
   ExitPipeline(app, thread_tbl);
   g_scheduler.store(nullptr);
-
   LOG_INFO("Exit App");
   LOG_FLUSH();
   LOG_SHUTDOWN();
