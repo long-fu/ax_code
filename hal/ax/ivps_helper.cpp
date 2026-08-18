@@ -320,8 +320,9 @@ AX_S32 IvpsHelper::Resize(AX_IVPS_ASPECT_RATIO_E eMode, AX_U32 dest_width, AX_U3
 	pipeline_attr_.tFilter[ch][0].nDstPicWidth = wAlign;
 	pipeline_attr_.tFilter[ch][0].nDstPicHeight = hAlign;
 	pipeline_attr_.tFilter[ch][0].nDstPicStride = frmStride;
-	pipeline_attr_.tFilter[ch][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
-	// pipeline_attr_.tFilter[ch][0].eDstPicFormat = AX_FORMAT_RGB888;
+	// pipeline_attr_.tFilter[ch][0].eDstPicFormat = AX_FORMAT_YUV420_SEMIPLANAR;
+	pipeline_attr_.tFilter[ch][0].eDstPicFormat = AX_FORMAT_RGB888;
+	// pipeline_attr_.tFilter[ch][0].eDstPicFormat = AX_FORMAT_BGR888;
 
 	pipeline_attr_.tFilter[ch][0].tAspectRatio.eMode = eMode;
 	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;

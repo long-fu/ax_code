@@ -7,6 +7,7 @@
 #include "detection.h"
 #include "detection_types.h"
 #include "logger.h"
+#include "opencv2/core/operations.hpp"
 #include "opencv2/core/types.hpp"
 
 namespace
@@ -76,24 +77,16 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
     const int input_h = config_.inputs[2];
     const int input_w = config_.inputs[3];
 
-    const float im_ratio = static_cast<float>(pic_height) / static_cast<float>(pic_width);
-    const float model_ratio = static_cast<float>(input_h) / static_cast<float>(input_w);
-    int new_w = 0, new_h = 0;
-    if (im_ratio > model_ratio)
-    {
-        new_h = input_h;
-        new_w = static_cast<int>(static_cast<float>(new_h) / im_ratio);
-    }
-    else
-    {
-        new_w = input_w;
-        new_h = static_cast<int>(static_cast<float>(new_w) * im_ratio);
-    }
-    if (new_w < 1)
-        new_w = 1;
-    if (new_h < 1)
-        new_h = 1;
-    const float det_scale = static_cast<float>(new_h) / static_cast<float>(pic_height);
+    // 2. 正确计算 Letterbox 的 Scale 和 Padding 偏移量
+    const float scale_w = static_cast<float>(input_w) / static_cast<float>(pic_width);
+    const float scale_h = static_cast<float>(input_h) / static_cast<float>(pic_height);
+    const float det_scale = std::min(scale_w, scale_h); // 保持等比例缩放
+
+    // 计算图像在 model input 中的实际占用尺寸与 Padding 偏移
+    const float resized_w = pic_width * det_scale;
+    const float resized_h = pic_height * det_scale;
+    const float pad_w = (input_w - resized_w) * 0.5f; // 左右 padding 宽度
+    const float pad_h = (input_h - resized_h) * 0.5f; // 上下 padding 高度
 
     std::vector<detection::Object> proposals;
     auto outs = GetOutput().pOutputs;
@@ -106,10 +99,10 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
 
         const size_t scoreCount = outs[idx].nSize / sizeof(float);
 
-        fprintf(stdout, "[%d] %d %ld %d %d \n", idx, stride, scoreCount, config_.inputs[2], config_.inputs[3]);
+        // fprintf(stdout, "[%d] %d %ld %d %d \n", idx, stride, scoreCount, config_.inputs[2], config_.inputs[3]);
 
-        const int feat_h = config_.inputs[2] / stride;
-        const int feat_w = config_.inputs[3] / stride;
+        const int feat_h = input_h / stride;
+        const int feat_w = input_w / stride;
 
         CenterKey key{feat_h, feat_w, stride};
         auto it = centerCache_.find(key);
@@ -121,8 +114,9 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
             {
                 for (int ax = 0; ax < feat_w; ++ax)
                 {
-                    const float cx = static_cast<float>(ax * stride);
-                    const float cy = static_cast<float>(ay * stride);
+                    // 修正：加上 +0.5f 像素中心偏移
+                    const float cx = (static_cast<float>(ax) + 0.5f) * stride;
+                    const float cy = (static_cast<float>(ay) + 0.5f) * stride;
                     for (int a = 0; a < kNumAnchors; ++a)
                     {
                         centers.push_back(cx);
@@ -137,11 +131,16 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
 
         const size_t nAnchors = centers.size() / 2;
         if (scoreCount < nAnchors)
+        {
+            LOG_ERROR("数据错误");
             continue;
+        }
 
         for (size_t i = 0; i < nAnchors; ++i)
         {
             const float score = scores[i];
+            // cv::print()
+            // printf("score: %f\n", score);
             if (score < config_.prob_threshold)
                 continue;
             const float cx = centers[i * 2];
@@ -151,25 +150,38 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
             const float r = bboxes[i * 4 + 2] * stride;
             const float b = bboxes[i * 4 + 3] * stride;
 
-            detection::Object box;
-            box.prob = score;
-            auto x1 = (cx - l) / det_scale;
-            auto y1 = (cy - t) / det_scale;
-            auto x2 = (cx + r) / det_scale;
-            auto y2 = (cy + b) / det_scale;
+            // 解算模型 input 坐标系下的框
+            float x1_raw = cx - l;
+            float y1_raw = cy - t;
+            float x2_raw = cx + r;
+            float y2_raw = cy + b;
 
+            // 修正：扣除 Padding 后再除以 scale 还原回原始图片坐标
+            float x1 = (x1_raw - pad_w) / det_scale;
+            float y1 = (y1_raw - pad_h) / det_scale;
+            float x2 = (x2_raw - pad_w) / det_scale;
+            float y2 = (y2_raw - pad_h) / det_scale;
+
+            detection::Object box;
+            box.label = 0;
+            box.prob = score;
             box.rect = cv::Rect(x1, y1, x2 - x1, y2 - y1);
 
-            for (int k = 0; k < 5; ++k)
+            // 修正：关键点同步扣除 Padding 并还原
+            if (kps != nullptr)
             {
-                const float px = cx + kps[i * 10 + k * 2] * stride;
-                const float py = cy + kps[i * 10 + k * 2 + 1] * stride;
-                box.landmark[k].x = px / det_scale;
-                box.landmark[k].y = py / det_scale;
+                for (int k = 0; k < 5; ++k)
+                {
+                    const float px_raw = cx + kps[i * 10 + k * 2 + 0] * stride;
+                    const float py_raw = cy + kps[i * 10 + k * 2 + 1] * stride;
+                    box.landmark[k].x = (px_raw - pad_w) / det_scale;
+                    box.landmark[k].y = (py_raw - pad_h) / det_scale;
+                }
             }
             proposals.push_back(box);
         }
     }
+
     if (proposals.empty())
         return {};
 
