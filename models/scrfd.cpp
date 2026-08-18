@@ -5,10 +5,15 @@
 #include <vector>
 
 #include "detection.h"
+#include "detection_types.h"
 #include "logger.h"
+#include "opencv2/core/types.hpp"
 
 namespace
 {
+    constexpr int kFmc = 3;
+    constexpr int kNumAnchors = 2;
+    constexpr int kStrides[3] = {8, 16, 32};
 
     struct ScrfdLevel
     {
@@ -19,59 +24,45 @@ namespace
         size_t n = 0; // H*W*2
     };
 
-    // InsightFace packed layout: row = spatial_index * 2 + anchor.
-    // Convert to CHW expected by GenerateProposalsScrfd:
-    //   score[q * feat + i], bbox[(q*4+c)*feat + i], kps[(q*10+c)*feat + i]
-    void PackedToChw(const float* score_n1, const float* bbox_n4,
-                     const float* kps_n10, size_t n, int feat_size,
-                     std::vector<float>& score_chw, std::vector<float>& bbox_chw,
-                     std::vector<float>& kps_chw)
+    float iou(const detection::Object& a, const detection::Object& b)
     {
-        constexpr int kNumAnchors = 2;
-        score_chw.assign(static_cast<size_t>(kNumAnchors) * feat_size, 0.f);
-        bbox_chw.assign(static_cast<size_t>(kNumAnchors) * 4 * feat_size, 0.f);
-        kps_chw.assign(static_cast<size_t>(kNumAnchors) * 10 * feat_size, 0.f);
+        cv::Rect intersection = a.rect & b.rect;
 
-        for (int q = 0; q < kNumAnchors; ++q)
+        if (intersection.empty())
+            return 0.0;
+
+        double intersection_area = intersection.area();
+        double union_area = a.rect.area() + b.rect.area() - intersection_area;
+
+        return intersection_area / union_area;
+    }
+
+    std::vector<int> nms(const std::vector<detection::Object>& dets, float thresh)
+    {
+        std::vector<int> order(dets.size());
+        for (size_t i = 0; i < dets.size(); ++i)
+            order[i] = static_cast<int>(i);
+        std::sort(order.begin(), order.end(),
+                  [&](int a, int b) { return dets[a].prob > dets[b].prob; });
+        std::vector<int> keep;
+        std::vector<char> suppressed(dets.size(), 0);
+        for (size_t _i = 0; _i < order.size(); ++_i)
         {
-            for (int index = 0; index < feat_size; ++index)
+            int i = order[_i];
+            if (suppressed[i])
+                continue;
+            keep.push_back(i);
+            for (size_t _j = _i + 1; _j < order.size(); ++_j)
             {
-                const size_t row = static_cast<size_t>(index) * kNumAnchors + q;
-                if (row >= n)
-                {
+                int j = order[_j];
+                if (suppressed[j])
                     continue;
-                }
-                score_chw[static_cast<size_t>(q) * feat_size + index] = score_n1[row];
-                for (int c = 0; c < 4; ++c)
-                {
-                    bbox_chw[static_cast<size_t>(q * 4 + c) * feat_size + index] = bbox_n4[row * 4 + c];
-                }
-                for (int c = 0; c < 10; ++c)
-                {
-                    kps_chw[static_cast<size_t>(q * 10 + c) * feat_size + index] = kps_n10[row * 10 + c];
-                }
+                if (iou(dets[i], dets[j]) >= thresh)
+                    suppressed[j] = 1;
             }
         }
+        return keep;
     }
-
-    int StrideFromN(size_t n, int letterbox)
-    {
-        if (n == 0 || n % 2 != 0)
-        {
-            return 0;
-        }
-        const size_t hw = n / 2;
-        for (int stride : {8, 16, 32})
-        {
-            const int feat = letterbox / stride;
-            if (static_cast<size_t>(feat) * static_cast<size_t>(feat) == hw)
-            {
-                return stride;
-            }
-        }
-        return 0;
-    }
-
 } // namespace
 
 Scrfd::~Scrfd() = default;
@@ -81,78 +72,111 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
 {
     objects.clear();
 
-    const int lb_h = 640;
-    const int lb_w = 640;
+    // 1. 修正输入宽高索引 (inputs[2]=H, inputs[3]=W)
+    const int input_h = config_.inputs[2];
+    const int input_w = config_.inputs[3];
 
-    for (int i = 0; i < GetOutput().nOutputSize; ++i)
+    const float im_ratio = static_cast<float>(pic_height) / static_cast<float>(pic_width);
+    const float model_ratio = static_cast<float>(input_h) / static_cast<float>(input_w);
+    int new_w = 0, new_h = 0;
+    if (im_ratio > model_ratio)
     {
-        auto out = GetOutput().pOutputs[i];
-        auto name = GetInfo()->pOutputs[i].pName;
-
-        const size_t floats = out.nSize / sizeof(float);
-        // LOG_INFO("Scrfd Postprocess: output {} name={} size={} floats={}", i, name, out.nSize, floats);
-        if (out.pVirAddr == nullptr || out.nSize == 0)
-        {
-            LOG_ERROR("Scrfd Postprocess: empty output {}", i);
-            return -1;
-        }
+        new_h = input_h;
+        new_w = static_cast<int>(static_cast<float>(new_h) / im_ratio);
     }
-
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 0 name=448 size=51200 floats=12800
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 1 name=471 size=12800 floats=3200
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 2 name=494 size=3200 floats=800
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 3 name=451 size=204800 floats=51200
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 4 name=474 size=51200 floats=12800
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 5 name=497 size=12800 floats=3200
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 6 name=454 size=512000 floats=128000
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 7 name=477 size=128000 floats=32000
-// [08-18 11:36:15.242] [info] [tid:901968] Scrfd Postprocess: output 8 name=500 size=32000 floats=8000
-
+    else
+    {
+        new_w = input_w;
+        new_h = static_cast<int>(static_cast<float>(new_w) * im_ratio);
+    }
+    if (new_w < 1)
+        new_w = 1;
+    if (new_h < 1)
+        new_h = 1;
+    const float det_scale = static_cast<float>(new_h) / static_cast<float>(pic_height);
 
     std::vector<detection::Object> proposals;
+    auto outs = GetOutput().pOutputs;
+    for (int idx = 0; idx < kFmc; ++idx)
+    {
+        const int stride = kStrides[idx];
+        float* scores = static_cast<float*>(outs[idx].pVirAddr);
+        float* bboxes = static_cast<float*>(outs[idx + kFmc].pVirAddr);
+        float* kps = static_cast<float*>(outs[idx + kFmc * 2].pVirAddr);
 
-    auto& out_448 = GetOutput().pOutputs[0];
-    const auto* ptr_448 = static_cast<const float*>(out_448.pVirAddr);
+        const size_t scoreCount = outs[idx].nSize / sizeof(float);
 
-    auto& out_471 = GetOutput().pOutputs[1];
-    const auto* ptr_471 = static_cast<const float*>(out_471.pVirAddr);
+        fprintf(stdout, "[%d] %d %ld %d %d \n", idx, stride, scoreCount, config_.inputs[2], config_.inputs[3]);
 
-    auto& out_494 = GetOutput().pOutputs[2];
-    const auto* ptr_494 = static_cast<const float*>(out_494.pVirAddr);
+        const int feat_h = config_.inputs[2] / stride;
+        const int feat_w = config_.inputs[3] / stride;
 
-    auto& out_451 = GetOutput().pOutputs[3];
-    const auto* ptr_451 = static_cast<const float*>(out_451.pVirAddr);
+        CenterKey key{feat_h, feat_w, stride};
+        auto it = centerCache_.find(key);
+        if (it == centerCache_.end())
+        {
+            std::vector<float> centers;
+            centers.reserve(static_cast<size_t>(feat_h * feat_w * kNumAnchors * 2));
+            for (int ay = 0; ay < feat_h; ++ay)
+            {
+                for (int ax = 0; ax < feat_w; ++ax)
+                {
+                    const float cx = static_cast<float>(ax * stride);
+                    const float cy = static_cast<float>(ay * stride);
+                    for (int a = 0; a < kNumAnchors; ++a)
+                    {
+                        centers.push_back(cx);
+                        centers.push_back(cy);
+                    }
+                }
+            }
+            it = centerCache_.emplace(key, std::move(centers)).first;
+        }
 
-    auto& out_474 = GetOutput().pOutputs[4];
-    const auto* ptr_474 = static_cast<const float*>(out_474.pVirAddr);
+        const auto& centers = it->second;
 
-    auto& out_497 = GetOutput().pOutputs[5];
-    const auto* ptr_497 = static_cast<const float*>(out_497.pVirAddr);
+        const size_t nAnchors = centers.size() / 2;
+        if (scoreCount < nAnchors)
+            continue;
 
-    auto& out_454 = GetOutput().pOutputs[6];
-    const auto* ptr_454 = static_cast<const float*>(out_454.pVirAddr);
+        for (size_t i = 0; i < nAnchors; ++i)
+        {
+            const float score = scores[i];
+            if (score < config_.prob_threshold)
+                continue;
+            const float cx = centers[i * 2];
+            const float cy = centers[i * 2 + 1];
+            const float l = bboxes[i * 4 + 0] * stride;
+            const float t = bboxes[i * 4 + 1] * stride;
+            const float r = bboxes[i * 4 + 2] * stride;
+            const float b = bboxes[i * 4 + 3] * stride;
 
-    auto& out_477 = GetOutput().pOutputs[7];
-    const auto* ptr_477 = static_cast<const float*>(out_477.pVirAddr);
+            detection::Object box;
+            box.prob = score;
+            auto x1 = (cx - l) / det_scale;
+            auto y1 = (cy - t) / det_scale;
+            auto x2 = (cx + r) / det_scale;
+            auto y2 = (cy + b) / det_scale;
 
-    auto& out_500 = GetOutput().pOutputs[8];
-    const auto* ptr_500 = static_cast<const float*>(out_500.pVirAddr);
+            box.rect = cv::Rect(x1, y1, x2 - x1, y2 - y1);
 
-    detection::generate_proposals_scrfd_my(
-        8, ptr_448, ptr_451, ptr_454,
-        config_.prob_threshold, proposals, lb_w, lb_h);
+            for (int k = 0; k < 5; ++k)
+            {
+                const float px = cx + kps[i * 10 + k * 2] * stride;
+                const float py = cy + kps[i * 10 + k * 2 + 1] * stride;
+                box.landmark[k].x = px / det_scale;
+                box.landmark[k].y = py / det_scale;
+            }
+            proposals.push_back(box);
+        }
+    }
+    if (proposals.empty())
+        return {};
 
-    detection::generate_proposals_scrfd_my(
-        16, ptr_471, ptr_474, ptr_477,
-        config_.prob_threshold, proposals, lb_w, lb_h);
-
-    detection::generate_proposals_scrfd_my(
-        32, ptr_494, ptr_497, ptr_500,
-        config_.prob_threshold, proposals, lb_w, lb_h);
-
-    // LOG_INFO("Det10g Postprocess: {} proposals before NMS pic {}x{}", proposals.size(), pic_height, pic_width);
-    detection::get_out_bbox(proposals, objects, config_.nms_threshold, lb_h, lb_w,
-                            pic_height, pic_width);
-    // LOG_INFO("out box size={}", objects.size());
+    auto keep = nms(proposals, config_.nms_threshold);
+    // std::vector<FaceBox> out;
+    objects.reserve(keep.size());
+    for (int i : keep)
+        objects.push_back(proposals[i]);
     return 0;
 }

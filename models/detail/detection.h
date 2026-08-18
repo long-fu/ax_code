@@ -271,83 +271,83 @@ namespace detection
             }
         }
     }
-    static void generate_proposals_scrfd_my(int feat_stride, const float* score_blob,
-                                            const float* bbox_blob, const float* kps_blob,
-                                            float prob_threshold,
-                                            std::vector<Object>& faceobjects,
-                                            int letterbox_cols, int letterbox_rows)
-    {
-        static std::unordered_map<CenterKey, std::vector<float>, CenterKeyHash> centerCache_;
-        constexpr int kNumAnchors = 2;
-        int feat_w = letterbox_cols / feat_stride;
-        int feat_h = letterbox_rows / feat_stride;
-        int scoreCount = feat_h * feat_w * kNumAnchors;
+    // static void generate_proposals_scrfd_my(int feat_stride, const float* score_blob,
+    //                                         const float* bbox_blob, const float* kps_blob,
+    //                                         float prob_threshold,
+    //                                         std::vector<Object>& faceobjects,
+    //                                         int letterbox_cols, int letterbox_rows)
+    // {
+    //     static std::unordered_map<CenterKey, std::vector<float>, CenterKeyHash> centerCache_;
+    //     constexpr int kNumAnchors = 2;
+    //     int feat_w = letterbox_cols / feat_stride;
+    //     int feat_h = letterbox_rows / feat_stride;
+    //     int scoreCount = feat_h * feat_w * kNumAnchors;
 
-        CenterKey key{feat_h, feat_w, feat_stride};
-        auto it = centerCache_.find(key);
-        if (it == centerCache_.end())
-        {
-            std::vector<float> centers;
-            centers.reserve(static_cast<size_t>(feat_h * feat_w * kNumAnchors * 2));
-            for (int ay = 0; ay < feat_h; ++ay)
-            {
-                for (int ax = 0; ax < feat_w; ++ax)
-                {
-                    // 修复 1：加上 +0.5f，精确对齐网格中心像素
-                    const float cx = (static_cast<float>(ax) + 0.5f) * feat_stride;
-                    const float cy = (static_cast<float>(ay) + 0.5f) * feat_stride;
-                    for (int a = 0; a < kNumAnchors; ++a)
-                    {
-                        centers.push_back(cx);
-                        centers.push_back(cy);
-                    }
-                }
-            }
-            it = centerCache_.emplace(key, std::move(centers)).first;
-        }
+    //     CenterKey key{feat_h, feat_w, feat_stride};
+    //     auto it = centerCache_.find(key);
+    //     if (it == centerCache_.end())
+    //     {
+    //         std::vector<float> centers;
+    //         centers.reserve(static_cast<size_t>(feat_h * feat_w * kNumAnchors * 2));
+    //         for (int ay = 0; ay < feat_h; ++ay)
+    //         {
+    //             for (int ax = 0; ax < feat_w; ++ax)
+    //             {
+    //                 // 修复 1：加上 +0.5f，精确对齐网格中心像素
+    //                 const float cx = (static_cast<float>(ax) + 0.5f) * feat_stride;
+    //                 const float cy = (static_cast<float>(ay) + 0.5f) * feat_stride;
+    //                 for (int a = 0; a < kNumAnchors; ++a)
+    //                 {
+    //                     centers.push_back(cx);
+    //                     centers.push_back(cy);
+    //                 }
+    //             }
+    //         }
+    //         it = centerCache_.emplace(key, std::move(centers)).first;
+    //     }
 
-        const auto& centers = it->second;
-        const size_t nAnchors = centers.size() / 2;
-        if (scoreCount < nAnchors)
-            return;
+    //     const auto& centers = it->second;
+    //     const size_t nAnchors = centers.size() / 2;
+    //     if (scoreCount < nAnchors)
+    //         return;
 
-        for (size_t i = 0; i < nAnchors; ++i)
-        {
-            const float score = score_blob[i];
-            if (score < prob_threshold)
-                continue;
+    //     for (size_t i = 0; i < nAnchors; ++i)
+    //     {
+    //         const float score = score_blob[i];
+    //         if (score < prob_threshold)
+    //             continue;
 
-            const float cx = centers[i * 2];
-            const float cy = centers[i * 2 + 1];
-            const float l = bbox_blob[i * 4 + 0] * feat_stride;
-            const float t = bbox_blob[i * 4 + 1] * feat_stride;
-            const float r = bbox_blob[i * 4 + 2] * feat_stride;
-            const float b = bbox_blob[i * 4 + 3] * feat_stride;
+    //         const float cx = centers[i * 2];
+    //         const float cy = centers[i * 2 + 1];
+    //         const float l = bbox_blob[i * 4 + 0] * feat_stride;
+    //         const float t = bbox_blob[i * 4 + 1] * feat_stride;
+    //         const float r = bbox_blob[i * 4 + 2] * feat_stride;
+    //         const float b = bbox_blob[i * 4 + 3] * feat_stride;
 
-            Object obj;
-            obj.label = 0;
-            obj.rect.x = cx - l;
-            obj.rect.y = cy - t;
+    //         Object obj;
+    //         obj.label = 0;
+    //         obj.rect.x = cx - l;
+    //         obj.rect.y = cy - t;
 
-            // 修复 2：正确计算宽高 (l + r 与 t + b)
-            obj.rect.width = l + r;
-            obj.rect.height = t + b;
-            obj.prob = score;
+    //         // 修复 2：正确计算宽高 (l + r 与 t + b)
+    //         obj.rect.width = l + r;
+    //         obj.rect.height = t + b;
+    //         obj.prob = score;
 
-            if (kps_blob != nullptr)
-            {
-                for (int k = 0; k < 5; ++k)
-                {
-                    const float px = cx + kps_blob[i * 10 + k * 2 + 0] * feat_stride;
-                    const float py = cy + kps_blob[i * 10 + k * 2 + 1] * feat_stride;
-                    obj.landmark[k].x = px;
-                    obj.landmark[k].y = py;
-                }
-            }
+    //         if (kps_blob != nullptr)
+    //         {
+    //             for (int k = 0; k < 5; ++k)
+    //             {
+    //                 const float px = cx + kps_blob[i * 10 + k * 2 + 0] * feat_stride;
+    //                 const float py = cy + kps_blob[i * 10 + k * 2 + 1] * feat_stride;
+    //                 obj.landmark[k].x = px;
+    //                 obj.landmark[k].y = py;
+    //             }
+    //         }
 
-            faceobjects.push_back(obj);
-        }
-    }
+    //         faceobjects.push_back(obj);
+    //     }
+    // }
     static void generate_proposals_mobilenet_ssd(
         const float* score, const float* boxes, const int head_count,
         const int* feature_map_size, const int* anchor_size, const int cls_num,

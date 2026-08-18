@@ -6,22 +6,7 @@
 
 namespace detection {
 
-    struct CenterKey
-    {
-        int h, w, stride;
-        bool operator==(const CenterKey &o) const
-        {
-            return h == o.h && w == o.w && stride == o.stride;
-        }
-    };
-    struct CenterKeyHash
-    {
-        size_t operator()(const CenterKey &k) const
-        {
-            return (static_cast<size_t>(k.h) * 1315423911u) ^ (static_cast<size_t>(k.w) << 1) ^
-                   static_cast<size_t>(k.stride);
-        }
-    };
+
 
 typedef struct {
   int grid0;

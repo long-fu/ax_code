@@ -17,35 +17,54 @@
 //   config_.anchors.clear();
 // }
 
-
-struct ScrfdConfig:public EngineConfig {
-  std::string config_path;
-  std::string model_file = "model/det_10g.axmodel";
-  std::string model_type = "scrfd";
-  std::vector<int> inputs = {1, 3, 640, 640};
-  float prob_threshold = 0.8f;
-  float nms_threshold = 0.4f;
-  std::vector<int> num_anchors = {2, 2, 2};
-  std::vector<int> strides = {8, 16, 32};
-  std::vector<std::string> labels = {"face"};
-  std::string ModelFile() const override { return model_file; }
-
+struct ScrfdConfig : public EngineConfig
+{
+    std::string config_path;
+    std::string model_file = "model/det_10g.axmodel";
+    std::string model_type = "scrfd";
+    std::vector<int> inputs = {1, 3, 640, 640};
+    float prob_threshold = 0.8f;
+    float nms_threshold = 0.4f;
+    std::vector<int> num_anchors = {2, 2, 2};
+    std::vector<int> strides = {8, 16, 32};
+    std::vector<std::string> labels = {"face"};
+    std::string ModelFile() const override
+    {
+        return model_file;
+    }
 };
 
-class Scrfd : public Engine {
- public:
-  explicit Scrfd(const ScrfdConfig& config):Engine(config), config_(config)  {
+class Scrfd : public Engine
+{
+public:
+    explicit Scrfd(const ScrfdConfig& config)
+        : Engine(config), config_(config){
 
+                          };
+    ~Scrfd() override;
 
-  };
-  ~Scrfd() override;
+    int Postprocess(int pic_width, int pic_height,
+                    std::vector<detection::Object>& objects) override;
 
-  int Postprocess(int pic_width, int pic_height,
-                  std::vector<detection::Object>& objects) override;
+    Scrfd(const Scrfd&) = delete;
+    Scrfd& operator=(const Scrfd&) = delete;
 
-  Scrfd(const Scrfd&) = delete;
-  Scrfd& operator=(const Scrfd&) = delete;
-
- private:
-  ScrfdConfig config_;
+private:
+    struct CenterKey
+    {
+        int h, w, stride;
+        bool operator==(const CenterKey& o) const
+        {
+            return h == o.h && w == o.w && stride == o.stride;
+        }
+    };
+    struct CenterKeyHash
+    {
+        size_t operator()(const CenterKey& k) const
+        {
+            return (static_cast<size_t>(k.h) * 1315423911u) ^ (static_cast<size_t>(k.w) << 1) ^ static_cast<size_t>(k.stride);
+        }
+    };
+    ScrfdConfig config_;
+    std::unordered_map<CenterKey, std::vector<float>, CenterKeyHash> centerCache_;
 };
