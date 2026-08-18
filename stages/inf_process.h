@@ -40,6 +40,7 @@ class InfProcess : public pipeline::TaskNode {
           LOG_ERROR("InfProcess: engine is null");
           return 0;
         }
+        // LOG_INFO("InfProcess: Processing preprocessed data");
         auto in_data = std::static_pointer_cast<PreData>(msg_data);
         int infer_ret = engine_->Process(in_data->data);
         in_data->data.clear();
@@ -58,10 +59,12 @@ class InfProcess : public pipeline::TaskNode {
           return 0;
         }
 
+        // LOG_INFO("InfProcess: Sending inference results {}", out_data->objects.size());
         pipeline::SendMessage(next_thread_id_, kMsgInfprocData, out_data);
         break;
       }
       case kMsgAppExit:
+        LOG_INFO("InfProcess: Received exit message");
         break;
       default:
         break;

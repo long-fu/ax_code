@@ -34,7 +34,6 @@ option(AX_USE_OSD_TEXT "Use bitmap OSD fonts for DrawText" ON)
 include_directories(
     third-party/ax/include
     third-party/opencv/include
-    third-party/opencv-4.5.5/include/opencv4
     third-party/ffmpeg/include
     third-party/x264/include
     tracker/sort
@@ -55,6 +54,7 @@ include_directories(
     third-party/libidn2/include
     third-party/include
     third-party/yaml-cpp/include
+    third-party/spdlog/include
 )
 
 # FreeType headers only needed when DrawText uses FreeType.
@@ -64,7 +64,6 @@ endif()
 
 link_directories(
     third-party/ax/lib
-    third-party/opencv/lib
     third-party/ffmpeg/lib
     third-party/x264/lib
     third-party/nlohmann/
@@ -73,10 +72,11 @@ link_directories(
     third-party/openssl/lib64
     third-party/zlib/lib
     third-party/libidn2/lib
-    third-party/opencv-4.5.5/lib/opencv4/3rdparty
-    third-party/opencv-4.5.5/lib
+    # third-party/opencv-4.5.5/lib/opencv4/3rdparty
+    third-party/opencv/lib
     third-party/openssl/lib64
     third-party/yaml-cpp/lib
+    third-party/spdlog/lib
 )
 
 if(NOT AX_USE_OSD_TEXT)
@@ -127,9 +127,15 @@ set(SYSTEM_LIBS
     dl
 )
 
+# set(OPENCV_LIBS
+#     opencv_highgui opencv_imgcodecs opencv_imgproc opencv_core
+#     ittnotify tegra_hal libjpeg-turbo libpng libtiff libwebp libopenjp2 zlib
+#     dl m rt
+# )
+
 set(OPENCV_LIBS
     opencv_highgui opencv_imgcodecs opencv_imgproc opencv_core
-    ittnotify tegra_hal libjpeg-turbo libpng libtiff libwebp libopenjp2 zlib
+        
     dl m rt
 )
 
@@ -153,13 +159,18 @@ set(FFMPEG_LIBS
     swresample
 )
 
+# set(THIRDPARTY_LIBS
+#     curl
+#     uuid
+#     crypto
+#     z
+#     idn2
+#     ssl
+#     yaml-cpp
+# )
+
 set(THIRDPARTY_LIBS
-    curl
-    uuid
-    crypto
     z
-    idn2
-    ssl
     yaml-cpp
 )
 
@@ -174,7 +185,8 @@ target_link_libraries(ax_core PUBLIC
     ${AX_LIBS}
     ${FFMPEG_LIBS}
     ${THIRDPARTY_LIBS}
+    spdlog
     
 )
 
-add_subdirectory(rules)
+# add_subdirectory(rules)

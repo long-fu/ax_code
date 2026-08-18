@@ -1,5 +1,5 @@
 model_type: scrfd
-model_file: model/det_10g.axmodel
+model_file: model/det_10g-yuv-std.axmodel
 inputs: [1, 3, 640, 640]
 prob_threshold: 0.5
 nms_threshold: 0.4

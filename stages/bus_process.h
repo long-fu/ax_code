@@ -55,7 +55,7 @@ public:
       // TIME_START(test_sort);
 
       auto in_data = std::static_pointer_cast<InfData>(msg_data);
-      
+
       // std::vector<TrackingBox> det_frame_data;
       // for (size_t i = 0; i < in_data->objects.size(); i++)
       // {
@@ -88,6 +88,10 @@ public:
         LOG_ERROR("BusProcess mapped frame invalid, skip draw");
         Unmap(in_data->image);
       } else {
+        // LOG_INFO("BusProcess draw: width={} height={} format={} size={}",
+        //          in_data->image.width, in_data->image.height,
+        //          (int)in_data->image.img_format,
+        //          (int)in_data->objects.size());
         for (size_t i = 0; i < in_data->objects.size(); i++)
         {
           auto item = in_data->objects[i];
@@ -99,6 +103,9 @@ public:
                    static_cast<int>(item.rect.x + item.rect.width),
                    static_cast<int>(item.rect.y + item.rect.height),
                    YUVColors::kRed, 2);
+          LOG_INFO("BusProcess draw: label={} prob={} rect={} {} {} {}",
+                   item.label, item.prob, item.rect.x, item.rect.y,
+                   item.rect.width, item.rect.height);
         }
         Unmap(in_data->image);
       }

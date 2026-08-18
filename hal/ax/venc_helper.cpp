@@ -103,7 +103,7 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 			VencProcessCallback cb = nullptr;
 			void* ud = nullptr;
 			{
-				std::lock_guard<std::mutex> lock(self->callback_mutex_);
+				// std::lock_guard<std::mutex> lock(self->callback_mutex_);
 				cb = self->callback_;
 				ud = self->user_data_;
 			}
@@ -231,7 +231,7 @@ int VencHelper::Encode(VencProcessCallback callback, void *user_data)
 {
 	AX_S32 s32Ret;
 	{
-		std::lock_guard<std::mutex> lock(callback_mutex_);
+		// std::lock_guard<std::mutex> lock(callback_mutex_);
 		callback_ = callback;
 		user_data_ = user_data;
 	}

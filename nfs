@@ -1,1 +1,1 @@
-mount -t nfs 22.10.57.33:/home/haoshuai/code/ax_core /home/workspace/my-work
+mount -t nfs 192.168.137.112:/home/haoshuai/code/ax_core /home/workspace/my-work

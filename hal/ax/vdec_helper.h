@@ -46,7 +46,7 @@ class VdecHelper {
   AX_U32 frame_height_ = 0;
   int fps_ = 25;
   VdecProcessCallback callback_ = nullptr;
-  std::mutex callback_mutex_;
+  // std::mutex callback_mutex_;
   AX_IMG_FORMAT_E img_format_{AX_FORMAT_YUV420_SEMIPLANAR};
   AX_U32 buf_size_ = 3 * 1024 * 1024;
   pthread_t recv_tid_{0};

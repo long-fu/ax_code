@@ -4,6 +4,7 @@
 
 #include "ffmpeg_decoder.h"
 #include "ivps_helper.h"
+#include "logger.h"
 #include "task_scheduler.h"
 #include "task_node.h"
 #include "process_msg.h"
@@ -15,9 +16,11 @@ class PreProcess : public TaskNode {
  public:
   explicit PreProcess(FFmpegDecoder* ff_decoder)
       : ff_decoder_(ff_decoder) {
+
     vdec_ = new VdecHelper(0, PT_H264, ff_decoder->GetFrameWidth(),
                               ff_decoder->GetFrameHeight(),
                               ff_decoder->GetFps());
+
     ivps_ = new IvpsHelper(0,
                               ff_decoder->GetFrameWidth() *
                                       ff_decoder->GetFrameHeight() * 3,
@@ -48,12 +51,16 @@ class PreProcess : public TaskNode {
     }
 
     next_thread_id_ = TaskNodeIdByName("InfProcess");
+    
+    LOG_INFO("PreProcess Init done, next_thread_id={}", next_thread_id_);
+    
     return 0;
   }
 
   static int FrameProcessCallbackFunc(void* user_data, void* frame_data,
                                       int frame_size) {
     auto self = static_cast<PreProcess*>(user_data);
+    // LOG_INFO("FrameProcessCallbackFunc: frame_size={}", frame_size);
     self->vdec_->Write(frame_data, frame_size, nullptr);
     return 0;
   }
@@ -63,6 +70,8 @@ class PreProcess : public TaskNode {
     auto data = std::make_shared<ImageData>(image);
     data->time_point = std::chrono::steady_clock::now();
 
+    // LOG_INFO("VdecProcessCallbackFunc: grp={} chn={} width={} height={} format={} size={}",
+    //          grp, chn, image.width, image.height, image.img_format, image.data->FrameInfo()->stVFrame.u32PicStride[0] * image.height);
     auto self = static_cast<PreProcess*>(user_data);
     pipeline::SendMessage(self->InstanceId(), kMsgVdecData, data);
 
@@ -95,7 +104,8 @@ class PreProcess : public TaskNode {
     auto data = std::make_shared<PreData>();
     data->image = src;
     Copy2Host(data->data, dest);
-
+    // LOG_INFO("Preprocess done, width={} height={} format={} size={}",
+            //  dest.width, dest.height, (int)dest.img_format, data->data.size());
     pipeline::SendMessage(next_thread_id_, kMsgPreprocData, data);
 
     return 0;

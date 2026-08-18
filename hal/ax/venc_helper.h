@@ -55,5 +55,5 @@ class VencHelper {
   pthread_t recv_thd_;
   void* user_data_ = nullptr;
   VencProcessCallback callback_ = nullptr;
-  std::mutex callback_mutex_;
+  // std::mutex callback_mutex_;
 };

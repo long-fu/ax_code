@@ -4,6 +4,7 @@
 #include <memory>
 #include <vector>
 
+#include "spdlog/common.h"
 #include "task_scheduler.h"
 #include "pre_process.h"
 #include "inf_process.h"
@@ -66,7 +67,7 @@ int main(int argc, char const *argv[])
   (void)argc;
   (void)argv;
 
-  InitLogger("logs/app.log", spdlog::level::debug);
+  InitLogger("logs/app.log", spdlog::level::trace);
 
   pipeline::Resource aclDev = pipeline::Resource();
   int ret = aclDev.Init();
@@ -79,7 +80,8 @@ int main(int argc, char const *argv[])
     return -1;
   }
 
-  std::string rtsp = "rtsp://192.168.8.10:8554/camera3";
+  std::string rtsp = "rtsp://admin:ad123456@192.168.137.199:554/Streaming/Channels/101";
+  
   FFmpegDecoder ff_decoder(rtsp);
   if (0 != ff_decoder.GetVideoInfo())
   {
