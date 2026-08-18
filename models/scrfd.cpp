@@ -72,6 +72,55 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
                        std::vector<detection::Object>& objects)
 {
     objects.clear();
+    #if 1
+    const int lb_h = config_.inputs[2];
+    const int lb_w = config_.inputs[3];
+
+    std::vector<detection::Object> proposals;
+
+    auto& out_448 = GetOutput().pOutputs[0];
+    const auto* ptr_448 = static_cast<const float*>(out_448.pVirAddr);
+
+    auto& out_471 = GetOutput().pOutputs[1];
+    const auto* ptr_471 = static_cast<const float*>(out_471.pVirAddr);
+
+    auto& out_494 = GetOutput().pOutputs[2];
+    const auto* ptr_494 = static_cast<const float*>(out_494.pVirAddr);
+
+    auto& out_451 = GetOutput().pOutputs[3];
+    const auto* ptr_451 = static_cast<const float*>(out_451.pVirAddr);
+
+    auto& out_474 = GetOutput().pOutputs[4];
+    const auto* ptr_474 = static_cast<const float*>(out_474.pVirAddr);
+
+    auto& out_497 = GetOutput().pOutputs[5];
+    const auto* ptr_497 = static_cast<const float*>(out_497.pVirAddr);
+
+    auto& out_454 = GetOutput().pOutputs[6];
+    const auto* ptr_454 = static_cast<const float*>(out_454.pVirAddr);
+
+    auto& out_477 = GetOutput().pOutputs[7];
+    const auto* ptr_477 = static_cast<const float*>(out_477.pVirAddr);
+
+    auto& out_500 = GetOutput().pOutputs[8];
+    const auto* ptr_500 = static_cast<const float*>(out_500.pVirAddr);
+
+    detection::generate_proposals_scrfd(
+        8, ptr_448, ptr_451, ptr_454,
+        config_.prob_threshold, proposals, lb_w, lb_h);
+
+    detection::generate_proposals_scrfd(
+        16, ptr_471, ptr_474, ptr_477,
+        config_.prob_threshold, proposals, lb_w, lb_h);
+
+    detection::generate_proposals_scrfd(
+        32, ptr_494, ptr_497, ptr_500,
+        config_.prob_threshold, proposals, lb_w, lb_h);
+
+    // LOG_INFO("Det10g Postprocess: {} proposals before NMS pic {}x{}", proposals.size(), pic_height, pic_width);
+    detection::get_out_bbox(proposals, objects, config_.nms_threshold, lb_h, lb_w,
+                            pic_height, pic_width);
+#else
 
     // 1. 修正输入宽高索引 (inputs[2]=H, inputs[3]=W)
     const int input_h = config_.inputs[2];
@@ -190,5 +239,6 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
     objects.reserve(keep.size());
     for (int i : keep)
         objects.push_back(proposals[i]);
+    #endif
     return 0;
 }
