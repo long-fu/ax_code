@@ -25,6 +25,13 @@ public:
         ivps_ = new IvpsHelper(1,
                                1920 * 1080 * 3,
                                32);
+        ArcfaceConfig config;
+        engine_ = std::make_unique<Arcface>(config); 
+        if(engine_ != nullptr) {
+          if(engine_->Init() != 0) {
+            engine_ = nullptr;
+          }
+        }
     };
 
     ~BusProcess() {
@@ -41,14 +48,12 @@ public:
             return -2;
         }
         // const std::string model_config = "configs/arcface.yaml";
-        ArcfaceConfig config;
-
-        engine_ = std::make_unique<Arcface>(config);
         if (engine_ == nullptr)
         {
-            LOG_ERROR("InfProcess: CreateEngine failed for {}", config.ModelFile());
+            LOG_ERROR("InfProcess: CreateEngine failed for");
             return -1;
-        }
+        } 
+
 
         // // Load rule engine configuration
         // std::ifstream config_file("config.yaml");
@@ -68,7 +73,14 @@ public:
         //   }
         // }
 
-        return engine_->Init();
+        // return engine_->Init();
+        
+        return 0;
+    }
+
+    int Start() {
+
+      return 0;
     }
 
     int Process(int msg_id, std::shared_ptr<void> msg_data) override
@@ -77,26 +89,27 @@ public:
         switch (msg_id)
         {
         case kMsgAppStart:
+            Start();
             break;
         case kMsgInfprocData:
         {
             auto in_data = std::static_pointer_cast<InfData>(msg_data);
 
-            // TIME_START(arcface);
+            TIME_START(arcface);
 
-            // auto img_data = in_data->image;
+            auto img_data = in_data->image;
 
-            // auto faces = in_data->objects;
-            // std::vector<std::vector<float> > feats;
-            // engine_->InferBatch(*ivps_, img_data, faces, feats);
-            // for (auto& item : feats)
-            // {
-            //     // printf(const char *__restrict  _Nonnull format, ...)
-            //     LOG_INFO("feats size {}", item.size());
-            // }
+            auto faces = in_data->objects;
+            std::vector<std::vector<float> > feats;
+            engine_->InferBatch(*ivps_, img_data, faces, feats);
+            for (auto& item : feats)
+            {
+                // printf(const char *__restrict  _Nonnull format, ...)
+                LOG_INFO("feats size {}", item.size());
+            }
 
-            // TIME_END(arcface);
-            // TIME_USEC_SHOW(arcface);
+            TIME_END(arcface);
+            TIME_USEC_SHOW(arcface);
 
             // TIME_START(test_sort);
             // std::vector<TrackingBox> det_frame_data;
@@ -180,6 +193,6 @@ private:
     // SortTracker tracker_;
     IvpsHelper* ivps_ = nullptr;
     std::unique_ptr<Arcface> engine_;
-    uint64_t frame_id_ = 0;
+    // uint64_t frame_id_ = 0;
     int next_thread_id_ = -1;
 };
