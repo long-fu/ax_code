@@ -41,8 +41,11 @@ class InfProcess : public pipeline::TaskNode {
           return 0;
         }
         // LOG_INFO("InfProcess: Processing preprocessed data");
+        TIME_START(InfProcess);
         auto in_data = std::static_pointer_cast<PreData>(msg_data);
         int infer_ret = engine_->Process(in_data->data);
+        TIME_END(InfProcess);
+        TIME_USEC_SHOW(InfProcess);  
         in_data->data.clear();
         if (infer_ret != 0) {
           LOG_ERROR("Engine Process failed, ret={}", infer_ret);
@@ -51,9 +54,13 @@ class InfProcess : public pipeline::TaskNode {
 
         auto out_data = std::make_shared<InfData>();
         out_data->image = in_data->image;
+
+        TIME_START(Postprocess);
         int pp_ret = engine_->Postprocess(ff_decoder_->GetFrameWidth(),
                                           ff_decoder_->GetFrameHeight(),
                                           out_data->objects);
+        TIME_END(Postprocess);
+        TIME_USEC_SHOW(Postprocess);                                          
         if (pp_ret != 0) {
           LOG_ERROR("Engine Postprocess failed, ret={}", pp_ret);
           return 0;

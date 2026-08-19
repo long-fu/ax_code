@@ -103,15 +103,15 @@ public:
                    static_cast<int>(item.rect.x + item.rect.width),
                    static_cast<int>(item.rect.y + item.rect.height),
                    YUVColors::kRed, 2);
-          LOG_INFO("BusProcess draw: label={} prob={} rect={} {} {} {}",
-                   item.label, item.prob, item.rect.x, item.rect.y,
-                   item.rect.width, item.rect.height);
+          // LOG_INFO("BusProcess draw: label={} prob={} rect={} {} {} {}",
+                  //  item.label, item.prob, item.rect.x, item.rect.y,
+                  //  item.rect.width, item.rect.height);
         }
         Unmap(in_data->image);
       }
 
       TIME_END(test_draw);
-      // TIME_USEC_SHOW(test_draw);
+      TIME_USEC_SHOW(test_draw);
 
       auto out_data = std::make_shared<BusData>();
       out_data->image = in_data->image;
