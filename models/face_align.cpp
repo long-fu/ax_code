@@ -277,12 +277,16 @@ cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
     LOG_ERROR("HwRoiNormCrop: Copy2Mat failed");
     return aligned;
   }
-
+  // cv::imwrite("roi_bgr.jpg", roi_bgr);
+  
   cv::Point2f lm_roi[5];
   RemapLandmarksToRoi(face.landmark, lm_roi, static_cast<float>(roi.x),
                       static_cast<float>(roi.y));
 
   aligned = NormCrop(roi_bgr, lm_roi, image_size);
+
+  // cv::imwrite("aligned.jpg", aligned);
+  
   if (aligned.empty()) {
     LOG_ERROR("HwRoiNormCrop: NormCrop failed");
   }

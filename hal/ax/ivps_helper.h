@@ -13,6 +13,9 @@ class IvpsHelper {
 
   AX_S32 Resize(AX_IVPS_ASPECT_RATIO_E e_mode, AX_U32 dest_width,
                 AX_U32 dest_height);
+                
+  AX_S32 Resize(AX_IVPS_ASPECT_RATIO_E eMode, AX_IMG_FORMAT_E eDstPicFormat, AX_U32 dest_width, AX_U32 dest_height);     
+
   AX_S32 Process(ImageData& dest_frame, const ImageData& src_frame);
   AX_S32 CropAndCSC(AX_IMG_FORMAT_E e_dst_pic_format, AX_U16 n_crop_x,
                     AX_U16 n_crop_y, AX_U16 n_crop_w, AX_U16 n_crop_h);

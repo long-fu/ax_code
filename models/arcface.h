@@ -12,7 +12,7 @@
 
 struct ArcfaceConfig : public EngineConfig {
   std::string config_path;
-  std::string model_file = "model/w600k_r50.axmodel";
+  std::string model_file = "model/w600k_r50-bgr-std.axmodel.onnx";
   std::string model_type = "arcface";
   std::vector<int> inputs = {1, 3, 112, 112};
   int feat_dim = 512;

@@ -5,6 +5,7 @@
 
 #include "face_align.h"
 #include "logger.h"
+#include <opencv2/opencv.hpp>
 
 namespace
 {
@@ -175,6 +176,8 @@ int Arcface::PackAlignedFace(const cv::Mat& aligned_bgr,
         //   LOG_ERROR("Arcface::PackAlignedFace: BGR->NV12 failed");
         //   return -3;
         // }
+        LOG_ERROR("Arcface::PackAlignedFace: Not Support BGR->NV12 failed");
+        return -3;
     }
     else if (expect_bytes == rgb_bytes)
     {

@@ -338,6 +338,41 @@ AX_S32 IvpsHelper::Resize(AX_IVPS_ASPECT_RATIO_E eMode, AX_U32 dest_width, AX_U3
 	return ret;
 }
 
+AX_S32 IvpsHelper::Resize(AX_IVPS_ASPECT_RATIO_E eMode,AX_IMG_FORMAT_E eDstPicFormat, AX_U32 dest_width, AX_U32 dest_height)
+{
+	int ret;
+	int ch = 1;
+
+	memset(&pipeline_attr_, 0x0, sizeof(AX_IVPS_PIPELINE_ATTR_T));
+
+	pipeline_attr_.nOutChnNum = 1;
+	pipeline_attr_.tFilter[ch][0].bEngage = AX_TRUE;
+	pipeline_attr_.tFilter[ch][0].tFRC.fSrcFrameRate = 25;
+	pipeline_attr_.tFilter[ch][0].tFRC.fDstFrameRate = 25;
+
+	AX_S32 frmStride = ALIGN_UP(dest_width, 16);
+	AX_S32 wAlign = ALIGN_UP(dest_width, 2);
+	AX_S32 hAlign = ALIGN_UP(dest_height, 2);
+
+	pipeline_attr_.tFilter[ch][0].nDstPicWidth = wAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicHeight = hAlign;
+	pipeline_attr_.tFilter[ch][0].nDstPicStride = frmStride;
+	pipeline_attr_.tFilter[ch][0].eDstPicFormat = eDstPicFormat;
+	
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eMode = eMode;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[0] = AX_IVPS_ASPECT_RATIO_HORIZONTAL_CENTER;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.eAligns[1] = AX_IVPS_ASPECT_RATIO_VERTICAL_CENTER;
+	pipeline_attr_.tFilter[ch][0].tAspectRatio.nBgColor = 0x000000;
+
+	pipeline_attr_.tFilter[ch][0].eEngine = AX_IVPS_ENGINE_VPP;
+	pipeline_attr_.tFilter[ch][0].tTdpCfg.eRotation = AX_IVPS_ROTATION_0;
+	pipeline_attr_.tFilter[ch][0].tCompressInfo.enCompressMode = AX_COMPRESS_MODE_NONE;
+	pipeline_attr_.nOutFifoDepth[ch - 1] = 4;
+
+	ret = Init();
+	return ret;
+}
+
 AX_S32 IvpsHelper::CropAndCSC(
 	AX_IMG_FORMAT_E eDstPicFormat,
 	AX_U16 nCropX,
