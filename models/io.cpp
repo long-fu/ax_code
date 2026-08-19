@@ -51,6 +51,7 @@ namespace middleware
         for (AX_U32 i = 0; i < info->nInputSize; ++i)
         {
             auto meta = info->pInputs[i];
+            // printf("meta->nInputSize: %d\n", meta.nSize);
             auto buffer = &io_data->pInputs[i];
             if (strategy.first == AX_ENGINE_ABST_CACHED)
             {
@@ -67,7 +68,7 @@ namespace middleware
                 LOG_ERROR("Allocate input{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
                 return ret;
             }
-            // fprintf(stderr, "Allocate input{%d} { phy: %p, vir: %p, size: %lu Bytes }. \n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+            LOG_INFO("Allocate input {} [ phy: {}, vir: {}, size: {} Bytes ]. ", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
         }
 
         //OUTPUT
@@ -93,7 +94,7 @@ namespace middleware
                 FreeIoIndex(io_data->pOutputs, i);
                 return ret;
             }
-            // fprintf(stderr, "Allocate output{%d} { phy: %p, vir: %p, size: %lu Bytes }.\n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+            LOG_INFO("Allocate output {} [ phy: {}, vir: {}, size: {} Bytes ].\n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
         }
 
         return 0;

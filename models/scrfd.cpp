@@ -72,7 +72,8 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
                        std::vector<detection::Object>& objects)
 {
     objects.clear();
-    #if 1
+    LOG_INFO("Postprocess");
+    #if 0
     const int lb_h = config_.inputs[2];
     const int lb_w = config_.inputs[3];
 

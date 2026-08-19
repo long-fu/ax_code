@@ -23,7 +23,7 @@ struct ScrfdConfig : public EngineConfig
     std::string model_file = "model/det_10g.axmodel";
     std::string model_type = "scrfd";
     std::vector<int> inputs = {1, 3, 640, 640};
-    float prob_threshold = 0.6f;
+    float prob_threshold = 0.8f;
     float nms_threshold = 0.4f;
     std::vector<int> num_anchors = {2, 2, 2};
     std::vector<int> strides = {8, 16, 32};

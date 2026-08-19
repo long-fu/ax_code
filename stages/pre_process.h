@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib>
 #include <memory>
 
 #include "ffmpeg_decoder.h"
@@ -9,6 +10,7 @@
 #include "task_node.h"
 #include "process_msg.h"
 #include "vdec_helper.h"
+#include "file.h"
 
 using namespace pipeline;
 
@@ -104,10 +106,17 @@ class PreProcess : public TaskNode {
     auto data = std::make_shared<PreData>();
     data->image = src;
     Copy2Host(data->data, dest);
+    
+    // yuv 数据正确
+    // std::vector<uint8_t> jpeg;
+    // JpegEncode(jpeg, dest);
+    // utilities::DumpFile("out.jpg", jpeg);
+    // exit(1);
+    
     // LOG_INFO("Preprocess done, width={} height={} format={} size={}",
             //  dest.width, dest.height, (int)dest.img_format, data->data.size());
     pipeline::SendMessage(next_thread_id_, kMsgPreprocData, data);
-
+    
     return 0;
   }
 

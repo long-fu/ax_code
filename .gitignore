@@ -8,3 +8,4 @@ logs/
 third-party/
 model/
 Insightface/
+*.jpg
