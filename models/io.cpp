@@ -94,7 +94,7 @@ namespace middleware
                 FreeIoIndex(io_data->pOutputs, i);
                 return ret;
             }
-            LOG_INFO("Allocate output {} [ phy: {}, vir: {}, size: {} Bytes ].\n", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+            LOG_INFO("Allocate output {} [ phy: {}, vir: {}, size: {} Bytes ].", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
         }
 
         return 0;

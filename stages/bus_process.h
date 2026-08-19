@@ -49,7 +49,7 @@ public:
             LOG_ERROR("InfProcess: CreateEngine failed for {}", config.ModelFile());
             return -1;
         }
-        
+
         // // Load rule engine configuration
         // std::ifstream config_file("config.yaml");
         // if (config_file.is_open()) {
@@ -82,20 +82,21 @@ public:
         {
             auto in_data = std::static_pointer_cast<InfData>(msg_data);
 
-            TIME_START(arcface);
+            // TIME_START(arcface);
 
-            auto img_data = in_data->image;
-            auto faces = in_data->objects;
-            std::vector<std::vector<float> > feats;
-            engine_->InferBatch(*ivps_, img_data, faces, feats);
-            for (auto& item : feats)
-            {
-                // printf(const char *__restrict  _Nonnull format, ...)
-                LOG_INFO("feats size {}", item.size());
-            }
+            // auto img_data = in_data->image;
 
-            TIME_END(arcface);
-            TIME_USEC_SHOW(arcface);
+            // auto faces = in_data->objects;
+            // std::vector<std::vector<float> > feats;
+            // engine_->InferBatch(*ivps_, img_data, faces, feats);
+            // for (auto& item : feats)
+            // {
+            //     // printf(const char *__restrict  _Nonnull format, ...)
+            //     LOG_INFO("feats size {}", item.size());
+            // }
+
+            // TIME_END(arcface);
+            // TIME_USEC_SHOW(arcface);
 
             // TIME_START(test_sort);
             // std::vector<TrackingBox> det_frame_data;

@@ -16,7 +16,7 @@ struct ArcfaceConfig : public EngineConfig {
   std::string model_type = "arcface";
   std::vector<int> inputs = {1, 3, 112, 112};
   int feat_dim = 512;
-  bool l2_normalize = true;
+  bool l2_normalize = false;
   float expand_ratio = 1.5f;
 
   std::string ModelFile() const override { return model_file; }
