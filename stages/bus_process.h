@@ -25,6 +25,7 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 #include "my_utils.h"
+#include "thread_pool.h"
 #include "face_server_client.h"
 
 using Json = nlohmann::json;
@@ -49,6 +50,9 @@ public:
 
     ~BusProcess()
     {
+        if (push_pool_) {
+            push_pool_->Shutdown();
+        }
         delete ivps_;
     };
 
@@ -83,6 +87,7 @@ public:
             LOG_ERROR("FaceServer API Key 未配置: 设置 ALERTS_PUSH_API_KEY / VISITORS_PUSH_API_KEY");
         }
         face_server_ = std::make_unique<face_server::FaceServerClient>(std::move(fs_cfg));
+        push_pool_ = std::make_unique<my_utils::ThreadPool>(2, 128);
 
         // 1. 创建 collection(若已存在则先删除重建)
         // auto create_res = client_->CreateCollection(collection_, vector_size_,
@@ -278,69 +283,117 @@ public:
                 }
             }
 
-            std::vector<uint8_t> frame_jpg;
-            const int jpeg_ret = JpegEncode(frame_jpg, img_data);
-            if (jpeg_ret != 0 || frame_jpg.empty()) {
-                LOG_ERROR("JpegEncode Failed ret={}", jpeg_ret);
-            }
-
-            face_server::ImageBlob ori_img;
-            ori_img.content_type = "image/jpeg";
-            ori_img.filename = capture_msg_id + ".jpeg";
-            ori_img.data = frame_jpg;
-
-            if (is_send_alert && face_server_ && !ori_img.data.empty()) {
-                face_server::AlertPushRequest alert_req;
-                alert_req.bank_id = "test_bank_id";
-                alert_req.msg_id = capture_msg_id;
-                alert_req.event_id = my_utils::GenerateUuid();
-                alert_req.org_id = "test_org_id";
-                alert_req.event_time = cur_time;
-                alert_req.event_name = "陌生人闯入";
-                alert_req.channel_name = "test_channel_name";
-                alert_req.description = "陌生人闯入";
-                alert_req.files = {ori_img};
-
-                auto alert_res = face_server_->PushAlert(alert_req);
-                if (!alert_res) {
-                    LOG_ERROR("PushAlert 失败: {}", alert_res.error);
-                }
-            }
-
             LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
                      visitor_req.persons.size());
 
-            if (visitor_faces.size() != visitor_req.persons.size()) {
+            const bool need_visitor =
+                !visitor_req.persons.empty() &&
+                visitor_faces.size() == visitor_req.persons.size();
+            if (!visitor_req.persons.empty() && !need_visitor) {
                 LOG_ERROR("visitor person and face not eq {}=={}",
                           visitor_faces.size(), visitor_req.persons.size());
-            } else if (!visitor_faces.empty() && face_server_ &&
-                       !ori_img.data.empty()) {
-                visitor_req.original = ori_img;
-                visitor_req.faces.clear();
-                visitor_req.faces.reserve(visitor_faces.size());
+            }
 
-                for (size_t j = 0; j < visitor_faces.size(); ++j) {
-                    std::vector<uint8_t> face_jpg;
-                    const int enc_ret =
-                        JpegEncode(face_jpg, visitor_faces.at(j));
-                    if (enc_ret != 0 || face_jpg.empty()) {
-                        LOG_ERROR("face JpegEncode Failed j={} ret={}", j,
-                                  enc_ret);
-                        visitor_req.faces.clear();
-                        break;
+            const bool need_push =
+                (is_send_alert || need_visitor) && face_server_ && push_pool_;
+            if (need_push) {
+                // 整帧与后续 Draw/Enc 共享缓冲，必须深拷贝。
+                ImageData frame_copy;
+                if (Clone(frame_copy, img_data) != 0 ||
+                    frame_copy.data == nullptr) {
+                    LOG_ERROR("Clone frame for push failed");
+                } else {
+                    // 人脸 ROI 由 shared_ptr 持有 FrameData，传值即可拖住释放。
+                    std::vector<ImageData> faces;
+                    if (need_visitor) {
+                        faces = std::move(visitor_faces);
                     }
-                    face_server::ImageBlob img;
-                    img.content_type = "image/jpeg";
-                    img.filename =
-                        capture_msg_id + "_" + std::to_string(j) + ".jpeg";
-                    img.data = std::move(face_jpg);
-                    visitor_req.faces.push_back(std::move(img));
-                }
 
-                if (visitor_req.faces.size() == visitor_req.persons.size()) {
-                    auto vis_res = face_server_->PushVisitor(visitor_req);
-                    if (!vis_res) {
-                        LOG_ERROR("PushVisitor 失败: {}", vis_res.error);
+                    face_server::FaceServerClient* client = face_server_.get();
+                    const bool send_alert = is_send_alert;
+                    face_server::VisitorPushRequest vis_req;
+                    if (need_visitor) {
+                        vis_req = std::move(visitor_req);
+                    }
+                    auto submitted = push_pool_->Submit(
+                        [client, send_alert, capture_msg_id, cur_time,
+                         frame = std::move(frame_copy),
+                         faces = std::move(faces),
+                         visitor_req = std::move(vis_req)]() mutable {
+                            std::vector<uint8_t> frame_jpg;
+                            const int jpeg_ret = JpegEncode(frame_jpg, frame);
+                            if (jpeg_ret != 0 || frame_jpg.empty()) {
+                                LOG_ERROR("JpegEncode frame Failed ret={}",
+                                          jpeg_ret);
+                                return;
+                            }
+
+                            face_server::ImageBlob ori_img;
+                            ori_img.content_type = "image/jpeg";
+                            ori_img.filename = capture_msg_id + ".jpeg";
+                            ori_img.data = std::move(frame_jpg);
+
+                            if (send_alert) {
+                                face_server::AlertPushRequest alert_req;
+                                alert_req.bank_id = "test_bank_id";
+                                alert_req.msg_id = capture_msg_id;
+                                alert_req.event_id = my_utils::GenerateUuid();
+                                alert_req.org_id = "test_org_id";
+                                alert_req.event_time = cur_time;
+                                alert_req.event_name = "陌生人闯入";
+                                alert_req.channel_name = "test_channel_name";
+                                alert_req.description = "陌生人闯入";
+                                alert_req.files = {ori_img};
+
+                                auto alert_res = client->PushAlert(alert_req);
+                                if (!alert_res) {
+                                    LOG_ERROR("PushAlert 失败: {}",
+                                              alert_res.error);
+                                }
+                            }
+
+                            if (!visitor_req.persons.empty()) {
+                                visitor_req.original = ori_img;
+                                visitor_req.faces.clear();
+                                visitor_req.faces.reserve(faces.size());
+
+                                for (size_t j = 0; j < faces.size(); ++j) {
+                                    std::vector<uint8_t> face_jpg;
+                                    const int enc_ret =
+                                        JpegEncode(face_jpg, faces[j]);
+                                    if (enc_ret != 0 || face_jpg.empty()) {
+                                        LOG_ERROR(
+                                            "face JpegEncode Failed j={} "
+                                            "ret={}",
+                                            j, enc_ret);
+                                        visitor_req.faces.clear();
+                                        break;
+                                    }
+                                    face_server::ImageBlob img;
+                                    img.content_type = "image/jpeg";
+                                    img.filename = capture_msg_id + "_" +
+                                                   std::to_string(j) +
+                                                   ".jpeg";
+                                    img.data = std::move(face_jpg);
+                                    visitor_req.faces.push_back(
+                                        std::move(img));
+                                }
+
+                                if (visitor_req.faces.size() ==
+                                    visitor_req.persons.size()) {
+                                    auto vis_res =
+                                        client->PushVisitor(visitor_req);
+                                    if (!vis_res) {
+                                        LOG_ERROR("PushVisitor 失败: {}",
+                                                  vis_res.error);
+                                    }
+                                }
+                            }
+                        });
+                    if (!submitted) {
+                        LOG_ERROR(
+                            "推送丢弃: 线程池队列已满 (alert={} visitor={})",
+                            is_send_alert, need_visitor);
                     }
                 }
             }
@@ -398,5 +451,7 @@ private:
     const std::string collection_ = "face_embeddings";
     // const int vector_size_ = 512;
     std::unique_ptr<qdrant::QdrantClient> client_;
+    // Destroy push_pool_ before face_server_ (declaration order reversed).
     std::unique_ptr<face_server::FaceServerClient> face_server_;
+    std::unique_ptr<my_utils::ThreadPool> push_pool_;
 };
