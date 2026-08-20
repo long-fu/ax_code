@@ -48,7 +48,7 @@ include_directories(
     models/detail
     third-party/include
     # image_search
-    utils
+    # utils
     third-party/curl/include
     third-party/libuuid/include
     third-party/openssl/include

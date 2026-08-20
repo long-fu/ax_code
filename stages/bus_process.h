@@ -101,11 +101,16 @@ public:
 
             auto faces = in_data->objects;
             std::vector<std::vector<float> > feats;
+            
             engine_->InferBatch(*ivps_, img_data, faces, feats);
             for (auto& item : feats)
             {
                 // printf(const char *__restrict  _Nonnull format, ...)
                 LOG_INFO("feats size {}", item.size());
+            }
+
+            for (auto &feats : faces) {
+                // 多特征查找相关数据
             }
 
             TIME_END(arcface);

@@ -36,7 +36,7 @@ class Arcface : public Engine {
 
   // Align face (IVPS ROI + NormCrop) and pack bytes for Process().
   int Preprocess(IvpsHelper& ivps, const ImageData& frame,
-                 const detection::Object& face, std::vector<uint8_t>& out);
+                 const detection::Object& face, std::vector<uint8_t> &face_jpeg, std::vector<uint8_t>& out);
 
   // CPU NormCrop from full-frame BGR Mat + full-image landmarks, then pack.
   // int Preprocess(const cv::Mat& bgr, const detection::Object& face,
@@ -44,12 +44,13 @@ class Arcface : public Engine {
 
   // Preprocess + Process + Extract.
   int Infer(IvpsHelper& ivps, const ImageData& frame,
-            const detection::Object& face, std::vector<float>& feat);
+            const detection::Object& face,std::vector<uint8_t> &face_jpeg, std::vector<float>& feat);
 
   // Run Infer for each Scrfd face. feats.size() == faces.size();
   // failed faces leave feats[i] empty. Returns number of successes.
   int InferBatch(IvpsHelper& ivps, const ImageData& frame,
                  const std::vector<detection::Object>& faces,
+                 std::vector<std::vector<uint8_t>>& faces_jpeg,
                  std::vector<std::vector<float>>& feats);
 
   Arcface(const Arcface&) = delete;
