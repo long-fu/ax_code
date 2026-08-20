@@ -67,7 +67,7 @@ int main(int argc, char const *argv[])
   (void)argc;
   (void)argv;
 
-  InitLogger("logs/app.log", spdlog::level::trace);
+  // InitLogger("logs/app.log", spdlog::level::trace);
 
   pipeline::Resource aclDev = pipeline::Resource();
   int ret = aclDev.Init();
@@ -75,8 +75,8 @@ int main(int argc, char const *argv[])
   {
     LOG_ERROR("Init app failed");
     LOG_INFO("Exit App");
-    LOG_FLUSH();
-    LOG_SHUTDOWN();
+    // LOG_FLUSH();
+    // LOG_SHUTDOWN();
     return -1;
   }
 
@@ -87,8 +87,8 @@ int main(int argc, char const *argv[])
   {
     LOG_ERROR("FFmpeg Decoder init error");
     LOG_INFO("Exit App");
-    LOG_FLUSH();
-    LOG_SHUTDOWN();
+    // LOG_FLUSH();
+    // LOG_SHUTDOWN();
     return -1;
   }
 
@@ -153,7 +153,7 @@ int main(int argc, char const *argv[])
   ExitPipeline(app, thread_tbl);
   g_scheduler.store(nullptr);
   LOG_INFO("Exit App");
-  LOG_FLUSH();
-  LOG_SHUTDOWN();
+  // LOG_FLUSH();
+  // LOG_SHUTDOWN();
   return 0;
 }

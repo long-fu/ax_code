@@ -185,7 +185,7 @@ int Arcface::PackAlignedFace(const cv::Mat& aligned_bgr,
         //   LOG_ERROR("Arcface::PackAlignedFace: BGR->RGB failed");
         //   return -4;
         // }
-        out.assign(aligned_bgr.data, aligned_bgr.data + static_cast<size_t>(aligned_bgr.total()) * aligned_bgr.elemSize());
+        out.assign(face.data, face.data + static_cast<size_t>(face.total()) * face.elemSize());
     }
     else
     {

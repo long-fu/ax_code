@@ -165,8 +165,10 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
                 for (int ax = 0; ax < feat_w; ++ax)
                 {
                     // 修正：加上 +0.5f 像素中心偏移
-                    const float cx = (static_cast<float>(ax) + 0.5f) * stride;
-                    const float cy = (static_cast<float>(ay) + 0.5f) * stride;
+                    // const float cx = (static_cast<float>(ax) + 0.5f) * stride;
+                    // const float cy = (static_cast<float>(ay) + 0.5f) * stride;
+                    const float cx = (static_cast<float>(ax)) * stride;
+                    const float cy = (static_cast<float>(ay)) * stride;                    
                     for (int a = 0; a < kNumAnchors; ++a)
                     {
                         centers.push_back(cx);

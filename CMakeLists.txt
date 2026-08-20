@@ -9,6 +9,7 @@ project(ax_core VERSION 0.1.0 LANGUAGES C CXX)
 
 # add_compile_options(-std=c++11)
 # set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_C_COMPILER aarch64-none-linux-gnu-gcc)
@@ -45,14 +46,14 @@ include_directories(
     stages
     models
     models/detail
-    image_search
+    third-party/include
+    # image_search
+    utils
     third-party/curl/include
     third-party/libuuid/include
-    third-party/include
     third-party/openssl/include
     third-party/zlib/include
     third-party/libidn2/include
-    third-party/include
     third-party/yaml-cpp/include
     third-party/spdlog/include
 )
@@ -159,20 +160,20 @@ set(FFMPEG_LIBS
     swresample
 )
 
-# set(THIRDPARTY_LIBS
-#     curl
-#     uuid
-#     crypto
-#     z
-#     idn2
-#     ssl
-#     yaml-cpp
-# )
-
 set(THIRDPARTY_LIBS
+    curl
+    uuid
+    crypto
     z
+    idn2
+    ssl
     yaml-cpp
 )
+
+# set(THIRDPARTY_LIBS
+#     z
+#     yaml-cpp
+# )
 
 # FreeType only when DrawText uses the FreeType backend.
 if(NOT AX_USE_OSD_TEXT)
