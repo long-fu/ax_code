@@ -207,11 +207,11 @@ int Arcface::PackAlignedFace(const cv::Mat& aligned_bgr,
 
 int Arcface::Preprocess(IvpsHelper& ivps, const ImageData& frame,
                         const detection::Object& face,
-                        std::vector<uint8_t> &face_jpeg,
+                        ImageData &face_img,
                         std::vector<uint8_t>& out)
 {
     const int image_size = InputWidth();
-    cv::Mat aligned = face_align::HwRoiNormCrop(ivps, frame, face,face_jpeg,
+    cv::Mat aligned = face_align::HwRoiNormCrop(ivps, frame, face,face_img,
                                                 config_.expand_ratio, image_size);
     if (aligned.empty())
     {
@@ -233,10 +233,10 @@ int Arcface::Preprocess(IvpsHelper& ivps, const ImageData& frame,
 // }
 
 int Arcface::Infer(IvpsHelper& ivps, const ImageData& frame,
-                   const detection::Object& face, std::vector<uint8_t> &face_jpeg, std::vector<float>& feat)
+                   const detection::Object& face, ImageData &face_img, std::vector<float>& feat)
 {
     std::vector<uint8_t> input;
-    int ret = Preprocess(ivps, frame, face, input,face_jpeg);
+    int ret = Preprocess(ivps, frame, face, face_img, input);
     if (ret != 0)
     {
         return ret;
@@ -252,18 +252,18 @@ int Arcface::Infer(IvpsHelper& ivps, const ImageData& frame,
 
 int Arcface::InferBatch(IvpsHelper& ivps, const ImageData& frame,
                         const std::vector<detection::Object>& faces,
-                        std::vector<std::vector<uint8_t>>& faces_jpeg,
+                        std::vector<ImageData>& face_imgs,
                         std::vector<std::vector<float> >& feats)
 {
     feats.clear();
-    faces_jpeg.clear();
-    faces_jpeg.resize(faces.size());
+    // faces_jpeg.clear();
+    // faces_jpeg.resize(faces.size());
     feats.resize(faces.size());
 
     int ok = 0;
     for (size_t i = 0; i < faces.size(); ++i)
     {
-        const int ret = Infer(ivps, frame, faces[i],faces_jpeg[i], feats[i]);
+        const int ret = Infer(ivps, frame, faces[i],face_imgs[i], feats[i]);
         if (ret == 0)
         {
             ++ok;
@@ -271,7 +271,8 @@ int Arcface::InferBatch(IvpsHelper& ivps, const ImageData& frame,
         else
         {
             feats[i].clear();
-            faces_jpeg[i].clear();
+            face_imgs[i].width = 0;
+            face_imgs[i].data = nullptr;
             LOG_ERROR("Arcface::InferBatch: face[{}] failed, ret={}", i, ret);
         }
     }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <memory>
@@ -7,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include "image_data.h"
 #include "ivps_helper.h"
 #include "logger.h"
 #include "task_scheduler.h"
@@ -20,6 +22,9 @@
 #include "arcface.h"
 #include "qdrant_client.hpp"
 #include <nlohmann/json.hpp>
+#include <vector>
+#include "utils.h"
+#include "face_server_client.h"
 
 using Json = nlohmann::json;
 class BusProcess : public pipeline::TaskNode
@@ -31,16 +36,19 @@ public:
                                1920 * 1080 * 3,
                                32);
         ArcfaceConfig config;
-        engine_ = std::make_unique<Arcface>(config); 
-        if(engine_ != nullptr) {
-          if(engine_->Init() != 0) {
-            engine_ = nullptr;
-          }
+        engine_ = std::make_unique<Arcface>(config);
+        if (engine_ != nullptr)
+        {
+            if (engine_->Init() != 0)
+            {
+                engine_ = nullptr;
+            }
         }
     };
 
-    ~BusProcess() {
-      delete ivps_;
+    ~BusProcess()
+    {
+        delete ivps_;
     };
 
     int Init() override
@@ -54,19 +62,20 @@ public:
 
         client_ = std::make_unique<qdrant::QdrantClient>(config);
 
-        if (!client_->Healthy()) {
+        if (!client_->Healthy())
+        {
             std::cerr << "无法连接到 Qdrant,请检查服务是否启动\n";
             return 1;
         }
 
         // 1. 创建 collection(若已存在则先删除重建)
-        auto create_res = client_->CreateCollection(collection_, vector_size_,
-                                                "Cosine", true);
-        if (!create_res) {
-            std::cerr << "创建 collection 失败: " << create_res.error << "\n";
-            return 1;
-        }
-        std::cout << "创建 collection 成功\n";
+        // auto create_res = client_->CreateCollection(collection_, vector_size_,
+        //                                         "Cosine", true);
+        // if (!create_res) {
+        //     std::cerr << "创建 collection 失败: " << create_res.error << "\n";
+        //     return 1;
+        // }
+        // std::cout << "创建 collection 成功\n";
 
         if (0 != ivps_->Resize(AX_IVPS_ASPECT_RATIO_AUTO, AX_FORMAT_RGB888, 112, 112))
         {
@@ -78,8 +87,7 @@ public:
         {
             LOG_ERROR("InfProcess: CreateEngine failed for");
             return -1;
-        } 
-
+        }
 
         // // Load rule engine configuration
         // std::ifstream config_file("config.yaml");
@@ -100,13 +108,13 @@ public:
         // }
 
         // return engine_->Init();
-        
+
         return 0;
     }
 
-    int Start() {
-
-      return 0;
+    int Start()
+    {
+        return 0;
     }
 
     int Process(int msg_id, std::shared_ptr<void> msg_data) override
@@ -123,81 +131,226 @@ public:
 
             TIME_START(arcface);
 
-            auto img_data = in_data->image;
+            std::string msg_id = my_utils::GenerateUuid();
+            std::string cur_time = my_utils::GetCurrentTimeYmdHMS();
+            int cur_createdAt = my_utils::GetUnixSeconds();
 
+            auto img_data = in_data->image;
             auto faces = in_data->objects;
+
             std::vector<std::vector<float> > feats;
-            std::vector<std::vector<uint8_t> > faces_jpeg;
-            engine_->InferBatch(*ivps_, img_data, faces,faces_jpeg ,feats);
-            for (auto& feat : feats)
+            std::vector<ImageData> face_imgs;
+
+            face_server::VisitorPushRequest visitor_person;
+
+            // 检测到的人脸
+            std::vector<ImageData> visitor_faces;
+
+            visitor_person.msg_id = msg_id;
+            visitor_person.event_time = cur_time;
+            visitor_person.camera_name = "test_camera";
+            
+
+            bool isSendAlert = false;
+
+            std::vector<qdrant::Point> points;
+
+            engine_->InferBatch(*ivps_, img_data, faces, face_imgs, feats);
+
+            LOG_INFO("feats size {}", feats.size());
+
+            for (int i = 0; i < feats.size(); i++)
             {
-                // printf(const char *__restrict  _Nonnull format, ...)
-                LOG_INFO("feats size {}", feat.size());
+                auto& feat = feats.at(i);
 
                 auto search_res = client_->Search(collection_, feat,
-                                                1, {},
-                                                true,false,0.85);
-                if (!search_res) {
-                    std::string id;
-                    std::cerr << "检索失败: " << search_res.error << "\n";
+                                                  1, {},
+                                                  true, false, 0.85);
+                if (!search_res)
+                {
+                    LOG_ERROR("检索失败: {}", search_res.error);
+                }
+                else
+                {
+                    const auto& hit = search_res.points.front();
 
-                    // TODO: 陌生人
+                    LOG_INFO("检索命中 id={} score={}", hit.id, hit.score);
 
-                    std::vector<qdrant::Point> points;
-                    Json payload = {{"id","123"},"timesi",""};
-                    points.push_back(qdrant::Point::WithStringId(id, feat, payload));
-                    // points.push_back(Point::WithNumericId(2, {0.2f, 0.1f, 0.4f, 0.3f}, {{"city", "Shanghai"}}));
-                    // points.push_back(Point::WithNumericId(3, {0.9f, 0.8f, 0.1f, 0.0f}, {{"city", "Shenzhen"}}));
+                    visitor_faces.push_back(face_imgs[i]);
 
-                    auto upsert_res = client_->UpsertPoints(collection_, points);
-                    if (!upsert_res) {
-                        std::cerr << "写入点失败: " << upsert_res.error << "\n";
-                        return 1;
-                    } else {
-                        std::cout << "写入点成功\n";
+                    if (search_res.points.empty())
+                    {
+                        isSendAlert = true;
+
+                        // 数据库中没有 是陌生人
+
+                        auto uuid = my_utils::GenerateUuid();
+                        Json payload = {
+                            {"createdAt", cur_createdAt},
+                            {"faceId", "NA"},
+                            {"name", "NA"},
+                            {"ehrNo", "NA"}};
+                        points.push_back(qdrant::Point::WithStringId(uuid, feat, payload));
+
+                        face_server::VisitorPerson person;
+                        person.ehr_no = "NA";
+                        person.name = "NA";
+                        person.recognized = false;
+                        person.msg_id = msg_id;
+                        person.event_id = "stranger";
+                        visitor_person.persons.push_back(person);
                     }
+                    else
+                    {
+                        // 数据库中存在
 
-                    // TODO: 判断时间 是否重复写入
+                        // TODO:
+                        // 判断时间 是否重复
 
-                }else {
-                    // 
-                    std::cout << "检索结果:\n" << search_res.body.dump(2) << "\n";
-                    
-                    // 判断时间 是否重复
+                        // 判断是否存在ERH号，存在是考勤，不存在是陌生人
 
-                    // 发送预警
-                }            
+                        auto point = search_res.points.at(0);
+                        std::string ehrNo = point.payload["ehrNo"].get<std::string>();
+                        std::string name = point.payload["name"].get<std::string>();
+                        int createdAt = point.payload["createdAt"].get<int>();
+                        int tmp = cur_createdAt - createdAt;
+
+                        if (tmp > 60 * 5)
+                        {
+                            if (ehrNo == "NA")
+                            {
+                                // 数据库中记录是陌生人
+                                isSendAlert = true;
+                                // TODO: 这个人需要删除 不进行删除
+                                // TODO: 需要新增吗 YES
+
+                                // 新建陌生人
+                                auto uuid = my_utils::GenerateUuid();
+                                Json payload = {
+                                    {"id", uuid},
+                                    {"createdAt", cur_createdAt},
+                                    {"ehrNo", "NA"}};
+                                points.push_back(qdrant::Point::WithStringId(uuid, feat, payload));
+
+                                // 陌生人记录
+                                face_server::VisitorPerson person;
+                                person.ehr_no = "NA";
+                                person.name = "NA";
+                                person.recognized = false;
+                                person.msg_id = msg_id;
+                                person.event_id = "stranger";
+                                visitor_person.persons.push_back(person);
+                            }
+                            else
+                            {
+                                face_server::VisitorPerson person;
+                                person.ehr_no = ehrNo;
+                                person.name = name;
+                                person.recognized = true;
+                                person.msg_id = msg_id;
+                                person.event_id = "visitor";
+                                visitor_person.persons.push_back(person);
+
+                            } // if (ehrNo == "NA")
+                        }
+                        else
+                        {
+                            // 5分钟之类同一个人 触发过
+                        }
+                    } // if (search_res.points.empty())
+                } // if (!search_res)
+            } //  for (int i = 0; i < feats.size(); i++)
+
+            if (!points.empty())
+            {
+                // 陌生人的特征数据上传
+
+                auto upsert_res = client_->UpsertPoints(collection_, points);
+                if (!upsert_res)
+                {
+                    // std::cerr << "写入点失败: " << upsert_res.error << "\n";
+                    LOG_ERROR("写入点失败: {}", upsert_res.error);
+                    // return 1;
+                }
+                else
+                {
+                    // std::cout << "写入点成功\n";
+                }
             }
 
+            // 发送编码逻辑都切换到另外的线程
+
+                       
+            std::vector<uint8_t> img_jpg;
+            int tmp_ret = JpegEncode(img_jpg, img_data);
+            if (tmp_ret != 0)
+            {
+                LOG_ERROR("JpegEncode Failed ");
+            }
+            face_server::ImageBlob ori_img;
+            ori_img.content_type = "image/jpeg";
+            ori_img.filename = msg_id + ".jpeg";            
+            ori_img.data = img_jpg; 
+            // 发送预警
+            if (isSendAlert)
+            {
+
+                face_server::AlertPushRequest alert_person;
+                alert_person.bank_id = "test_bank_id";
+                alert_person.msg_id = msg_id;
+                alert_person.event_id = "test_event_id";
+                alert_person.org_id = "test_org_id";
+                alert_person.event_time = cur_time; // YYYY-MM-DD HH:MM:SS or YYYYMMDD
+                alert_person.event_name = "陌生人闯入";
+                alert_person.channel_name = "test_channel_name";
+                alert_person.description = "陌生人闯入"; // key required; value may be empty
+
+
+
+                std::vector<face_server::ImageBlob> files = {ori_img}; // >=1, form field name "files"
+
+            }
+
+            // visitor_person.persons
+            LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
+                     visitor_person.persons.size());
+
+            if (visitor_faces.size() == visitor_person.persons.size())
+            {
+                
+                if (!visitor_faces.empty())
+                {
+
+                    visitor_person.msg_id = msg_id;
+                    visitor_person.original = ori_img;
+
+                    std::vector<uint8_t> img_jpg;
+                    for (size_t j = 0; j < visitor_faces.size(); j++)
+                    {
+
+                        img_jpg.clear();
+                        int tmp_ret = JpegEncode(img_jpg, visitor_faces.at(j));
+
+                        if (tmp_ret != 0)
+                        {
+                            LOG_ERROR(" JpegEncode Failed ");
+                        }
+                        face_server::ImageBlob img;
+                        img.content_type = "image/jpeg";
+                        img.filename = msg_id + "_" + std::to_string(j) + ".jpeg";
+                        img.data = img_jpg;
+                        visitor_person.faces[j] = img;
+                    }
+                }
+            }
+            else
+            {
+                LOG_ERROR("visitor person  and face not eq {}=={}", visitor_faces.size(),
+                          visitor_person.persons.size());
+            }
 
             TIME_END(arcface);
             TIME_USEC_SHOW(arcface);
-
-            // TIME_START(test_sort);
-            // std::vector<TrackingBox> det_frame_data;
-            // for (size_t i = 0; i < in_data->objects.size(); i++)
-            // {
-            //   auto &item = in_data->objects[i];
-            //   TrackingBox cur_box;
-            //   if (item.label == 1)
-            //   {
-            //     cur_box.box = item.rect;
-            //     cur_box.frame_id = frame_id_;
-            //     det_frame_data.push_back(cur_box);
-            //   }
-            // }
-            // frame_id_++;
-            // tracker_.Update(det_frame_data);
-            // std::vector<TrackingBox> tracking_results = tracker_.GetReport();
-            // LOG_INFO("tracker out: {}", tracking_results.size());
-            // TIME_END(test_sort);
-            // TIME_USEC_SHOW(test_sort);
-
-            // Rule engine judgment — evaluate all objects against loaded rules
-            // std::vector<bool> rule_results;
-            // RuleEngine::Instance().ProcessBoxes(in_data->objects, rule_results);
-
-            // TIME_START(test_draw);
 
             if (Map(in_data->image) != 0)
             {
@@ -257,7 +410,7 @@ private:
     std::unique_ptr<Arcface> engine_;
     // uint64_t frame_id_ = 0;
     int next_thread_id_ = -1;
-    const std::string collection_ = "visitors_face_embeddings";
-    const int vector_size_ = 512;
+    const std::string collection_ = "face_embeddings";
+    // const int vector_size_ = 512;
     std::unique_ptr<qdrant::QdrantClient> client_;
 };

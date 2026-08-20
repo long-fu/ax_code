@@ -76,6 +76,19 @@ struct ApiResult {
   explicit operator bool() const { return ok; }
 };
 
+// One hit from /points/search (or compatible result array).
+struct ScoredPoint {
+  std::string id;
+  bool id_is_numeric = true;
+  float score = 0.f;
+  Json payload = Json::object();
+  std::vector<float> vector;  // empty unless with_vector=true
+};
+
+struct SearchResult : ApiResult {
+  std::vector<ScoredPoint> points;
+};
+
 class QdrantException : public std::runtime_error {
  public:
   QdrantException(std::string message, ApiResult result)
@@ -110,11 +123,11 @@ class QdrantClient {
   ApiResult UpsertPoints(const std::string& collection,
                          const std::vector<Point>& points, bool wait = true);
 
-  ApiResult Search(const std::string& collection,
-                   const std::vector<float>& query_vector, uint64_t limit = 10,
-                   const Json& filter = nullptr, bool with_payload = true,
-                   bool with_vector = false,
-                   std::optional<float> score_threshold = std::nullopt);
+  SearchResult Search(const std::string& collection,
+                      const std::vector<float>& query_vector,
+                      uint64_t limit = 10, const Json& filter = nullptr,
+                      bool with_payload = true, bool with_vector = false,
+                      std::optional<float> score_threshold = std::nullopt);
 
   ApiResult GetPoints(const std::string& collection,
                       const std::vector<std::string>& ids,
@@ -137,6 +150,7 @@ class QdrantClient {
  private:
   Json BuildPointsPayload(const std::vector<Point>& points) const;
   Json BuildIdArray(const std::vector<std::string>& ids) const;
+  static std::vector<ScoredPoint> ParseScoredPoints(const Json& body);
 
   ApiResult Request(const std::string& method, const std::string& path,
                     const Json* body = nullptr) const;

@@ -31,10 +31,10 @@ std::string InferContentType(const ImageBlob& img) {
   if (!img.content_type.empty()) {
     return img.content_type;
   }
-  if (LooksLikePng(img.data, img.size)) {
+  if (LooksLikePng(img.data.data(), img.data.size())) {
     return "image/png";
   }
-  if (LooksLikeJpeg(img.data, img.size)) {
+  if (LooksLikeJpeg(img.data.data(), img.data.size())) {
     return "image/jpeg";
   }
   return "application/octet-stream";
@@ -45,8 +45,8 @@ http::FormFile ToFormFile(const std::string& field_name, const ImageBlob& img) {
   f.name = field_name;
   f.filename = img.filename.empty() ? "upload.bin" : img.filename;
   f.content_type = InferContentType(img);
-  f.data = img.data;
-  f.size = img.size;
+  f.data = img.data.data();
+  f.size = img.data.size();
   return f;
 }
 
@@ -134,7 +134,7 @@ ApiResult FaceServerClient::PushAlert(const AlertPushRequest& req) const {
     return bad;
   }
   for (size_t i = 0; i < req.files.size(); ++i) {
-    if (req.files[i].data == nullptr || req.files[i].size == 0) {
+    if (req.files[i].data.empty() || req.files[i].data.size() == 0) {
       bad.error = "PushAlert files[" + std::to_string(i) + "] 为空";
       return bad;
     }
@@ -180,7 +180,7 @@ ApiResult FaceServerClient::PushVisitor(const VisitorPushRequest& req) const {
     bad.error = "PushVisitor 需要至少 1 个 person";
     return bad;
   }
-  if (req.original.data == nullptr || req.original.size == 0) {
+  if (req.original.data.empty() || req.original.data.size() == 0) {
     bad.error = "PushVisitor original 为空";
     return bad;
   }
@@ -189,7 +189,7 @@ ApiResult FaceServerClient::PushVisitor(const VisitorPushRequest& req) const {
     return bad;
   }
   for (size_t i = 0; i < req.faces.size(); ++i) {
-    if (req.faces[i].data == nullptr || req.faces[i].size == 0) {
+    if (req.faces[i].data.empty() || req.faces[i].data.size() == 0) {
       bad.error = "PushVisitor faces[" + std::to_string(i) + "] 为空";
       return bad;
     }

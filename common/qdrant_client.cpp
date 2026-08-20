@@ -188,11 +188,64 @@ ApiResult QdrantClient::UpsertPoints(const std::string& collection,
   return Request("PUT", path, &body);
 }
 
-ApiResult QdrantClient::Search(const std::string& collection,
-                               const std::vector<float>& query_vector,
-                               uint64_t limit, const Json& filter,
-                               bool with_payload, bool with_vector,
-                               std::optional<float> score_threshold) {
+std::vector<ScoredPoint> QdrantClient::ParseScoredPoints(const Json& body) {
+  std::vector<ScoredPoint> out;
+  if (!body.is_object() || !body.contains("result")) {
+    return out;
+  }
+
+  const Json* arr = nullptr;
+  const auto& result = body["result"];
+  // /points/search → result: [ ... ]
+  // /points/query  → result: { "points": [ ... ] }
+  if (result.is_array()) {
+    arr = &result;
+  } else if (result.is_object() && result.contains("points") &&
+             result["points"].is_array()) {
+    arr = &result["points"];
+  }
+  if (arr == nullptr) {
+    return out;
+  }
+
+  out.reserve(arr->size());
+  for (const auto& pt : *arr) {
+    if (!pt.is_object()) {
+      continue;
+    }
+    ScoredPoint sp;
+    if (pt.contains("id")) {
+      const auto& id = pt["id"];
+      if (id.is_number_integer() || id.is_number_unsigned()) {
+        sp.id = std::to_string(id.get<uint64_t>());
+        sp.id_is_numeric = true;
+      } else if (id.is_string()) {
+        sp.id = id.get<std::string>();
+        sp.id_is_numeric = false;
+      } else {
+        sp.id = id.dump();
+        sp.id_is_numeric = false;
+      }
+    }
+    if (pt.contains("score") && pt["score"].is_number()) {
+      sp.score = pt["score"].get<float>();
+    }
+    if (pt.contains("payload") && pt["payload"].is_object()) {
+      sp.payload = pt["payload"];
+    }
+    if (pt.contains("vector") && pt["vector"].is_array()) {
+      sp.vector = pt["vector"].get<std::vector<float>>();
+    }
+    out.push_back(std::move(sp));
+  }
+  return out;
+}
+
+SearchResult QdrantClient::Search(const std::string& collection,
+                                  const std::vector<float>& query_vector,
+                                  uint64_t limit, const Json& filter,
+                                  bool with_payload, bool with_vector,
+                                  std::optional<float> score_threshold) {
   Json body = {{"vector", query_vector},
                {"limit", limit},
                {"with_payload", with_payload},
@@ -203,8 +256,19 @@ ApiResult QdrantClient::Search(const std::string& collection,
   if (score_threshold.has_value()) {
     body["score_threshold"] = *score_threshold;
   }
-  return Request("POST", "/collections/" + collection + "/points/search",
-                 &body);
+
+  SearchResult out;
+  ApiResult raw =
+      Request("POST", "/collections/" + collection + "/points/search", &body);
+  out.ok = raw.ok;
+  out.http_status = raw.http_status;
+  out.raw_body = std::move(raw.raw_body);
+  out.body = std::move(raw.body);
+  out.error = std::move(raw.error);
+  if (out.ok) {
+    out.points = ParseScoredPoints(out.body);
+  }
+  return out;
 }
 
 ApiResult QdrantClient::GetPoints(const std::string& collection,

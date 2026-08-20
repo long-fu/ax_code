@@ -25,8 +25,9 @@ struct FaceServerConfig {
 struct ImageBlob {
   std::string filename;
   std::string content_type;  // image/jpeg | image/png
-  const void* data = nullptr;
-  size_t size = 0;
+  std::vector<uint8_t> data;
+  // const void* data = nullptr;
+  // size_t size = 0;
 };
 
 struct AlertPushRequest {

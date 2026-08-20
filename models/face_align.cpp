@@ -227,7 +227,7 @@ void RemapLandmarksToRoi(const cv::Point2f src[5], cv::Point2f dst[5],
 
 cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
                       const detection::Object& face,
-                      std::vector<uint8_t> &face_jpeg, 
+                      ImageData &face_img, 
                       float expand_ratio,int image_size) {
   cv::Mat aligned;
   if (frame.data == nullptr || frame.data->FrameInfo() == nullptr ||
@@ -274,12 +274,9 @@ cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
     LOG_ERROR("HwRoiNormCrop: IVPS Process failed, ret={}", ret);
     return aligned;
   }
-  ret = JpegEncode(face_jpeg, roi_frame);
-  if(ret != 0) {
-    face_jpeg.clear();
-    LOG_ERROR("Face Img  JpegEncode {}", ret);
-  }
 
+  face_img = roi_frame;
+  
   cv::Mat roi_bgr;
   if (Copy2Mat(roi_bgr, roi_frame) != 0 || roi_bgr.empty()) {
     LOG_ERROR("HwRoiNormCrop: Copy2Mat failed");

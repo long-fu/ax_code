@@ -47,8 +47,6 @@ include_directories(
     models
     models/detail
     third-party/include
-    # image_search
-    # utils
     third-party/curl/include
     third-party/libuuid/include
     third-party/openssl/include
@@ -56,6 +54,7 @@ include_directories(
     third-party/libidn2/include
     third-party/yaml-cpp/include
     third-party/spdlog/include
+    utils
 )
 
 # FreeType headers only needed when DrawText uses FreeType.

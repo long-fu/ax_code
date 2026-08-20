@@ -34,7 +34,7 @@ void RemapLandmarksToRoi(const cv::Point2f src[5], cv::Point2f dst[5],
 // Returns empty Mat on failure.
 cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
                       const detection::Object& face,
-                      std::vector<uint8_t> &face_jpeg,
+                      ImageData &face_img,
                       float expand_ratio = 1.5f, int image_size = 112);
 
 }  // namespace face_align
