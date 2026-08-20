@@ -171,4 +171,95 @@ HttpResponse HttpClient::Request(const std::string& method,
   return result;
 }
 
+HttpResponse HttpClient::Upload(const std::string& url,
+                                const std::vector<FormField>& fields,
+                                const std::vector<FormFile>& files,
+                                const std::vector<std::string>& headers) const {
+  HttpResponse result;
+
+  struct PooledHandle {
+    HandlePool* pool;
+    CURL* handle;
+    explicit PooledHandle(HandlePool* p) : pool(p), handle(p->Acquire()) {}
+    ~PooledHandle() { pool->Release(handle); }
+    CURL* get() const { return handle; }
+  };
+
+  PooledHandle pooled(pool_.get());
+  CURL* curl = pooled.get();
+  if (!curl) {
+    result.error = "curl_easy_init 失败";
+    return result;
+  }
+  curl_easy_reset(curl);
+
+  curl_mime* mime = curl_mime_init(curl);
+  if (!mime) {
+    result.error = "curl_mime_init 失败";
+    return result;
+  }
+
+  struct MimeGuard {
+    curl_mime* m;
+    ~MimeGuard() {
+      if (m) {
+        curl_mime_free(m);
+      }
+    }
+  } mime_guard{mime};
+
+  for (const auto& field : fields) {
+    curl_mimepart* part = curl_mime_addpart(mime);
+    curl_mime_name(part, field.name.c_str());
+    curl_mime_data(part, field.value.c_str(), CURL_ZERO_TERMINATED);
+  }
+
+  for (const auto& file : files) {
+    if (file.data == nullptr && file.size != 0) {
+      result.error = "FormFile.data 为空但 size 非 0";
+      return result;
+    }
+    curl_mimepart* part = curl_mime_addpart(mime);
+    curl_mime_name(part, file.name.c_str());
+    if (!file.filename.empty()) {
+      curl_mime_filename(part, file.filename.c_str());
+    }
+    if (!file.content_type.empty()) {
+      curl_mime_type(part, file.content_type.c_str());
+    }
+    curl_mime_data(part, static_cast<const char*>(file.data), file.size);
+  }
+
+  CurlSList slist;
+  for (const auto& h : headers) {
+    slist.Append(h);
+  }
+
+  std::string response_body;
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist.Get());
+  curl_easy_setopt(curl, CURLOPT_MIMEPOST, mime);
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_body);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, config_.timeout_ms);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, config_.connect_timeout_ms);
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+
+  CURLcode rc = curl_easy_perform(curl);
+  if (rc != CURLE_OK) {
+    result.error = std::string("curl 上传失败: ") + curl_easy_strerror(rc);
+    return result;
+  }
+
+  long http_status = 0;
+  curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_status);
+  result.status = http_status;
+  result.body = std::move(response_body);
+  result.ok = (http_status >= 200 && http_status < 300);
+  if (!result.ok) {
+    result.error = "HTTP " + std::to_string(http_status);
+  }
+  return result;
+}
+
 }  // namespace http
