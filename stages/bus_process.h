@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <fstream>
@@ -15,8 +16,12 @@
 #include "drawing.h"
 #include "rule_engine.h"
 #include "engine_factory.h"
-#include "arcface.h"
 
+#include "arcface.h"
+#include "qdrant_client.hpp"
+#include <nlohmann/json.hpp>
+
+using Json = nlohmann::json;
 class BusProcess : public pipeline::TaskNode
 {
 public:
@@ -41,6 +46,27 @@ public:
     int Init() override
     {
         next_thread_id_ = pipeline::TaskNodeIdByName("EncProcess");
+
+        qdrant::QdrantConfig config;
+        config.host = "localhost";
+        config.port = 6333;
+        // config.api_key = "your-api-key"; // 若 Qdrant 开启了鉴权
+
+        client_ = std::make_unique<qdrant::QdrantClient>(config);
+
+        if (!client_->Healthy()) {
+            std::cerr << "无法连接到 Qdrant,请检查服务是否启动\n";
+            return 1;
+        }
+
+        // 1. 创建 collection(若已存在则先删除重建)
+        auto create_res = client_->CreateCollection(collection_, vector_size_,
+                                                "Cosine", true);
+        if (!create_res) {
+            std::cerr << "创建 collection 失败: " << create_res.error << "\n";
+            return 1;
+        }
+        std::cout << "创建 collection 成功\n";
 
         if (0 != ivps_->Resize(AX_IVPS_ASPECT_RATIO_AUTO, AX_FORMAT_RGB888, 112, 112))
         {
@@ -101,17 +127,48 @@ public:
 
             auto faces = in_data->objects;
             std::vector<std::vector<float> > feats;
-            
-            engine_->InferBatch(*ivps_, img_data, faces, feats);
-            for (auto& item : feats)
+            std::vector<std::vector<uint8_t> > faces_jpeg;
+            engine_->InferBatch(*ivps_, img_data, faces,faces_jpeg ,feats);
+            for (auto& feat : feats)
             {
                 // printf(const char *__restrict  _Nonnull format, ...)
-                LOG_INFO("feats size {}", item.size());
+                LOG_INFO("feats size {}", feat.size());
+
+                auto search_res = client_->Search(collection_, feat,
+                                                1, {},
+                                                true,false,0.85);
+                if (!search_res) {
+                    std::string id;
+                    std::cerr << "检索失败: " << search_res.error << "\n";
+
+                    // TODO: 陌生人
+
+                    std::vector<qdrant::Point> points;
+                    Json payload = {{"id","123"},"timesi",""};
+                    points.push_back(qdrant::Point::WithStringId(id, feat, payload));
+                    // points.push_back(Point::WithNumericId(2, {0.2f, 0.1f, 0.4f, 0.3f}, {{"city", "Shanghai"}}));
+                    // points.push_back(Point::WithNumericId(3, {0.9f, 0.8f, 0.1f, 0.0f}, {{"city", "Shenzhen"}}));
+
+                    auto upsert_res = client_->UpsertPoints(collection_, points);
+                    if (!upsert_res) {
+                        std::cerr << "写入点失败: " << upsert_res.error << "\n";
+                        return 1;
+                    } else {
+                        std::cout << "写入点成功\n";
+                    }
+
+                    // TODO: 判断时间 是否重复写入
+
+                }else {
+                    // 
+                    std::cout << "检索结果:\n" << search_res.body.dump(2) << "\n";
+                    
+                    // 判断时间 是否重复
+
+                    // 发送预警
+                }            
             }
 
-            for (auto &feats : faces) {
-                // 多特征查找相关数据
-            }
 
             TIME_END(arcface);
             TIME_USEC_SHOW(arcface);
@@ -200,4 +257,7 @@ private:
     std::unique_ptr<Arcface> engine_;
     // uint64_t frame_id_ = 0;
     int next_thread_id_ = -1;
+    const std::string collection_ = "visitors_face_embeddings";
+    const int vector_size_ = 512;
+    std::unique_ptr<qdrant::QdrantClient> client_;
 };
