@@ -256,14 +256,14 @@ int Arcface::InferBatch(IvpsHelper& ivps, const ImageData& frame,
                         std::vector<std::vector<float> >& feats)
 {
     feats.clear();
-    // faces_jpeg.clear();
-    // faces_jpeg.resize(faces.size());
+    face_imgs.clear();
     feats.resize(faces.size());
+    face_imgs.resize(faces.size());
 
     int ok = 0;
     for (size_t i = 0; i < faces.size(); ++i)
     {
-        const int ret = Infer(ivps, frame, faces[i],face_imgs[i], feats[i]);
+        const int ret = Infer(ivps, frame, faces[i], face_imgs[i], feats[i]);
         if (ret == 0)
         {
             ++ok;

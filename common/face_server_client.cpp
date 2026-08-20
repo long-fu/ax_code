@@ -151,14 +151,15 @@ ApiResult FaceServerClient::PushAlert(const AlertPushRequest& req) const {
       {"description", req.description},
   };
 
+  // FormFile pointers must outlive Upload; bind to |req.files| (not locals).
   std::vector<http::FormFile> files;
   files.reserve(req.files.size());
   for (size_t i = 0; i < req.files.size(); ++i) {
-    ImageBlob img = req.files[i];
-    if (img.filename.empty()) {
-      img.filename = "alert_" + std::to_string(i) + ".jpg";
+    http::FormFile part = ToFormFile("files", req.files[i]);
+    if (req.files[i].filename.empty()) {
+      part.filename = "alert_" + std::to_string(i) + ".jpg";
     }
-    files.push_back(ToFormFile("files", img));
+    files.push_back(std::move(part));
   }
 
   const std::vector<std::string> headers = {
@@ -220,20 +221,21 @@ ApiResult FaceServerClient::PushVisitor(const VisitorPushRequest& req) const {
     fields.push_back({"msgId", *req.msg_id});
   }
 
+  // FormFile pointers must outlive Upload; bind to |req| blobs (not locals).
   std::vector<http::FormFile> files;
   {
-    ImageBlob orig = req.original;
-    if (orig.filename.empty()) {
+    http::FormFile orig = ToFormFile("original", req.original);
+    if (req.original.filename.empty()) {
       orig.filename = "original.jpg";
     }
-    files.push_back(ToFormFile("original", orig));
+    files.push_back(std::move(orig));
   }
   for (size_t i = 0; i < req.faces.size(); ++i) {
-    ImageBlob face = req.faces[i];
-    if (face.filename.empty()) {
+    http::FormFile face = ToFormFile("faces", req.faces[i]);
+    if (req.faces[i].filename.empty()) {
       face.filename = "face_" + std::to_string(i) + ".jpg";
     }
-    files.push_back(ToFormFile("faces", face));
+    files.push_back(std::move(face));
   }
 
   const std::vector<std::string> headers = {

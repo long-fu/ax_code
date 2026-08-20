@@ -4,32 +4,21 @@
 #include <ctime>
 #include <algorithm>
 #include "uuid/uuid.h"
-#include <string.h>
+#include <cstring>
 #include <string>
 #include <iostream>
-#include <chrono>
 #include <iomanip>
 #include <sstream>
 
 namespace my_utils
 {
-    std::time_t GetUnixSeconds()
+    inline std::time_t GetUnixSeconds()
     {
         auto now = std::chrono::system_clock::now();
-        std::time_t t = std::chrono::system_clock::to_time_t(now);
-        return t;
-
-        // std::tm* utc = std::gmtime(&t);
-        // std::cout << "UTC: "
-        //           << utc->tm_year + 1900 << "-"
-        //           << utc->tm_mon + 1 << "-"
-        //           << utc->tm_mday << " "
-        //           << utc->tm_hour << ":"
-        //           << utc->tm_min << ":"
-        //           << utc->tm_sec << std::endl;
+        return std::chrono::system_clock::to_time_t(now);
     }
 
-    std::string GenerateUuid()
+    inline std::string GenerateUuid()
     {
         uuid_t uuid;
         char uuid_str[37];
@@ -43,7 +32,7 @@ namespace my_utils
         return result;
     }
 
-    std::string GetCurrentTimeYmdHMS()
+    inline std::string GetCurrentTimeYmdHMS()
     {
         auto now = std::chrono::system_clock::now();
         std::time_t t = std::chrono::system_clock::to_time_t(now);

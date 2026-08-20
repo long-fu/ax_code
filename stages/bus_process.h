@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <cstdio>
 #include <memory>
 #include <fstream>
@@ -23,7 +24,7 @@
 #include "qdrant_client.hpp"
 #include <nlohmann/json.hpp>
 #include <vector>
-#include "utils.h"
+#include "my_utils.h"
 #include "face_server_client.h"
 
 using Json = nlohmann::json;
@@ -68,6 +69,21 @@ public:
             return 1;
         }
 
+        face_server::FaceServerConfig fs_cfg;
+        fs_cfg.base_url = "http://127.0.0.1:8848";
+        if (const char* k = std::getenv("ALERTS_PUSH_API_KEY")) {
+            fs_cfg.alerts_api_key = k;
+        }
+        if (const char* k = std::getenv("VISITORS_PUSH_API_KEY")) {
+            fs_cfg.visitors_api_key = k;
+        } else if (const char* k = std::getenv("FACE_SERVER_VISITORS_API_KEY")) {
+            fs_cfg.visitors_api_key = k;
+        }
+        if (fs_cfg.alerts_api_key.empty() || fs_cfg.visitors_api_key.empty()) {
+            LOG_ERROR("FaceServer API Key 未配置: 设置 ALERTS_PUSH_API_KEY / VISITORS_PUSH_API_KEY");
+        }
+        face_server_ = std::make_unique<face_server::FaceServerClient>(std::move(fs_cfg));
+
         // 1. 创建 collection(若已存在则先删除重建)
         // auto create_res = client_->CreateCollection(collection_, vector_size_,
         //                                         "Cosine", true);
@@ -88,24 +104,6 @@ public:
             LOG_ERROR("InfProcess: CreateEngine failed for");
             return -1;
         }
-
-        // // Load rule engine configuration
-        // std::ifstream config_file("config.yaml");
-        // if (config_file.is_open()) {
-        //   std::stringstream buf;
-        //   buf << config_file.rdbuf();
-        //   std::string yaml_content = buf.str();
-
-        //   // Extract rules section
-        //   size_t pos = yaml_content.find("rules:");
-        //   if (pos != std::string::npos) {
-        //     size_t first_item = yaml_content.find("- ", pos);
-        //     if (first_item != std::string::npos) {
-        //       std::string rules_yaml = yaml_content.substr(first_item);
-        //       RuleEngine::Instance().Load(rules_yaml);
-        //     }
-        //   }
-        // }
 
         // return engine_->Init();
 
@@ -131,9 +129,10 @@ public:
 
             TIME_START(arcface);
 
-            std::string msg_id = my_utils::GenerateUuid();
-            std::string cur_time = my_utils::GetCurrentTimeYmdHMS();
-            int cur_createdAt = my_utils::GetUnixSeconds();
+            const std::string capture_msg_id = my_utils::GenerateUuid();
+            const std::string cur_time = my_utils::GetCurrentTimeYmdHMS();
+            const int cur_created_at =
+                static_cast<int>(my_utils::GetUnixSeconds());
 
             auto img_data = in_data->image;
             auto faces = in_data->objects;
@@ -141,212 +140,209 @@ public:
             std::vector<std::vector<float> > feats;
             std::vector<ImageData> face_imgs;
 
-            face_server::VisitorPushRequest visitor_person;
-
-            // 检测到的人脸
+            face_server::VisitorPushRequest visitor_req;
             std::vector<ImageData> visitor_faces;
+            visitor_req.msg_id = capture_msg_id;
+            visitor_req.event_time = cur_time;
+            visitor_req.camera_name = "test_camera";
 
-            visitor_person.msg_id = msg_id;
-            visitor_person.event_time = cur_time;
-            visitor_person.camera_name = "test_camera";
-            
-
-            bool isSendAlert = false;
-
+            bool is_send_alert = false;
             std::vector<qdrant::Point> points;
 
-            engine_->InferBatch(*ivps_, img_data, faces, face_imgs, feats);
-
-            LOG_INFO("feats size {}", feats.size());
-
-            for (int i = 0; i < feats.size(); i++)
-            {
-                auto& feat = feats.at(i);
-
-                auto search_res = client_->Search(collection_, feat,
-                                                  1, {},
-                                                  true, false, 0.85);
-                if (!search_res)
-                {
-                    LOG_ERROR("检索失败: {}", search_res.error);
-                }
-                else
-                {
-                    const auto& hit = search_res.points.front();
-
-                    LOG_INFO("检索命中 id={} score={}", hit.id, hit.score);
-
-                    visitor_faces.push_back(face_imgs[i]);
-
-                    if (search_res.points.empty())
-                    {
-                        isSendAlert = true;
-
-                        // 数据库中没有 是陌生人
-
-                        auto uuid = my_utils::GenerateUuid();
-                        Json payload = {
-                            {"createdAt", cur_createdAt},
-                            {"faceId", "NA"},
+            auto make_stranger_payload = [cur_created_at](const std::string& uuid) {
+                return Json{{"createdAt", cur_created_at},
+                            {"faceId", uuid},
                             {"name", "NA"},
                             {"ehrNo", "NA"}};
-                        points.push_back(qdrant::Point::WithStringId(uuid, feat, payload));
+            };
 
-                        face_server::VisitorPerson person;
-                        person.ehr_no = "NA";
-                        person.name = "NA";
-                        person.recognized = false;
-                        person.msg_id = msg_id;
-                        person.event_id = "stranger";
-                        visitor_person.persons.push_back(person);
+            auto payload_string = [](const Json& payload, const char* key,
+                                     const std::string& def) -> std::string {
+                if (!payload.contains(key)) {
+                    return def;
+                }
+                const auto& v = payload[key];
+                if (v.is_string()) {
+                    return v.get<std::string>();
+                }
+                if (v.is_number_integer()) {
+                    return std::to_string(v.get<int64_t>());
+                }
+                return def;
+            };
+
+            auto payload_int = [](const Json& payload, const char* key,
+                                  int def) -> int {
+                if (!payload.contains(key)) {
+                    return def;
+                }
+                const auto& v = payload[key];
+                if (v.is_number_integer()) {
+                    return v.get<int>();
+                }
+                if (v.is_number_unsigned()) {
+                    return static_cast<int>(v.get<uint64_t>());
+                }
+                if (v.is_string()) {
+                    try {
+                        return std::stoi(v.get<std::string>());
+                    } catch (...) {
+                        return def;
                     }
-                    else
-                    {
-                        // 数据库中存在
+                }
+                return def;
+            };
 
-                        // TODO:
-                        // 判断时间 是否重复
+            engine_->InferBatch(*ivps_, img_data, faces, face_imgs, feats);
+            LOG_INFO("feats size {}", feats.size());
 
-                        // 判断是否存在ERH号，存在是考勤，不存在是陌生人
-
-                        auto point = search_res.points.at(0);
-                        std::string ehrNo = point.payload["ehrNo"].get<std::string>();
-                        std::string name = point.payload["name"].get<std::string>();
-                        int createdAt = point.payload["createdAt"].get<int>();
-                        int tmp = cur_createdAt - createdAt;
-
-                        if (tmp > 60 * 5)
-                        {
-                            if (ehrNo == "NA")
-                            {
-                                // 数据库中记录是陌生人
-                                isSendAlert = true;
-                                // TODO: 这个人需要删除 不进行删除
-                                // TODO: 需要新增吗 YES
-
-                                // 新建陌生人
-                                auto uuid = my_utils::GenerateUuid();
-                                Json payload = {
-                                    {"id", uuid},
-                                    {"createdAt", cur_createdAt},
-                                    {"ehrNo", "NA"}};
-                                points.push_back(qdrant::Point::WithStringId(uuid, feat, payload));
-
-                                // 陌生人记录
-                                face_server::VisitorPerson person;
-                                person.ehr_no = "NA";
-                                person.name = "NA";
-                                person.recognized = false;
-                                person.msg_id = msg_id;
-                                person.event_id = "stranger";
-                                visitor_person.persons.push_back(person);
-                            }
-                            else
-                            {
-                                face_server::VisitorPerson person;
-                                person.ehr_no = ehrNo;
-                                person.name = name;
-                                person.recognized = true;
-                                person.msg_id = msg_id;
-                                person.event_id = "visitor";
-                                visitor_person.persons.push_back(person);
-
-                            } // if (ehrNo == "NA")
-                        }
-                        else
-                        {
-                            // 5分钟之类同一个人 触发过
-                        }
-                    } // if (search_res.points.empty())
-                } // if (!search_res)
-            } //  for (int i = 0; i < feats.size(); i++)
-
-            if (!points.empty())
+            for (size_t i = 0; i < feats.size(); ++i)
             {
-                // 陌生人的特征数据上传
+                auto& feat = feats[i];
+                if (feat.empty()) {
+                    continue;
+                }
 
+                auto search_res = client_->Search(collection_, feat, 1, {},
+                                                  true, false, 0.85f);
+                if (!search_res) {
+                    LOG_ERROR("检索失败: {}", search_res.error);
+                    continue;
+                }
+
+                if (search_res.points.empty()) {
+                    // 未命中：陌生人
+                    is_send_alert = true;
+                    const auto uuid = my_utils::GenerateUuid();
+                    points.push_back(qdrant::Point::WithStringId(
+                        uuid, feat, make_stranger_payload(uuid)));
+
+                    face_server::VisitorPerson person;
+                    person.ehr_no = "NA";
+                    person.name = "NA";
+                    person.recognized = false;
+                    person.msg_id = capture_msg_id;
+                    person.event_id = "stranger";
+                    visitor_req.persons.push_back(person);
+                    visitor_faces.push_back(face_imgs[i]);
+                    continue;
+                }
+
+                const auto& point = search_res.points.front();
+                LOG_INFO("检索命中 id={} score={}", point.id, point.score);
+
+                const std::string ehr_no =
+                    payload_string(point.payload, "ehrNo", "NA");
+                const std::string name =
+                    payload_string(point.payload, "name", "NA");
+                const int created_at =
+                    payload_int(point.payload, "createdAt", 0);
+                const int elapsed = cur_created_at - created_at;
+
+                if (elapsed <= 60 * 5) {
+                    // 5 分钟内同人已触发过，跳过
+                    continue;
+                }
+
+                if (ehr_no == "NA") {
+                    // 库中是陌生人记录，超时后再报
+                    is_send_alert = true;
+                    const auto uuid = my_utils::GenerateUuid();
+                    points.push_back(qdrant::Point::WithStringId(
+                        uuid, feat, make_stranger_payload(uuid)));
+
+                    face_server::VisitorPerson person;
+                    person.ehr_no = "NA";
+                    person.name = "NA";
+                    person.recognized = false;
+                    person.msg_id = capture_msg_id;
+                    person.event_id = "stranger";
+                    visitor_req.persons.push_back(person);
+                    visitor_faces.push_back(face_imgs[i]);
+                } else {
+                    face_server::VisitorPerson person;
+                    person.ehr_no = ehr_no;
+                    person.name = name;
+                    person.recognized = true;
+                    person.msg_id = capture_msg_id;
+                    person.event_id = "visitor";
+                    visitor_req.persons.push_back(person);
+                    visitor_faces.push_back(face_imgs[i]);
+                }
+            }
+
+            if (!points.empty()) {
                 auto upsert_res = client_->UpsertPoints(collection_, points);
-                if (!upsert_res)
-                {
-                    // std::cerr << "写入点失败: " << upsert_res.error << "\n";
+                if (!upsert_res) {
                     LOG_ERROR("写入点失败: {}", upsert_res.error);
-                    // return 1;
-                }
-                else
-                {
-                    // std::cout << "写入点成功\n";
                 }
             }
 
-            // 发送编码逻辑都切换到另外的线程
-
-                       
-            std::vector<uint8_t> img_jpg;
-            int tmp_ret = JpegEncode(img_jpg, img_data);
-            if (tmp_ret != 0)
-            {
-                LOG_ERROR("JpegEncode Failed ");
+            std::vector<uint8_t> frame_jpg;
+            const int jpeg_ret = JpegEncode(frame_jpg, img_data);
+            if (jpeg_ret != 0 || frame_jpg.empty()) {
+                LOG_ERROR("JpegEncode Failed ret={}", jpeg_ret);
             }
+
             face_server::ImageBlob ori_img;
             ori_img.content_type = "image/jpeg";
-            ori_img.filename = msg_id + ".jpeg";            
-            ori_img.data = img_jpg; 
-            // 发送预警
-            if (isSendAlert)
-            {
+            ori_img.filename = capture_msg_id + ".jpeg";
+            ori_img.data = frame_jpg;
 
-                face_server::AlertPushRequest alert_person;
-                alert_person.bank_id = "test_bank_id";
-                alert_person.msg_id = msg_id;
-                alert_person.event_id = "test_event_id";
-                alert_person.org_id = "test_org_id";
-                alert_person.event_time = cur_time; // YYYY-MM-DD HH:MM:SS or YYYYMMDD
-                alert_person.event_name = "陌生人闯入";
-                alert_person.channel_name = "test_channel_name";
-                alert_person.description = "陌生人闯入"; // key required; value may be empty
+            if (is_send_alert && face_server_ && !ori_img.data.empty()) {
+                face_server::AlertPushRequest alert_req;
+                alert_req.bank_id = "test_bank_id";
+                alert_req.msg_id = capture_msg_id;
+                alert_req.event_id = my_utils::GenerateUuid();
+                alert_req.org_id = "test_org_id";
+                alert_req.event_time = cur_time;
+                alert_req.event_name = "陌生人闯入";
+                alert_req.channel_name = "test_channel_name";
+                alert_req.description = "陌生人闯入";
+                alert_req.files = {ori_img};
 
-
-
-                std::vector<face_server::ImageBlob> files = {ori_img}; // >=1, form field name "files"
-
-            }
-
-            // visitor_person.persons
-            LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
-                     visitor_person.persons.size());
-
-            if (visitor_faces.size() == visitor_person.persons.size())
-            {
-                
-                if (!visitor_faces.empty())
-                {
-
-                    visitor_person.msg_id = msg_id;
-                    visitor_person.original = ori_img;
-
-                    std::vector<uint8_t> img_jpg;
-                    for (size_t j = 0; j < visitor_faces.size(); j++)
-                    {
-
-                        img_jpg.clear();
-                        int tmp_ret = JpegEncode(img_jpg, visitor_faces.at(j));
-
-                        if (tmp_ret != 0)
-                        {
-                            LOG_ERROR(" JpegEncode Failed ");
-                        }
-                        face_server::ImageBlob img;
-                        img.content_type = "image/jpeg";
-                        img.filename = msg_id + "_" + std::to_string(j) + ".jpeg";
-                        img.data = img_jpg;
-                        visitor_person.faces[j] = img;
-                    }
+                auto alert_res = face_server_->PushAlert(alert_req);
+                if (!alert_res) {
+                    LOG_ERROR("PushAlert 失败: {}", alert_res.error);
                 }
             }
-            else
-            {
-                LOG_ERROR("visitor person  and face not eq {}=={}", visitor_faces.size(),
-                          visitor_person.persons.size());
+
+            LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
+                     visitor_req.persons.size());
+
+            if (visitor_faces.size() != visitor_req.persons.size()) {
+                LOG_ERROR("visitor person and face not eq {}=={}",
+                          visitor_faces.size(), visitor_req.persons.size());
+            } else if (!visitor_faces.empty() && face_server_ &&
+                       !ori_img.data.empty()) {
+                visitor_req.original = ori_img;
+                visitor_req.faces.clear();
+                visitor_req.faces.reserve(visitor_faces.size());
+
+                for (size_t j = 0; j < visitor_faces.size(); ++j) {
+                    std::vector<uint8_t> face_jpg;
+                    const int enc_ret =
+                        JpegEncode(face_jpg, visitor_faces.at(j));
+                    if (enc_ret != 0 || face_jpg.empty()) {
+                        LOG_ERROR("face JpegEncode Failed j={} ret={}", j,
+                                  enc_ret);
+                        visitor_req.faces.clear();
+                        break;
+                    }
+                    face_server::ImageBlob img;
+                    img.content_type = "image/jpeg";
+                    img.filename =
+                        capture_msg_id + "_" + std::to_string(j) + ".jpeg";
+                    img.data = std::move(face_jpg);
+                    visitor_req.faces.push_back(std::move(img));
+                }
+
+                if (visitor_req.faces.size() == visitor_req.persons.size()) {
+                    auto vis_res = face_server_->PushVisitor(visitor_req);
+                    if (!vis_res) {
+                        LOG_ERROR("PushVisitor 失败: {}", vis_res.error);
+                    }
+                }
             }
 
             TIME_END(arcface);
@@ -363,10 +359,6 @@ public:
             }
             else
             {
-                // LOG_INFO("BusProcess draw: width={} height={} format={} size={}",
-                //          in_data->image.width, in_data->image.height,
-                //          (int)in_data->image.img_format,
-                //          (int)in_data->objects.size());
                 for (size_t i = 0; i < in_data->objects.size(); i++)
                 {
                     auto item = in_data->objects[i];
@@ -378,16 +370,9 @@ public:
                              static_cast<int>(item.rect.x + item.rect.width),
                              static_cast<int>(item.rect.y + item.rect.height),
                              YUVColors::kRed, 2);
-                    // LOG_INFO("BusProcess draw: label={} prob={} rect={} {} {} {}",
-                    //  item.label, item.prob, item.rect.x, item.rect.y,
-                    //  item.rect.width, item.rect.height);
                 }
                 Unmap(in_data->image);
             }
-
-            // TIME_END(test_draw);
-            // TIME_USEC_SHOW(test_draw);
-            // Func test_draw cost : 663 us
 
             auto out_data = std::make_shared<BusData>();
             out_data->image = in_data->image;
@@ -413,4 +398,5 @@ private:
     const std::string collection_ = "face_embeddings";
     // const int vector_size_ = 512;
     std::unique_ptr<qdrant::QdrantClient> client_;
+    std::unique_ptr<face_server::FaceServerClient> face_server_;
 };
