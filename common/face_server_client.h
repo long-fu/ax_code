@@ -35,7 +35,7 @@ struct AlertPushRequest {
   std::string event_id;
   std::string org_id;
   std::string bank_id;
-  std::string event_time;  // YYYY-MM-DD HH:MM:SS or YYYYMMDD
+  std::string event_time;  // ISO-8601 UTC, e.g. 2026-08-21T08:33:00Z
   std::string event_name;
   std::string channel_name;
   std::string description;  // key required; value may be empty
@@ -51,7 +51,7 @@ struct VisitorPerson {
 };
 
 struct VisitorPushRequest {
-  std::string event_time;   // YYYY-MM-DD HH:MM:SS
+  std::string event_time;   // ISO-8601 UTC, e.g. 2026-08-21T08:33:00Z
   std::string camera_name;
   std::optional<std::string> msg_id;  // optional top-level default
   std::vector<VisitorPerson> persons;

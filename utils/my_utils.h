@@ -32,21 +32,21 @@ namespace my_utils
         return result;
     }
 
-    inline std::string GetCurrentTimeYmdHMS()
+    // ISO-8601 UTC, e.g. 2026-08-21T08:33:00Z
+    inline std::string GetCurrentTimeIso8601Utc()
     {
         auto now = std::chrono::system_clock::now();
         std::time_t t = std::chrono::system_clock::to_time_t(now);
 
         std::tm tm{};
 #ifdef _WIN32
-        localtime_s(&tm, &t);
+        gmtime_s(&tm, &t);
 #else
-        localtime_r(&t, &tm);
+        gmtime_r(&t, &tm);
 #endif
 
         std::ostringstream oss;
-        oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
-
+        oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
         return oss.str();
     }
 

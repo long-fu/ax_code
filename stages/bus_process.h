@@ -143,9 +143,9 @@ public:
             TIME_START(arcface);
 
             const std::string capture_msg_id = my_utils::GenerateUuid();
-            const std::string cur_time = my_utils::GetCurrentTimeYmdHMS();
+            const std::string cur_time = my_utils::GetCurrentTimeIso8601Utc();
             const int cur_created_at = static_cast<int>(my_utils::GetUnixSeconds());
-
+            LOG_INFO("cur_time {}", cur_time);
             auto img_data = in_data->image;
             auto faces = in_data->objects;
 
@@ -412,7 +412,7 @@ public:
                                 face_server::AlertPushRequest alert_req;
                                 alert_req.bank_id = "test_bank_id";
                                 alert_req.msg_id = capture_msg_id;
-                                alert_req.event_id = my_utils::GenerateUuid();
+                                alert_req.event_id = "stat_id";
                                 alert_req.org_id = "test_org_id";
                                 alert_req.event_time = cur_time;
                                 alert_req.event_name = "陌生人闯入";
