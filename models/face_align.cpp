@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 
 #include "image_data.h"
 #include "logger.h"
@@ -18,6 +19,105 @@ const cv::Point2f kArcfaceDst112[5] = {
     {38.2946f, 51.6963f}, {73.5318f, 51.5014f}, {56.0252f, 71.7366f},
     {41.5493f, 92.3655f}, {70.7299f, 92.2041f},
 };
+
+}  // namespace
+
+bool ComputeFrontalMetrics(const cv::Point2f landmark[5],
+                           FrontalMetrics& out) {
+  out = {};
+  if (landmark == nullptr) {
+    return false;
+  }
+
+  const cv::Point2f& le = landmark[0];
+  const cv::Point2f& re = landmark[1];
+  const cv::Point2f& nose = landmark[2];
+  const cv::Point2f mouth_mid((landmark[3].x + landmark[4].x) * 0.5f,
+                               (landmark[3].y + landmark[4].y) * 0.5f);
+
+  const float dx = re.x - le.x;
+  const float dy = re.y - le.y;
+  const float eye_dist = std::sqrt(dx * dx + dy * dy);
+  if (eye_dist < 1e-3f) {
+    return false;
+  }
+
+  const float mid_x = 0.5f * (le.x + re.x);
+  const float mid_y = 0.5f * (le.y + re.y);
+
+  // Eye-line frame: x along eyes, y perpendicular (image-down ≈ below eyes).
+  const float c = dx / eye_dist;
+  const float s = dy / eye_dist;
+  const float nx = nose.x - mid_x;
+  const float ny = nose.y - mid_y;
+  const float nose_x_eye = c * nx + s * ny;
+
+  const float mx = mouth_mid.x - mid_x;
+  const float my = mouth_mid.y - mid_y;
+  // Perp axis (-s, c): positive roughly toward image bottom when eyes are level.
+  const float mouth_y_eye = -s * mx + c * my;
+
+  const float left_h = std::abs(c * (le.x - nose.x) + s * (le.y - nose.y));
+  const float right_h = std::abs(c * (re.x - nose.x) + s * (re.y - nose.y));
+  const float h_max = std::max(left_h, right_h);
+  const float sym = (h_max < 1e-3f) ? 0.f : (std::min(left_h, right_h) / h_max);
+
+  out.eye_dist = eye_dist;
+  out.roll_deg = std::atan2(dy, dx) * (180.f / 3.14159265358979323846f);
+  out.yaw_proxy = nose_x_eye / eye_dist;
+  out.pitch_proxy = mouth_y_eye / eye_dist;
+  out.sym = sym;
+  out.valid = true;
+  return true;
+}
+
+float EstimateYawProxy(const cv::Point2f landmark[5]) {
+  FrontalMetrics m;
+  if (!ComputeFrontalMetrics(landmark, m)) {
+    return 0.f;
+  }
+  return m.yaw_proxy;
+}
+
+bool IsFrontalFace(const cv::Point2f landmark[5], const FrontalConfig& cfg,
+                    FrontalMetrics* metrics) {
+  FrontalMetrics m;
+  if (!ComputeFrontalMetrics(landmark, m)) {
+    if (metrics) {
+      *metrics = m;
+    }
+    return false;
+  }
+  if (metrics) {
+    *metrics = m;
+  }
+  if (m.eye_dist < cfg.min_eye_dist) {
+    return false;
+  }
+  if (std::fabs(m.roll_deg) > cfg.max_roll_deg) {
+    return false;
+  }
+  if (std::fabs(m.yaw_proxy) > cfg.max_yaw_proxy) {
+    return false;
+  }
+  if (m.sym < cfg.min_sym) {
+    return false;
+  }
+#if AX_FACE_FRONTAL_USE_PITCH
+  if (m.pitch_proxy < cfg.min_pitch_proxy ||
+      m.pitch_proxy > cfg.max_pitch_proxy) {
+    return false;
+  }
+#endif
+  return true;
+}
+
+bool IsFrontalFace(const detection::Object& face, const FrontalConfig& cfg,
+                    FrontalMetrics* metrics) {
+  return IsFrontalFace(face.landmark, cfg, metrics);
+}
+
+namespace {
 
 // Similarity (scale+rot+trans) from src→dst using Umeyama (2D).
 // Returns 2x3 CV_64F matrix, or empty on failure.
@@ -276,12 +376,28 @@ cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
   }
 
   face_img = roi_frame;
-  
+
   cv::Mat roi_bgr;
   if (Copy2Mat(roi_bgr, roi_frame) != 0 || roi_bgr.empty()) {
     LOG_ERROR("HwRoiNormCrop: Copy2Mat failed");
     return aligned;
   }
+
+    // std::vector<uchar> jpeg_data;
+    // std::vector<int> params = {
+    //     cv::IMWRITE_JPEG_QUALITY, 90
+    // };
+    // TIME_START(imencode);
+    // 20 ms
+    // bool ok = cv::imencode(".jpg", roi_bgr, jpeg_data, params);
+    // if (!ok) {
+    //     // spdlog::error("imencode jpeg failed");
+    //     LOG_ERROR("imencode failed");
+    //     // return;
+    // }
+    // TIME_END(imencode);
+    // TIME_USEC_SHOW(imencode);
+
   // cv::imwrite("roi_bgr.jpg", roi_bgr);
   
   cv::Point2f lm_roi[5];
@@ -295,7 +411,9 @@ cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
   if (aligned.empty()) {
     LOG_ERROR("HwRoiNormCrop: NormCrop failed");
   }
+
   return aligned;
+
 }
 
 }  // namespace face_align

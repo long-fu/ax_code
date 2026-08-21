@@ -9,6 +9,7 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include "ax_global_type.h"
 #include "image_data.h"
 #include "ivps_helper.h"
 #include "logger.h"
@@ -21,6 +22,7 @@
 #include "engine_factory.h"
 
 #include "arcface.h"
+#include "face_align.h"
 #include "qdrant_client.hpp"
 #include <nlohmann/json.hpp>
 #include <vector>
@@ -50,7 +52,8 @@ public:
 
     ~BusProcess()
     {
-        if (push_pool_) {
+        if (push_pool_)
+        {
             push_pool_->Shutdown();
         }
         delete ivps_;
@@ -61,7 +64,7 @@ public:
         next_thread_id_ = pipeline::TaskNodeIdByName("EncProcess");
 
         qdrant::QdrantConfig config;
-        config.host = "localhost";
+        config.host = "192.168.137.112";
         config.port = 6333;
         // config.api_key = "your-api-key"; // 若 Qdrant 开启了鉴权
 
@@ -69,21 +72,26 @@ public:
 
         if (!client_->Healthy())
         {
-            std::cerr << "无法连接到 Qdrant,请检查服务是否启动\n";
+            LOG_ERROR("无法连接到 Qdrant,请检查服务是否启动");
             return 1;
         }
 
         face_server::FaceServerConfig fs_cfg;
-        fs_cfg.base_url = "http://127.0.0.1:8848";
-        if (const char* k = std::getenv("ALERTS_PUSH_API_KEY")) {
+        fs_cfg.base_url = "http://192.168.137.112:8848";
+        if (const char* k = std::getenv("ALERTS_PUSH_API_KEY"))
+        {
             fs_cfg.alerts_api_key = k;
         }
-        if (const char* k = std::getenv("VISITORS_PUSH_API_KEY")) {
-            fs_cfg.visitors_api_key = k;
-        } else if (const char* k = std::getenv("FACE_SERVER_VISITORS_API_KEY")) {
+        if (const char* k = std::getenv("VISITORS_PUSH_API_KEY"))
+        {
             fs_cfg.visitors_api_key = k;
         }
-        if (fs_cfg.alerts_api_key.empty() || fs_cfg.visitors_api_key.empty()) {
+        else if (const char* k = std::getenv("FACE_SERVER_VISITORS_API_KEY"))
+        {
+            fs_cfg.visitors_api_key = k;
+        }
+        if (fs_cfg.alerts_api_key.empty() || fs_cfg.visitors_api_key.empty())
+        {
             LOG_ERROR("FaceServer API Key 未配置: 设置 ALERTS_PUSH_API_KEY / VISITORS_PUSH_API_KEY");
         }
         face_server_ = std::make_unique<face_server::FaceServerClient>(std::move(fs_cfg));
@@ -136,8 +144,7 @@ public:
 
             const std::string capture_msg_id = my_utils::GenerateUuid();
             const std::string cur_time = my_utils::GetCurrentTimeYmdHMS();
-            const int cur_created_at =
-                static_cast<int>(my_utils::GetUnixSeconds());
+            const int cur_created_at = static_cast<int>(my_utils::GetUnixSeconds());
 
             auto img_data = in_data->image;
             auto faces = in_data->objects;
@@ -156,21 +163,23 @@ public:
 
             auto make_stranger_payload = [cur_created_at](const std::string& uuid) {
                 return Json{{"createdAt", cur_created_at},
-                            {"faceId", uuid},
                             {"name", "NA"},
                             {"ehrNo", "NA"}};
             };
 
             auto payload_string = [](const Json& payload, const char* key,
                                      const std::string& def) -> std::string {
-                if (!payload.contains(key)) {
+                if (!payload.contains(key))
+                {
                     return def;
                 }
                 const auto& v = payload[key];
-                if (v.is_string()) {
+                if (v.is_string())
+                {
                     return v.get<std::string>();
                 }
-                if (v.is_number_integer()) {
+                if (v.is_number_integer())
+                {
                     return std::to_string(v.get<int64_t>());
                 }
                 return def;
@@ -178,45 +187,84 @@ public:
 
             auto payload_int = [](const Json& payload, const char* key,
                                   int def) -> int {
-                if (!payload.contains(key)) {
+                if (!payload.contains(key))
+                {
                     return def;
                 }
                 const auto& v = payload[key];
-                if (v.is_number_integer()) {
+                if (v.is_number_integer())
+                {
                     return v.get<int>();
                 }
-                if (v.is_number_unsigned()) {
+                if (v.is_number_unsigned())
+                {
                     return static_cast<int>(v.get<uint64_t>());
                 }
-                if (v.is_string()) {
-                    try {
+                if (v.is_string())
+                {
+                    try
+                    {
                         return std::stoi(v.get<std::string>());
-                    } catch (...) {
+                    }
+                    catch (...)
+                    {
                         return def;
                     }
                 }
                 return def;
             };
 
-            engine_->InferBatch(*ivps_, img_data, faces, face_imgs, feats);
-            LOG_INFO("feats size {}", feats.size());
+            // 过滤有效人脸
+            std::vector<detection::Object> frontal_faces;
+            frontal_faces.reserve(faces.size());
+            for (const auto& f : faces)
+            {
+                face_align::FrontalMetrics metrics;
+                if (face_align::IsFrontalFace(f, {}, &metrics))
+                {
+                    frontal_faces.push_back(f);
+                }
+                else
+                {
+                    const auto& lm = f.landmark;
+                    LOG_INFO(
+                        "skip non-frontal face: eye_dist={:.1f} roll={:.1f} "
+                        "yaw={:.2f} pitch={:.2f} sym={:.2f} valid={} | "
+                        "lm le=({:.1f},{:.1f}) re=({:.1f},{:.1f}) "
+                        "nose=({:.1f},{:.1f}) lmouth=({:.1f},{:.1f}) "
+                        "rmouth=({:.1f},{:.1f})",
+                        metrics.eye_dist, metrics.roll_deg, metrics.yaw_proxy,
+                        metrics.pitch_proxy, metrics.sym, metrics.valid,
+                        lm[0].x, lm[0].y, lm[1].x, lm[1].y, lm[2].x, lm[2].y,
+                        lm[3].x, lm[3].y, lm[4].x, lm[4].y);
+                }
+            }
+
+            engine_->InferBatch(*ivps_, img_data, frontal_faces, face_imgs,
+                                feats);
+            LOG_INFO("feats size {} (frontal {}/{} )", feats.size(),
+                     frontal_faces.size(), faces.size());
 
             for (size_t i = 0; i < feats.size(); ++i)
             {
                 auto& feat = feats[i];
-                if (feat.empty()) {
+                if (feat.empty())
+                {
                     continue;
                 }
-
+                // 可以加上对摄像头位置过滤
                 auto search_res = client_->Search(collection_, feat, 1, {},
                                                   true, false, 0.85f);
-                if (!search_res) {
+                if (!search_res)
+                {
                     LOG_ERROR("检索失败: {}", search_res.error);
                     continue;
                 }
 
-                if (search_res.points.empty()) {
+                if (search_res.points.empty())
+                {
                     // 未命中：陌生人
+                    LOG_INFO("未命中：陌生人");
                     is_send_alert = true;
                     const auto uuid = my_utils::GenerateUuid();
                     points.push_back(qdrant::Point::WithStringId(
@@ -236,21 +284,25 @@ public:
                 const auto& point = search_res.points.front();
                 LOG_INFO("检索命中 id={} score={}", point.id, point.score);
 
-                const std::string ehr_no =
-                    payload_string(point.payload, "ehrNo", "NA");
-                const std::string name =
-                    payload_string(point.payload, "name", "NA");
-                const int created_at =
-                    payload_int(point.payload, "createdAt", 0);
+                const std::string ehr_no = payload_string(point.payload, "ehrNo", "NA");
+
+                const std::string name = payload_string(point.payload, "name", "NA");
+
+                const int created_at = payload_int(point.payload, "createdAt", 0);
+
                 const int elapsed = cur_created_at - created_at;
 
-                if (elapsed <= 60 * 5) {
+                if (elapsed <= 60 * 5)
+                {
                     // 5 分钟内同人已触发过，跳过
+                    LOG_WARN("5 分钟内同人已触发过，跳过");
                     continue;
                 }
 
-                if (ehr_no == "NA") {
+                if (ehr_no == "NA")
+                {
                     // 库中是陌生人记录，超时后再报
+                    LOG_INFO("命中：陌生人");
                     is_send_alert = true;
                     const auto uuid = my_utils::GenerateUuid();
                     points.push_back(qdrant::Point::WithStringId(
@@ -264,7 +316,10 @@ public:
                     person.event_id = "stranger";
                     visitor_req.persons.push_back(person);
                     visitor_faces.push_back(face_imgs[i]);
-                } else {
+                }
+                else
+                {
+                    LOG_INFO("命中：访客人员");
                     face_server::VisitorPerson person;
                     person.ehr_no = ehr_no;
                     person.name = name;
@@ -276,9 +331,11 @@ public:
                 }
             }
 
-            if (!points.empty()) {
+            if (!points.empty())
+            {
                 auto upsert_res = client_->UpsertPoints(collection_, points);
-                if (!upsert_res) {
+                if (!upsert_res)
+                {
                     LOG_ERROR("写入点失败: {}", upsert_res.error);
                 }
             }
@@ -286,43 +343,60 @@ public:
             LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
                      visitor_req.persons.size());
 
-            const bool need_visitor =
-                !visitor_req.persons.empty() &&
-                visitor_faces.size() == visitor_req.persons.size();
-            if (!visitor_req.persons.empty() && !need_visitor) {
+            const bool need_visitor = !visitor_req.persons.empty() && visitor_faces.size() == visitor_req.persons.size();
+
+            if (!visitor_req.persons.empty() && !need_visitor)
+            {
                 LOG_ERROR("visitor person and face not eq {}=={}",
                           visitor_faces.size(), visitor_req.persons.size());
             }
 
-            const bool need_push =
-                (is_send_alert || need_visitor) && face_server_ && push_pool_;
-            if (need_push) {
+            const bool need_push = (is_send_alert || need_visitor) && face_server_ && push_pool_;
+
+            if (need_push)
+            {
+                LOG_INFO("需要推送");
                 // 整帧与后续 Draw/Enc 共享缓冲，必须深拷贝。
                 ImageData frame_copy;
-                if (Clone(frame_copy, img_data) != 0 ||
-                    frame_copy.data == nullptr) {
+                if (Clone(frame_copy, img_data) != 0 || frame_copy.data == nullptr)
+                {
                     LOG_ERROR("Clone frame for push failed");
-                } else {
+                }
+                else
+                {
                     // 人脸 ROI 由 shared_ptr 持有 FrameData，传值即可拖住释放。
                     std::vector<ImageData> faces;
-                    if (need_visitor) {
+                    if (need_visitor)
+                    {
                         faces = std::move(visitor_faces);
                     }
 
                     face_server::FaceServerClient* client = face_server_.get();
                     const bool send_alert = is_send_alert;
                     face_server::VisitorPushRequest vis_req;
-                    if (need_visitor) {
+                    if (need_visitor)
+                    {
                         vis_req = std::move(visitor_req);
                     }
+                    
+                    auto ivps = ivps_;
+
                     auto submitted = push_pool_->Submit(
-                        [client, send_alert, capture_msg_id, cur_time,
+                        [ivps, client, send_alert, capture_msg_id, cur_time,
                          frame = std::move(frame_copy),
                          faces = std::move(faces),
                          visitor_req = std::move(vis_req)]() mutable {
                             std::vector<uint8_t> frame_jpg;
+                            
+                            TIME_START(JpegEncode);
+
                             const int jpeg_ret = JpegEncode(frame_jpg, frame);
-                            if (jpeg_ret != 0 || frame_jpg.empty()) {
+                            
+                            TIME_END(JpegEncode);
+                            TIME_USEC_SHOW(JpegEncode);
+
+                            if (jpeg_ret != 0 || frame_jpg.empty())
+                            {
                                 LOG_ERROR("JpegEncode frame Failed ret={}",
                                           jpeg_ret);
                                 return;
@@ -333,7 +407,8 @@ public:
                             ori_img.filename = capture_msg_id + ".jpeg";
                             ori_img.data = std::move(frame_jpg);
 
-                            if (send_alert) {
+                            if (send_alert)
+                            {
                                 face_server::AlertPushRequest alert_req;
                                 alert_req.bank_id = "test_bank_id";
                                 alert_req.msg_id = capture_msg_id;
@@ -346,51 +421,88 @@ public:
                                 alert_req.files = {ori_img};
 
                                 auto alert_res = client->PushAlert(alert_req);
-                                if (!alert_res) {
+                                if (!alert_res)
+                                {
                                     LOG_ERROR("PushAlert 失败: {}",
                                               alert_res.error);
                                 }
                             }
 
-                            if (!visitor_req.persons.empty()) {
+                            if (!visitor_req.persons.empty())
+                            {
+
                                 visitor_req.original = ori_img;
                                 visitor_req.faces.clear();
                                 visitor_req.faces.reserve(faces.size());
 
-                                for (size_t j = 0; j < faces.size(); ++j) {
+                                for (size_t j = 0; j < faces.size(); ++j)
+                                {
+
                                     std::vector<uint8_t> face_jpg;
-                                    const int enc_ret =
-                                        JpegEncode(face_jpg, faces[j]);
-                                    if (enc_ret != 0 || face_jpg.empty()) {
+                                    
+                                    auto face_img = faces[j];
+
+                                    TIME_START(BGR2YUV_JPEG);
+                                    // faces 是BGR数据不支持转换
+                                    AX_S32 ret = ivps->CropAndCSC(AX_FORMAT_YUV420_SEMIPLANAR,
+                                                                static_cast<AX_U16>(0),
+                                                                static_cast<AX_U16>(0),
+                                                                static_cast<AX_U16>(face_img.width),
+                                                                static_cast<AX_U16>(face_img.height));
+                                    if (ret != 0) {
+                                        LOG_ERROR("BGR2YUV: CropAndCSC failed, ret={}", ret);
+                                        // return aligned;
+                                        return;
+                                    }
+
+                                    ImageData yuv_frame;
+                                    ret = ivps->Process(yuv_frame, face_img);
+                                    if (ret != 0) {
+                                        LOG_ERROR("BGR2YUV: IVPS Process failed, ret={}", ret);
+                                        // return aligned;
+                                        return;
+                                    }
+
+                                    const int enc_ret = JpegEncode(face_jpg, yuv_frame);
+                                    
+                                    if (enc_ret != 0 || face_jpg.empty())
+                                    {
                                         LOG_ERROR(
                                             "face JpegEncode Failed j={} "
-                                            "ret={}",
+                                            "ret={:#x}",
                                             j, enc_ret);
                                         visitor_req.faces.clear();
                                         break;
                                     }
+                                    // else
+                                    // {
+                                    //     LOG_INFO("JpegEncode SUCCESS");
+                                    // }
+
+                                    TIME_END(BGR2YUV_JPEG);
+                                    TIME_USEC_SHOW(BGR2YUV_JPEG);
+                                    
                                     face_server::ImageBlob img;
                                     img.content_type = "image/jpeg";
-                                    img.filename = capture_msg_id + "_" +
-                                                   std::to_string(j) +
-                                                   ".jpeg";
+                                    img.filename = capture_msg_id + "_" + std::to_string(j) + ".jpeg";
                                     img.data = std::move(face_jpg);
                                     visitor_req.faces.push_back(
                                         std::move(img));
                                 }
 
-                                if (visitor_req.faces.size() ==
-                                    visitor_req.persons.size()) {
-                                    auto vis_res =
-                                        client->PushVisitor(visitor_req);
-                                    if (!vis_res) {
+                                if (visitor_req.faces.size() == visitor_req.persons.size())
+                                {
+                                    auto vis_res = client->PushVisitor(visitor_req);
+                                    if (!vis_res)
+                                    {
                                         LOG_ERROR("PushVisitor 失败: {}",
                                                   vis_res.error);
                                     }
                                 }
                             }
                         });
-                    if (!submitted) {
+                    if (!submitted)
+                    {
                         LOG_ERROR(
                             "推送丢弃: 线程池队列已满 (alert={} visitor={})",
                             is_send_alert, need_visitor);
@@ -412,18 +524,32 @@ public:
             }
             else
             {
-                for (size_t i = 0; i < in_data->objects.size(); i++)
-                {
-                    auto item = in_data->objects[i];
-                    std::string txt = std::to_string(item.label) + " " + std::to_string(item.prob);
-                    DrawText(in_data->image.data->FrameInfo(), item.rect.x, item.rect.y + 5, txt, YUVColors::kRed);
-                    DrawRect(in_data->image.data->FrameInfo(),
-                             static_cast<int>(item.rect.x),
-                             static_cast<int>(item.rect.y),
-                             static_cast<int>(item.rect.x + item.rect.width),
-                             static_cast<int>(item.rect.y + item.rect.height),
-                             YUVColors::kRed, 2);
-                }
+                // for (size_t i = 0; i < in_data->objects.size(); i++)
+                // {
+                //     auto item = in_data->objects[i];
+                //     auto* frame = in_data->image.data->FrameInfo();
+                //     std::string txt = std::to_string(item.label) + " " + std::to_string(item.prob);
+                //     DrawText(frame, item.rect.x, item.rect.y + 5, txt, YUVColors::kRed);
+                //     DrawRect(frame,
+                //              static_cast<int>(item.rect.x),
+                //              static_cast<int>(item.rect.y),
+                //              static_cast<int>(item.rect.x + item.rect.width),
+                //              static_cast<int>(item.rect.y + item.rect.height),
+                //              YUVColors::kRed, 2);
+
+                //     // Scrfd 5pts: le, re, nose, lmouth, rmouth
+                //     static const YUVColor kLmColors[5] = {
+                //         YUVColors::kGreen, YUVColors::kBlue, YUVColors::kYellow,
+                //         YUVColors::kCyan, YUVColors::kMagenta,
+                //     };
+                //     constexpr int kLmRadius = 3;
+                //     for (int k = 0; k < 5; ++k) {
+                //         DrawCircle(frame,
+                //                    static_cast<int>(item.landmark[k].x),
+                //                    static_cast<int>(item.landmark[k].y),
+                //                    kLmRadius, kLmColors[k]);
+                //     }
+                // }
                 Unmap(in_data->image);
             }
 

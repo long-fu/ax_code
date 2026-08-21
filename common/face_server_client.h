@@ -17,8 +17,8 @@ using Json = nlohmann::json;
 
 struct FaceServerConfig {
   std::string base_url = "http://127.0.0.1:8848";
-  std::string alerts_api_key;
-  std::string visitors_api_key;
+  std::string alerts_api_key = "d16f6b2fe30b552b4744dbe0157d26a13530632ef430f66e";
+  std::string visitors_api_key = "9e4c1a7b3f82d056e1c8a94b7d203f5e6a18c4b9d7e2f0a3";
   http::HttpConfig http;
 };
 
