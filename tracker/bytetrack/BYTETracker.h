@@ -1,7 +1,7 @@
 #pragma once
 
 #include "STrack.h"
-#include "YOLOv5Detector.h"
+#include "detection_types.h"
 
 
 class BYTETracker

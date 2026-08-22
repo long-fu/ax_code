@@ -37,7 +37,9 @@ include_directories(
     third-party/opencv/include
     third-party/ffmpeg/include
     third-party/x264/include
+    third-party/eigen3
     tracker/sort
+    tracker/bytetrack
     common
     hal
     hal/ax
@@ -108,6 +110,7 @@ add_executable(ax_core
     ${MODELS_SRCS}
     ${PIP_SRCS}
     ${COMMON_SRCS}
+    ${TRACKER_SRCS}
     pipeline/error.h
 )
 

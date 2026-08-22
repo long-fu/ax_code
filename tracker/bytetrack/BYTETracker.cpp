@@ -43,12 +43,12 @@ BYTETracker::~BYTETracker()
 		{
 			 std::vector<float> tlbr_;
 			tlbr_.resize(4);
-            tlbr_[0] = objects[i].box.x;
-            tlbr_[1] = objects[i].box.y;
-            tlbr_[2] = objects[i].box.x + objects[i].box.width;
-            tlbr_[3] = objects[i].box.y + objects[i].box.height;
+            tlbr_[0] = objects[i].rect.x;
+            tlbr_[1] = objects[i].rect.y;
+            tlbr_[2] = objects[i].rect.x + objects[i].rect.width;
+            tlbr_[3] = objects[i].rect.y + objects[i].rect.height;
 
-            float score = objects[i].confidence;
+            float score = objects[i].prob;
 
 			STrack strack(STrack::tlbr_to_tlwh(tlbr_), score);
 			if (score >= track_thresh)
