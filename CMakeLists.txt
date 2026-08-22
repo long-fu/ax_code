@@ -88,7 +88,7 @@ aux_source_directory(hal/ax AX_SRCS)
 aux_source_directory(hal/osd OSD_SRCS)
 aux_source_directory(pipeline PIP_SRCS)
 
-# aux_source_directory(tracker/sort TRACKER_SRCS)
+aux_source_directory(tracker/bytetrack TRACKER_SRCS)
 aux_source_directory(stages STAGES_SRCS)
 aux_source_directory(models MODELS_SRCS)
 aux_source_directory(common COMMON_SRCS)

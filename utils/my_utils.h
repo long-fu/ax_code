@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <ctime>
+#include <cstdint>
 #include <algorithm>
 #include "uuid/uuid.h"
 #include <cstring>
@@ -12,10 +13,12 @@
 
 namespace my_utils
 {
-    inline std::time_t GetUnixSeconds()
+    // UTC epoch milliseconds (timezone +00:00).
+    inline std::int64_t GetUnixMilliseconds()
     {
-        auto now = std::chrono::system_clock::now();
-        return std::chrono::system_clock::to_time_t(now);
+        using namespace std::chrono;
+        return duration_cast<milliseconds>(system_clock::now().time_since_epoch())
+            .count();
     }
 
     inline std::string GenerateUuid()

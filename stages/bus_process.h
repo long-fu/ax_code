@@ -140,12 +140,12 @@ public:
         {
             auto in_data = std::static_pointer_cast<InfData>(msg_data);
 
-            TIME_START(arcface);
+            // TIME_START(arcface);
 
             const std::string capture_msg_id = my_utils::GenerateUuid();
             const std::string cur_time = my_utils::GetCurrentTimeIso8601Utc();
-            const int cur_created_at = static_cast<int>(my_utils::GetUnixSeconds());
-            LOG_INFO("cur_time {}", cur_time);
+            const std::int64_t cur_created_at = my_utils::GetUnixMilliseconds();
+            // LOG_INFO("cur_time {}", cur_time);
             auto img_data = in_data->image;
             auto faces = in_data->objects;
 
@@ -185,8 +185,8 @@ public:
                 return def;
             };
 
-            auto payload_int = [](const Json& payload, const char* key,
-                                  int def) -> int {
+            auto payload_int64 = [](const Json& payload, const char* key,
+                                     std::int64_t def) -> std::int64_t {
                 if (!payload.contains(key))
                 {
                     return def;
@@ -194,17 +194,17 @@ public:
                 const auto& v = payload[key];
                 if (v.is_number_integer())
                 {
-                    return v.get<int>();
+                    return v.get<std::int64_t>();
                 }
                 if (v.is_number_unsigned())
                 {
-                    return static_cast<int>(v.get<uint64_t>());
+                    return static_cast<std::int64_t>(v.get<std::uint64_t>());
                 }
                 if (v.is_string())
                 {
                     try
                     {
-                        return std::stoi(v.get<std::string>());
+                        return std::stoll(v.get<std::string>());
                     }
                     catch (...)
                     {
@@ -214,7 +214,7 @@ public:
                 return def;
             };
 
-            // 过滤有效人脸
+            // MARK: 过滤有效人脸
             std::vector<detection::Object> frontal_faces;
             frontal_faces.reserve(faces.size());
             for (const auto& f : faces)
@@ -226,17 +226,17 @@ public:
                 }
                 else
                 {
-                    const auto& lm = f.landmark;
-                    LOG_INFO(
-                        "skip non-frontal face: eye_dist={:.1f} roll={:.1f} "
-                        "yaw={:.2f} pitch={:.2f} sym={:.2f} valid={} | "
-                        "lm le=({:.1f},{:.1f}) re=({:.1f},{:.1f}) "
-                        "nose=({:.1f},{:.1f}) lmouth=({:.1f},{:.1f}) "
-                        "rmouth=({:.1f},{:.1f})",
-                        metrics.eye_dist, metrics.roll_deg, metrics.yaw_proxy,
-                        metrics.pitch_proxy, metrics.sym, metrics.valid,
-                        lm[0].x, lm[0].y, lm[1].x, lm[1].y, lm[2].x, lm[2].y,
-                        lm[3].x, lm[3].y, lm[4].x, lm[4].y);
+                    // const auto& lm = f.landmark;
+                    // LOG_INFO(
+                    //     "skip non-frontal face: eye_dist={:.1f} roll={:.1f} "
+                    //     "yaw={:.2f} pitch={:.2f} sym={:.2f} valid={} | "
+                    //     "lm le=({:.1f},{:.1f}) re=({:.1f},{:.1f}) "
+                    //     "nose=({:.1f},{:.1f}) lmouth=({:.1f},{:.1f}) "
+                    //     "rmouth=({:.1f},{:.1f})",
+                    //     metrics.eye_dist, metrics.roll_deg, metrics.yaw_proxy,
+                    //     metrics.pitch_proxy, metrics.sym, metrics.valid,
+                    //     lm[0].x, lm[0].y, lm[1].x, lm[1].y, lm[2].x, lm[2].y,
+                    //     lm[3].x, lm[3].y, lm[4].x, lm[4].y);
                 }
             }
 
@@ -252,19 +252,24 @@ public:
                 {
                     continue;
                 }
+
+                // TODO: 返回的数据是按相似大小排序，最大的相似度时间 可能是可能很老的。不是最新的数据，现在是要处理短时间类重复触发的问题。
+
                 // 可以加上对摄像头位置过滤
-                auto search_res = client_->Search(collection_, feat, 1, {},
-                                                  true, false, 0.85f);
+                auto search_res = client_->Search(collection_, feat, 10, {},
+                                                  true, false, 0.65f);
+
                 if (!search_res)
                 {
                     LOG_ERROR("检索失败: {}", search_res.error);
                     continue;
                 }
-
+                
                 if (search_res.points.empty())
                 {
                     // 未命中：陌生人
                     LOG_INFO("未命中：陌生人");
+
                     is_send_alert = true;
                     const auto uuid = my_utils::GenerateUuid();
                     points.push_back(qdrant::Point::WithStringId(
@@ -281,28 +286,67 @@ public:
                     continue;
                 }
 
-                const auto& point = search_res.points.front();
-                LOG_INFO("检索命中 id={} score={}", point.id, point.score);
+                // 遍历 search_res 搜索？
+                // 10条数据命中了一个人，就是访客，没有命中就进行判断时间 陌生人
+                auto &point = search_res.points.at(0);
 
-                const std::string ehr_no = payload_string(point.payload, "ehrNo", "NA");
+                std::string ehr_no = payload_string(point.payload, "ehrNo", "NA");
+                std::string name = payload_string(point.payload, "name", "NA");
+                std::int64_t created_at = payload_int64(point.payload, "createdAt", 0);
 
-                const std::string name = payload_string(point.payload, "name", "NA");
+                for (int x = 1; x < search_res.points.size(); x++) {
 
-                const int created_at = payload_int(point.payload, "createdAt", 0);
+                    point = search_res.points.at(x);
+                    
+                    std::string tmp_ehr_no = payload_string(point.payload, "ehrNo", "NA");
+                    std::string tmp_name = payload_string(point.payload, "name", "NA");
+                    std::int64_t tmp_created_at = payload_int64(point.payload, "createdAt", 0);
+                    
+                    if(tmp_ehr_no == ehr_no) {
+                        if(tmp_created_at > created_at) {
+                            ehr_no = tmp_ehr_no;
+                            name = tmp_name;
+                            created_at = tmp_created_at;
+                        }
+                    } else {
+                        LOG_WARN("出现特征搜索出现2个不同的人脸 {}", point.score);
+                        point = search_res.points.at(0);
+                        ehr_no = payload_string(point.payload, "ehrNo", "NA");
+                        name = payload_string(point.payload, "name", "NA");
+                        created_at = payload_int64(point.payload, "createdAt", 0);
+                        break;
+                    }
 
-                const int elapsed = cur_created_at - created_at;
+                }
 
-                if (elapsed <= 60 * 5)
+                // const auto& point = search_res.points.front();
+                // LOG_INFO("检索命中 id={} score={}", point.id, point.score);
+                // const std::string ehr_no = payload_string(point.payload, "ehrNo", "NA");
+                // const std::string name = payload_string(point.payload, "name", "NA");
+                // const std::int64_t created_at =
+                //     payload_int64(point.payload, "createdAt", 0);
+
+                const std::int64_t elapsed = cur_created_at - created_at;
+
+                // TODO: 命中时间， 相似度最高的时间 可能时间是老的
+                constexpr std::int64_t kDedupWindowMs = 60LL * 5 * 1000;
+                if (elapsed <= kDedupWindowMs)
                 {
                     // 5 分钟内同人已触发过，跳过
                     LOG_WARN("5 分钟内同人已触发过，跳过");
                     continue;
+                } else {
+                    LOG_INFO("TTT: {} = {} - {}", elapsed,cur_created_at,created_at);
                 }
 
                 if (ehr_no == "NA")
                 {
                     // 库中是陌生人记录，超时后再报
                     LOG_INFO("命中：陌生人");
+
+                    // 命中陌生人 使用时间 过滤器能二次命中到吗, 
+
+
                     is_send_alert = true;
                     const auto uuid = my_utils::GenerateUuid();
                     points.push_back(qdrant::Point::WithStringId(
@@ -316,9 +360,14 @@ public:
                     person.event_id = "stranger";
                     visitor_req.persons.push_back(person);
                     visitor_faces.push_back(face_imgs[i]);
+
+
                 }
                 else
                 {
+
+                    // 需要二次过滤 同时间内
+
                     LOG_INFO("命中：访客人员");
                     face_server::VisitorPerson person;
                     person.ehr_no = ehr_no;
@@ -328,6 +377,7 @@ public:
                     person.event_id = "visitor";
                     visitor_req.persons.push_back(person);
                     visitor_faces.push_back(face_imgs[i]);
+
                 }
             }
 
@@ -340,8 +390,8 @@ public:
                 }
             }
 
-            LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
-                     visitor_req.persons.size());
+            // LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
+            //          visitor_req.persons.size());
 
             const bool need_visitor = !visitor_req.persons.empty() && visitor_faces.size() == visitor_req.persons.size();
 
@@ -355,7 +405,8 @@ public:
 
             if (need_push)
             {
-                LOG_INFO("需要推送");
+                LOG_INFO("需要推送xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
                 // 整帧与后续 Draw/Enc 共享缓冲，必须深拷贝。
                 ImageData frame_copy;
                 if (Clone(frame_copy, img_data) != 0 || frame_copy.data == nullptr)
@@ -378,7 +429,7 @@ public:
                     {
                         vis_req = std::move(visitor_req);
                     }
-                    
+
                     auto ivps = ivps_;
 
                     auto submitted = push_pool_->Submit(
@@ -387,13 +438,13 @@ public:
                          faces = std::move(faces),
                          visitor_req = std::move(vis_req)]() mutable {
                             std::vector<uint8_t> frame_jpg;
-                            
-                            TIME_START(JpegEncode);
+
+                            // TIME_START(JpegEncode);
 
                             const int jpeg_ret = JpegEncode(frame_jpg, frame);
-                            
-                            TIME_END(JpegEncode);
-                            TIME_USEC_SHOW(JpegEncode);
+
+                            // TIME_END(JpegEncode);
+                            // TIME_USEC_SHOW(JpegEncode); 4ms
 
                             if (jpeg_ret != 0 || frame_jpg.empty())
                             {
@@ -430,26 +481,25 @@ public:
 
                             if (!visitor_req.persons.empty())
                             {
-
                                 visitor_req.original = ori_img;
                                 visitor_req.faces.clear();
                                 visitor_req.faces.reserve(faces.size());
 
                                 for (size_t j = 0; j < faces.size(); ++j)
                                 {
-
                                     std::vector<uint8_t> face_jpg;
-                                    
+
                                     auto face_img = faces[j];
 
                                     TIME_START(BGR2YUV_JPEG);
                                     // faces 是BGR数据不支持转换
                                     AX_S32 ret = ivps->CropAndCSC(AX_FORMAT_YUV420_SEMIPLANAR,
-                                                                static_cast<AX_U16>(0),
-                                                                static_cast<AX_U16>(0),
-                                                                static_cast<AX_U16>(face_img.width),
-                                                                static_cast<AX_U16>(face_img.height));
-                                    if (ret != 0) {
+                                                                  static_cast<AX_U16>(0),
+                                                                  static_cast<AX_U16>(0),
+                                                                  static_cast<AX_U16>(face_img.width),
+                                                                  static_cast<AX_U16>(face_img.height));
+                                    if (ret != 0)
+                                    {
                                         LOG_ERROR("BGR2YUV: CropAndCSC failed, ret={}", ret);
                                         // return aligned;
                                         return;
@@ -457,14 +507,15 @@ public:
 
                                     ImageData yuv_frame;
                                     ret = ivps->Process(yuv_frame, face_img);
-                                    if (ret != 0) {
+                                    if (ret != 0)
+                                    {
                                         LOG_ERROR("BGR2YUV: IVPS Process failed, ret={}", ret);
                                         // return aligned;
                                         return;
                                     }
 
                                     const int enc_ret = JpegEncode(face_jpg, yuv_frame);
-                                    
+
                                     if (enc_ret != 0 || face_jpg.empty())
                                     {
                                         LOG_ERROR(
@@ -481,7 +532,7 @@ public:
 
                                     TIME_END(BGR2YUV_JPEG);
                                     TIME_USEC_SHOW(BGR2YUV_JPEG);
-                                    
+
                                     face_server::ImageBlob img;
                                     img.content_type = "image/jpeg";
                                     img.filename = capture_msg_id + "_" + std::to_string(j) + ".jpeg";
@@ -510,8 +561,8 @@ public:
                 }
             }
 
-            TIME_END(arcface);
-            TIME_USEC_SHOW(arcface);
+            // TIME_END(arcface);
+            // TIME_USEC_SHOW(arcface);
 
             if (Map(in_data->image) != 0)
             {
