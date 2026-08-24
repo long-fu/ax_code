@@ -44,6 +44,8 @@ class FrameData {
 
   AX_VIDEO_FRAME_INFO_T* FrameInfo() { return frame_data_; }
 
+  MemId MemIdOf() const { return mem_id_; }
+
  private:
   explicit FrameData(AX_VIDEO_FRAME_INFO_T* frame_data, AX_S32 grp, AX_S32 chn,
                      MemId mem_id)
