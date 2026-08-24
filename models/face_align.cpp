@@ -20,6 +20,28 @@ const cv::Point2f kArcfaceDst112[5] = {
     {41.5493f, 92.3655f}, {70.7299f, 92.2041f},
 };
 
+inline float Clamp01(float x) {
+  return std::max(0.f, std::min(1.f, x));
+}
+
+// pitch 在 [lo,hi] 内为 1；越界按相对区间半宽线性降到 0。
+float PitchGoodness(float pitch, float lo, float hi) {
+  if (hi <= lo) {
+    return 0.f;
+  }
+  if (pitch >= lo && pitch <= hi) {
+    return 1.f;
+  }
+  const float half = 0.5f * (hi - lo);
+  if (half < 1e-6f) {
+    return 0.f;
+  }
+  if (pitch < lo) {
+    return Clamp01(1.f - (lo - pitch) / half);
+  }
+  return Clamp01(1.f - (pitch - hi) / half);
+}
+
 }  // namespace
 
 bool ComputeFrontalMetrics(const cv::Point2f landmark[5],
@@ -91,19 +113,24 @@ bool IsFrontalFace(const cv::Point2f landmark[5], const FrontalConfig& cfg,
   if (metrics) {
     *metrics = m;
   }
+  // 脸太小 / 特征不足
   if (m.eye_dist < cfg.min_eye_dist) {
     return false;
   }
+  // 歪头过大
   if (std::fabs(m.roll_deg) > cfg.max_roll_deg) {
     return false;
   }
+  // 左右转过大（侧脸）
   if (std::fabs(m.yaw_proxy) > cfg.max_yaw_proxy) {
     return false;
   }
+  // 左右不对称（半侧脸/遮挡等）
   if (m.sym < cfg.min_sym) {
     return false;
   }
 #if AX_FACE_FRONTAL_USE_PITCH
+  // 抬头 / 低头（仅宏开启时）
   if (m.pitch_proxy < cfg.min_pitch_proxy ||
       m.pitch_proxy > cfg.max_pitch_proxy) {
     return false;
@@ -113,8 +140,49 @@ bool IsFrontalFace(const cv::Point2f landmark[5], const FrontalConfig& cfg,
 }
 
 bool IsFrontalFace(const detection::Object& face, const FrontalConfig& cfg,
-                    FrontalMetrics* metrics) {
+                   FrontalMetrics* metrics) {
   return IsFrontalFace(face.landmark, cfg, metrics);
+}
+
+float ComputeFrontalScore(const cv::Point2f landmark[5],
+                          const FrontalScoreConfig& cfg,
+                          FrontalMetrics* metrics) {
+  FrontalMetrics m;
+  if (!ComputeFrontalMetrics(landmark, m)) {
+    if (metrics) {
+      *metrics = m;
+    }
+    return 0.f;
+  }
+  if (metrics) {
+    *metrics = m;
+  }
+
+  const float yaw_ref = std::max(cfg.yaw_ref, 1e-3f);
+  const float roll_ref = std::max(cfg.roll_ref, 1e-3f);
+  const float eye_ref = std::max(cfg.eye_ref, 1e-3f);
+
+  const float s_yaw = Clamp01(1.f - std::fabs(m.yaw_proxy) / yaw_ref);
+  const float s_roll = Clamp01(1.f - std::fabs(m.roll_deg) / roll_ref);
+  const float s_sym = Clamp01(m.sym);
+  const float s_eye = Clamp01(m.eye_dist / eye_ref);
+
+  float score = cfg.w_yaw * s_yaw + cfg.w_roll * s_roll + cfg.w_sym * s_sym +
+                cfg.w_eye * s_eye;
+
+  if (cfg.w_pitch > 0.f) {
+    const float s_pitch =
+        PitchGoodness(m.pitch_proxy, cfg.pitch_lo, cfg.pitch_hi);
+    score += cfg.w_pitch * s_pitch;
+  }
+
+  return Clamp01(score);
+}
+
+float ComputeFrontalScore(const detection::Object& face,
+                          const FrontalScoreConfig& cfg,
+                          FrontalMetrics* metrics) {
+  return ComputeFrontalScore(face.landmark, cfg, metrics);
 }
 
 namespace {

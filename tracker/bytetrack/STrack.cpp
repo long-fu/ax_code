@@ -49,11 +49,8 @@ void STrack::activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id
 
 	this->tracklet_len = 0;
 	this->state = TrackState::Tracked;
-	if (frame_id == 1)
-	{
-		this->is_activated = true;
-	}
-	//this->is_activated = true;
+	// 高分检出即激活，否则 update() 返回空，业务侧会看到「没有跟踪」
+	this->is_activated = true;
 	this->frame_id = frame_id;
 	this->start_frame = frame_id;
 }
