@@ -46,6 +46,18 @@ void ExitPipeline(pipeline::TaskScheduler &app,
 {
   LOG_INFO("ExitPipeline {}", thread_tbl.size());
 
+  // 必须先停外部线程：app.Exit() 会销毁 TaskNodeMgr 并把 thread_list_ 元素
+  // 置空，而 size 保持不变，于是 SendMessage 的边界检查形同虚设，解码回调
+  // 会解引用空指针。StopSources() 同步返回后外部线程已 join。
+  for (size_t i = 0; i < thread_tbl.size(); i++)
+  {
+    if (thread_tbl[i].node == nullptr) {
+      continue;
+    }
+    thread_tbl[i].node->StopSources();
+  }
+  LOG_INFO("ExitPipeline sources stopped");
+
   // Stop and join worker threads before deleting TaskNode objects they use.
   app.Exit();
   LOG_INFO("app.Exit()");

@@ -1,6 +1,10 @@
 #include "BytekalmanFilter.h"
 #include <Eigen/Cholesky>
 
+#include <limits>
+
+#include "logger.h"
+
 namespace byte_kalman
 {
 	const double ByteKalmanFilter::chi2inv95[10] = {
@@ -131,8 +135,15 @@ namespace byte_kalman
 	{
 		KAL_HDATA pa = this->project(mean, covariance);
 		if (only_position) {
-			printf("not implement!");
-			exit(0);
+			// only_position 分支从未实现。当前代码库无任何调用点，故不可达；
+			// 但库代码里不能留 exit —— 将来新增调用点就会变成进程级杀手。
+			// 返回"极大距离"而非 0：调用方是拿本值与 chi2inv95 阈值比较来决定
+			// 是否关联的，极大值会让全部候选被拒绝，是语义上安全的降级方向
+			// （返回 0 反而会让所有候选都通过门限，造成错误关联）。
+			LOG_ERROR("gating_distance: only_position 分支未实现，返回极大距离");
+			Eigen::Matrix<float, 1, -1> rejected(1, measurements.size());
+			rejected.setConstant(std::numeric_limits<float>::max());
+			return rejected;
 		}
 		KAL_HMEAN mean1 = pa.first;
 		KAL_HCOVA covariance1 = pa.second;

@@ -50,5 +50,7 @@ class VdecHelper {
   AX_IMG_FORMAT_E img_format_{AX_FORMAT_YUV420_SEMIPLANAR};
   AX_U32 buf_size_ = 3 * 1024 * 1024;
   pthread_t recv_tid_{0};
+  // 仅在 pthread_create 成功后置位，避免 join 一个未创建的线程
+  bool recv_started_ = false;
   AX_MEMORY_ADDR_T buf_addr_;
 };

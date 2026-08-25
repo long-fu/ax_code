@@ -8,6 +8,8 @@ namespace {
 const uint32_t kMsgQueueSize = 256;
 const auto kPollInterval = std::chrono::microseconds(10000);
 const auto kInitPollInterval = std::chrono::microseconds(1000);
+// 丢帧汇总日志的最小间隔
+const auto kDropLogInterval = std::chrono::seconds(5);
 }
 
 TaskNodeMgr::TaskNodeMgr(TaskNode* user_instance, const std::string& node_name)
@@ -20,6 +22,12 @@ TaskNodeMgr::TaskNodeMgr(TaskNode* user_instance, const std::string& node_name)
 
 TaskNodeMgr::~TaskNodeMgr() {
     Join();
+    // 退出时汇报总丢弃量，免得只能靠翻实时日志估算。
+    const uint64_t dropped = dropped_total_.load(std::memory_order_relaxed);
+    if (dropped > 0) {
+        PIPELINE_LOG_WARNING("Node {} 生命周期内共丢弃 {} 条消息(队列满)",
+                             name_, dropped);
+    }
     user_instance_ = nullptr;
     while (!msg_queue_.Empty()) {
         msg_queue_.Pop();
@@ -101,7 +109,42 @@ TaskError TaskNodeMgr::PushMessage(std::shared_ptr<TaskMessage>& message) {
                            static_cast<int>(status_.load()));
         return kThreadAbnormal;
     }
-    return msg_queue_.Push(message) ? kOk : kEnqueue;
+    if (msg_queue_.Push(message)) {
+        return kOk;
+    }
+    // 各发送点历来忽略本函数返回值，丢弃在此统一记账：
+    // 这是全部 SendMessage 的唯一收敞口，只在这里记就能全覆盖。
+    ReportDroppedMessage(message->msg_id);
+    return kEnqueue;
+}
+
+void TaskNodeMgr::ReportDroppedMessage(int msg_id) {
+    // 队列满意味着本节点处理速度跟不上上游。丢帧对上层表现为跟踪 ID 断裂或
+    // 漏检，若不记日志就无法把"算法效果差"和"正在丢帧"区分开。
+    const uint64_t total =
+        dropped_total_.fetch_add(1, std::memory_order_relaxed) + 1;
+
+    std::lock_guard<std::mutex> lock(drop_log_mutex_);
+    ++dropped_in_window_;
+
+    const auto now = std::chrono::steady_clock::now();
+    if (!first_drop_reported_) {
+        // 首次丢弃立即打印，便于定位开始掉帧的时刻
+        PIPELINE_LOG_WARNING("Node {} 队列满，开始丢弃消息 msg_id={} 容量={}",
+                             name_, msg_id, kMsgQueueSize);
+        first_drop_reported_ = true;
+        last_drop_log_ = now;
+        dropped_in_window_ = 0;
+        return;
+    }
+    if (now - last_drop_log_ >= kDropLogInterval) {
+        const auto elapsed =
+            std::chrono::duration_cast<std::chrono::seconds>(now - last_drop_log_);
+        PIPELINE_LOG_WARNING("Node {} 队列满丢弃 {} 条/{}秒 (累计 {})",
+                             name_, dropped_in_window_, elapsed.count(), total);
+        last_drop_log_ = now;
+        dropped_in_window_ = 0;
+    }
 }
 
 } // namespace pipeline

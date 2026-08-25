@@ -139,7 +139,25 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
     const float pad_h = (input_h - resized_h) * 0.5f; // 上下 padding 高度
 
     std::vector<detection::Object> proposals;
+
+    // 下面按 [3×score, 3×bbox, 3×kps] 的固定布局用下标直取 outs[idx + kFmc*2]，
+    // 换成不带关键点或层数不同的模型会越界读 pOutputs 数组。
+    constexpr AX_U32 kExpectedOutputs = kFmc * 3;
+    const auto* info = GetInfo();
+    if (info == nullptr || info->nOutputSize != kExpectedOutputs)
+    {
+        LOG_ERROR("Scrfd Postprocess: 输出张量数不符，期望 {} 实际 {}，模型与后处理不匹配",
+                  kExpectedOutputs, info == nullptr ? 0 : info->nOutputSize);
+        return -1;
+    }
+
     auto outs = GetOutput().pOutputs;
+    if (outs == nullptr)
+    {
+        LOG_ERROR("Scrfd Postprocess: 输出缓冲为空");
+        return -1;
+    }
+
     for (int idx = 0; idx < kFmc; ++idx)
     {
         const int stride = kStrides[idx];

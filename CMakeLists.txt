@@ -38,7 +38,6 @@ include_directories(
     third-party/ffmpeg/include
     third-party/x264/include
     third-party/eigen3
-    tracker/sort
     tracker/bytetrack
     common
     hal

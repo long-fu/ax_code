@@ -376,6 +376,8 @@ int Copy2Host(std::vector<uint8_t>& dest, ImageData& src)
 
 /// @brief 拷进 cv::Mat。仅接受 AX_FORMAT_RGB888，
 /// 通道顺序即 IVPS 输出的字节序，不做 CSC。
+/// AX_FORMAT_RGB888 是 SDK 枚举名，IVPS 实际吐出的字节序为 B,G,R，
+/// 故这里原样拷贝得到的 Mat 就是 OpenCV 惯例的 BGR。调用方据此命名 roi_bgr。
 int Copy2Mat(cv::Mat& dest, ImageData& src)
 {
 	if (!FrameValid(src))

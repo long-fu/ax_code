@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 #include <fstream>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -17,7 +18,8 @@
 #include "task_scheduler.h"
 #include "task_node.h"
 #include "process_msg.h"
-// #include "sort_track.h"
+// SORT 实现已停用并移至 tmp/tracker_sort/（不参与编译，含已知越界缺陷），
+// 当前跟踪走 BYTETracker.h。详见 tmp/tracker_sort/README.md。
 #include "drawing.h"
 #include "rule_engine.h"
 #include "engine_factory.h"
@@ -42,6 +44,9 @@ public:
         ivps_ = new IvpsHelper(1,
                                1920 * 1080 * 3,
                                32);
+        push_ivps_ = new IvpsHelper(2,
+                                    1920 * 1080 * 3,
+                                    32);
         ArcfaceConfig config;
         engine_ = std::make_unique<Arcface>(config);
         if (engine_ != nullptr)
@@ -60,11 +65,18 @@ public:
             push_pool_->Shutdown();
         }
         delete ivps_;
+        delete push_ivps_;
     };
 
     int Init() override
     {
+        // -1 会让后续 SendMessage 被 scheduler 静默拒绝，画面到不了编码器却无根因日志
         next_thread_id_ = pipeline::TaskNodeIdByName("EncProcess");
+        if (next_thread_id_ < 0)
+        {
+            LOG_ERROR("BusProcess: 找不到下游节点 EncProcess");
+            return -1;
+        }
 
         qdrant::QdrantConfig config;
         config.host = "192.168.137.112";
@@ -114,6 +126,26 @@ public:
             LOG_ERROR("IVPS Init failed!");
             return -2;
         }
+        if (0 != push_ivps_->Resize(AX_IVPS_ASPECT_RATIO_AUTO, AX_FORMAT_RGB888,
+                                    112, 112))
+        {
+            LOG_ERROR("push IVPS Init failed!");
+            return -2;
+        }
+
+        frontal_score_thresh_ = kDefaultFrontalScoreThresh;
+        if (const char* thresh_env = std::getenv("AX_FRONTAL_SCORE_THRESH"))
+        {
+            try
+            {
+                frontal_score_thresh_ = std::stof(thresh_env);
+            }
+            catch (...)
+            {
+                LOG_WARN("AX_FRONTAL_SCORE_THRESH 无效，使用默认 {}",
+                         kDefaultFrontalScoreThresh);
+            }
+        }
         // const std::string model_config = "configs/arcface.yaml";
         if (engine_ == nullptr)
         {
@@ -155,72 +187,13 @@ public:
             std::vector<std::vector<float> > feats;
             std::vector<ImageData> face_imgs;
 
-            face_server::VisitorPushRequest visitor_req;
-            std::vector<ImageData> visitor_faces;
-            
-            visitor_req.msg_id = capture_msg_id;
-            visitor_req.event_time = cur_time;
-            visitor_req.camera_name = "test_camera";
-
-            bool is_send_alert = false;
-            std::vector<qdrant::Point> points;
-
-            auto make_stranger_payload = [cur_created_at](const std::string& uuid) {
-                return Json{{"createdAt", cur_created_at},
-                            {"name", "NA"},
-                            {"ehrNo", "NA"}};
-            };
-
-            auto payload_string = [](const Json& payload, const char* key,
-                                     const std::string& def) -> std::string {
-                if (!payload.contains(key))
-                {
-                    return def;
-                }
-                const auto& v = payload[key];
-                if (v.is_string())
-                {
-                    return v.get<std::string>();
-                }
-                if (v.is_number_integer())
-                {
-                    return std::to_string(v.get<int64_t>());
-                }
-                return def;
-            };
-
-            auto payload_int64 = [](const Json& payload, const char* key,
-                                     std::int64_t def) -> std::int64_t {
-                if (!payload.contains(key))
-                {
-                    return def;
-                }
-                const auto& v = payload[key];
-                if (v.is_number_integer())
-                {
-                    return v.get<std::int64_t>();
-                }
-                if (v.is_number_unsigned())
-                {
-                    return static_cast<std::int64_t>(v.get<std::uint64_t>());
-                }
-                if (v.is_string())
-                {
-                    try
-                    {
-                        return std::stoll(v.get<std::string>());
-                    }
-                    catch (...)
-                    {
-                        return def;
-                    }
-                }
-                return def;
-            };
+            // 先把已完成的异步检索结果落账，再决定本帧哪些轨需要提特征。
+            // track_pending_ 仅本线程改写，故其本身无需加锁。
+            DrainIdentifyResults();
 
             // 全程跟踪全部检出框；正脸分仅门控 InferBatch，不前置过滤跟踪输入。
             // 加权分：ComputeFrontalScore(f, face_align::FrontalScoreRecommended())
-            // 达标阈值 kFrontalScoreThresh（默认 0.55）；硬门限见 face_align.h。
+            // 达标阈值 frontal_score_thresh_（默认 0.55，可用 AX_FRONTAL_SCORE_THRESH 覆盖）
             std::vector<detection::Object> tracked_faces = std::move(faces);
             // frontal_faces.reserve(faces.size());
             
@@ -250,8 +223,10 @@ public:
 
             // ------------------------------------------------------------------
             // ByteTrack 同轨去重 + 正脸分门控 Infer
-            // 流程：全部框 update -> IoU 回写 track_id -> 缓存未提特征轨的 last_face/frame
-            //      -> 正脸分达标且未 feat_done 才 InferBatch / 检索 / 上送
+            // 主线程：全部框 update -> IoU 回写 track_id -> 缓存未提特征轨的
+            //         last_face/frame -> 正脸分达标才 InferBatch -> 组批交线程池。
+            // 线程池：Qdrant 检索 / 判定 / 写库 / JPEG 编码 / 报警与访客推送，
+            //         完成后把 {track_id, 成功与否} 回传，主线程下一帧落账。
             // 丢轨且从未提特征：PushAlert（整图+box）+ PushVisitor（手动裁脸），不写 Qdrant。
             // ------------------------------------------------------------------
             ++frame_seq_;
@@ -345,21 +320,19 @@ public:
                     continue;
                 }
                 auto& pending = track_pending_[f.track_id];
-                if (pending.feat_done) {
-                    continue;
+                if (pending.feat_done || pending.identify_inflight) {
+                    continue;  // 已完成，或检索在途，避免同轨重复提特征
                 }
                 const float score = face_align::ComputeFrontalScore(
                     f, frontal_score_cfg, nullptr);
-                if (score < kFrontalScoreThresh) {
+                if (score < frontal_score_thresh_) {
                     continue;
                 }
                 to_process.push_back(f);
-                pending.feat_done = true;
-                pending.last_frame = ImageData{};
             }
 
 
-            // 仅对新出现的轨提特征；to_process 为空时 InferBatch 应为空操作。
+            // 正脸分达标轨进入 InferBatch；feat_done 在提取成功后再置位。
             engine_->InferBatch(*ivps_, img_data, to_process, face_imgs,
                                 feats);
 
@@ -368,251 +341,121 @@ public:
                 feats.size(), tracks.size(), to_process.size(),
                 tracked_faces.size());
 
+            // 组批：推理成功的轨交由线程池做检索/判定/写库/推送。
+            // 主线程只置 identify_inflight 并保留 last_frame 作兜底，不接触网络。
+            std::vector<IdentifyItem> identify_batch;
+            identify_batch.reserve(feats.size());
+
             for (size_t i = 0; i < feats.size(); ++i)
             {
-                auto& feat = feats[i];
-                if (feat.empty())
+                if (feats[i].empty())
+                {
+                    if (i < to_process.size())
+                    {
+                        LOG_WARN("Infer 空特征 track_id={} score_gate={}",
+                                 to_process[i].track_id,
+                                 frontal_score_thresh_);
+                    }
+                    continue;  // 未置 inflight，后续帧仍可重试
+                }
+                if (i >= to_process.size() || i >= face_imgs.size())
                 {
                     continue;
                 }
 
-                // 短时重复触发已由 ByteTrack track_id 在 InferBatch 前过滤；此处仅做身份检索与上送。
-
-                auto search_res = client_->Search(collection_, feat, 1, {},
-                                                  true, false, 0.65f);
-
-                if (!search_res)
+                const int tid = to_process[i].track_id;
+                auto pit = track_pending_.find(tid);
+                if (pit == track_pending_.end())
                 {
-                    LOG_ERROR("检索失败: {}", search_res.error);
                     continue;
                 }
-                
-                // 
-                if (search_res.points.empty())
-                {
-                    // 未命中：陌生人
-                    LOG_INFO("未命中：陌生人");
+                pit->second.identify_inflight = true;
 
-                    is_send_alert = true;
-                    const auto uuid = my_utils::GenerateUuid();
-                    points.push_back(qdrant::Point::WithStringId(
-                        uuid, feat, make_stranger_payload(uuid)));
-
-                    face_server::VisitorPerson person;
-                    person.ehr_no = "NA";
-                    person.name = "NA";
-                    person.recognized = false;
-                    person.msg_id = capture_msg_id;
-                    person.event_id = "stranger";
-                    visitor_req.persons.push_back(person);
-                    visitor_faces.push_back(face_imgs[i]);
-                    continue;
-                }
-
-                const auto& point = search_res.points.front();
-                LOG_INFO("检索命中 id={} score={}", point.id, point.score);
-                const std::string ehr_no = payload_string(point.payload, "ehrNo", "NA");
-                const std::string name = payload_string(point.payload, "name", "NA");
-                // const std::int64_t created_at =
-                    // payload_int64(point.payload, "createdAt", 0);
-
-
-                if (ehr_no == "NA")
-                {
-                    // 库中是陌生人记录：允许再次上送（新轨场景下由 track 去重控制频率）
-                    LOG_INFO("命中：陌生人");
-
-                    // 命中陌生人 使用时间 过滤器能二次命中到吗, 
-
-
-                    is_send_alert = true;
-                    const auto uuid = my_utils::GenerateUuid();
-                    points.push_back(qdrant::Point::WithStringId(
-                        uuid, feat, make_stranger_payload(uuid)));
-
-                    face_server::VisitorPerson person;
-                    person.ehr_no = "NA";
-                    person.name = "NA";
-                    person.recognized = false;
-                    person.msg_id = capture_msg_id;
-                    person.event_id = "stranger";
-                    visitor_req.persons.push_back(person);
-                    visitor_faces.push_back(face_imgs[i]);
-
-
-                }
-                else
-                {
-                    // 访客命中：短时同人频率已由 track_id 控制，此处直接组包上送
-                    LOG_INFO("命中：访客人员");
-                    face_server::VisitorPerson person;
-                    person.ehr_no = ehr_no;
-                    person.name = name;
-                    person.recognized = true;
-                    person.msg_id = capture_msg_id;
-                    person.event_id = "visitor";
-                    visitor_req.persons.push_back(person);
-                    visitor_faces.push_back(face_imgs[i]);
-
-                }
+                IdentifyItem item;
+                item.track_id = tid;
+                item.face = to_process[i];
+                item.feat = std::move(feats[i]);
+                item.face_img = face_imgs[i];
+                identify_batch.push_back(std::move(item));
             }
 
-            if (!points.empty())
+            if (!identify_batch.empty())
             {
-                auto upsert_res = client_->UpsertPoints(collection_, points);
-                if (!upsert_res)
+                // batch 会被 move 进 lambda，先留一份 id 以便失败时回滚。
+                // 任何不进线程池的分支都必须回滚，否则该轨永久卡在 inflight：
+                // 既不会 feat_done，prune 循环也永不 erase，track_pending_ 会无界增长。
+                std::vector<int> inflight_ids;
+                inflight_ids.reserve(identify_batch.size());
+                for (const auto& item : identify_batch)
                 {
-                    LOG_ERROR("写入点失败: {}", upsert_res.error);
+                    inflight_ids.push_back(item.track_id);
                 }
-            }
 
-            // LOG_INFO("visitor person info {} , {}", visitor_faces.size(),
-            //          visitor_req.persons.size());
-
-            const bool need_visitor = !visitor_req.persons.empty() && visitor_faces.size() == visitor_req.persons.size();
-
-            if (!visitor_req.persons.empty() && !need_visitor)
-            {
-                LOG_ERROR("visitor person and face not eq {}=={}",
-                          visitor_faces.size(), visitor_req.persons.size());
-            }
-
-            const bool need_push = (is_send_alert || need_visitor) && face_server_ && push_pool_;
-
-            if (need_push)
-            {
-                LOG_INFO("需要推送xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-
-                // 整帧与后续 Draw/Enc 共享缓冲，必须深拷贝。
                 ImageData frame_copy;
-                if (Clone(frame_copy, img_data) != 0 || frame_copy.data == nullptr)
+                if (!client_ || !face_server_ || !push_pool_)
                 {
-                    LOG_ERROR("Clone frame for push failed");
+                    LOG_ERROR("检索依赖未就绪，跳过 count={}",
+                              inflight_ids.size());
+                    RollbackInflight(inflight_ids);
+                }
+                // 整帧与后续 Draw/Enc 共享缓冲，必须深拷贝。
+                else if (Clone(frame_copy, img_data) != 0 ||
+                         frame_copy.data == nullptr)
+                {
+                    LOG_ERROR("Clone frame for identify failed");
+                    RollbackInflight(inflight_ids);
                 }
                 else
                 {
-                    // 人脸 ROI 由 shared_ptr 持有 FrameData，传值即可拖住释放。
-                    std::vector<ImageData> faces;
-                    if (need_visitor)
-                    {
-                        faces = std::move(visitor_faces);
-                    }
-
-                    face_server::FaceServerClient* client = face_server_.get();
-                    const bool send_alert = is_send_alert;
-                    face_server::VisitorPushRequest vis_req;
-                    if (need_visitor)
-                    {
-                        vis_req = std::move(visitor_req);
-                    }
-
-                    auto ivps = ivps_;
-
+                    // 捕获 this 安全：析构体内先 Shutdown 线程池并 join 所有 worker。
                     auto submitted = push_pool_->Submit(
-                        [ivps, client, send_alert, capture_msg_id, cur_time,
-                         frame = std::move(frame_copy),
-                         faces = std::move(faces),
-                         visitor_req = std::move(vis_req)]() mutable {
-                            std::vector<uint8_t> frame_jpg;
-
-                            // TIME_START(JpegEncode);
-
-                            const int jpeg_ret = JpegEncode(frame_jpg, frame);
-
-                            // TIME_END(JpegEncode);
-                            // TIME_USEC_SHOW(JpegEncode); 4ms
-
-                            if (jpeg_ret != 0 || frame_jpg.empty())
-                            {
-                                LOG_ERROR("JpegEncode frame Failed ret={}",
-                                          jpeg_ret);
-                                return;
-                            }
-
-                            face_server::ImageBlob ori_img;
-                            ori_img.content_type = "image/jpeg";
-                            ori_img.filename = capture_msg_id + ".jpeg";
-                            ori_img.data = std::move(frame_jpg);
-
-                            if (send_alert)
-                            {
-                                face_server::AlertPushRequest alert_req;
-                                alert_req.bank_id = "test_bank_id";
-                                alert_req.msg_id = capture_msg_id;
-                                alert_req.event_id = "stat_id";
-                                alert_req.org_id = "test_org_id";
-                                alert_req.event_time = cur_time;
-                                alert_req.event_name = "陌生人闯入";
-                                alert_req.channel_name = "test_channel_name";
-                                alert_req.description = "陌生人闯入";
-                                alert_req.files = {ori_img};
-
-                                auto alert_res = client->PushAlert(alert_req);
-                                if (!alert_res)
-                                {
-                                    LOG_ERROR("PushAlert 失败: {}",
-                                              alert_res.error);
-                                }
-                            }
-
-                            if (!visitor_req.persons.empty())
-                            {
-                                visitor_req.original = ori_img;
-                                visitor_req.faces.clear();
-                                visitor_req.faces.reserve(faces.size());
-
-                                for (size_t j = 0; j < faces.size(); ++j)
-                                {
-                                    std::vector<uint8_t> face_jpg;
-                                    if (!EncodeVisitorFaceJpeg(ivps, faces[j],
-                                                               face_jpg))
-                                    {
-                                        LOG_ERROR(
-                                            "face JpegEncode Failed j={}", j);
-                                        visitor_req.faces.clear();
-                                        break;
-                                    }
-
-                                    face_server::ImageBlob img;
-                                    img.content_type = "image/jpeg";
-                                    img.filename = capture_msg_id + "_" + std::to_string(j) + ".jpeg";
-                                    img.data = std::move(face_jpg);
-                                    visitor_req.faces.push_back(
-                                        std::move(img));
-                                }
-
-                                if (visitor_req.faces.size() == visitor_req.persons.size())
-                                {
-                                    auto vis_res = client->PushVisitor(visitor_req);
-                                    if (!vis_res)
-                                    {
-                                        LOG_ERROR("PushVisitor 失败: {}",
-                                                  vis_res.error);
-                                    }
-                                }
-                            }
+                        [this, capture_msg_id, cur_time, cur_created_at,
+                         batch = std::move(identify_batch),
+                         frame = std::move(frame_copy)]() mutable {
+                            RunIdentifyAndPush(std::move(batch),
+                                               std::move(frame), capture_msg_id,
+                                               cur_time, cur_created_at);
                         });
                     if (!submitted)
                     {
-                        LOG_ERROR(
-                            "推送丢弃: 线程池队列已满 (alert={} visitor={})",
-                            is_send_alert, need_visitor);
+                        LOG_ERROR("检索推送丢弃: 线程池队列已满 count={}",
+                                  inflight_ids.size());
+                        RollbackInflight(inflight_ids);
                     }
                 }
             }
 
-            // 丢轨且从未提特征：报警整图+box，访客手动裁脸一次，不写 Qdrant
+            // 丢轨且从未提特征：先裁脸再报警+访客，不写 Qdrant；Submit 失败保留条目重试
             for (auto it = track_pending_.begin(); it != track_pending_.end();) {
                 if (frame_seq_ - it->second.last_seen_frame <= kTrackPruneFrames) {
                     ++it;
                     continue;
                 }
-                TrackPending pending = std::move(it->second);
                 const int lost_track_id = it->first;
-                it = track_pending_.erase(it);
+                if (it->second.feat_done) {
+                    it = track_pending_.erase(it);
+                    continue;
+                }
+                if (it->second.identify_inflight) {
+                    // 检索在途：等结果落账后再决定是否需要兜底推送，避免与
+                    // worker 里的陌生人推送重复，也避免检索失败时漏推。
+                    // 超时兜底闸：结果永远没回来（worker 异常等）时释放条目，
+                    // 否则它会一直占着一份整帧克隆。
+                    if (frame_seq_ - it->second.last_seen_frame >
+                        kTrackInflightMaxFrames) {
+                        LOG_ERROR("检索结果超时未回传，丢弃条目 track_id={}",
+                                  lost_track_id);
+                        it = track_pending_.erase(it);
+                    } else {
+                        ++it;
+                    }
+                    continue;
+                }
 
-                if (pending.feat_done || pending.last_frame.data == nullptr ||
-                    !face_server_ || !push_pool_) {
+                TrackPending pending = it->second;
+                if (pending.last_frame.data == nullptr || !face_server_ ||
+                    !push_pool_) {
+                    it = track_pending_.erase(it);
                     continue;
                 }
 
@@ -621,18 +464,36 @@ public:
                     frame_copy.data == nullptr) {
                     LOG_ERROR("Clone lost-track frame failed track_id={}",
                               lost_track_id);
+                    it = track_pending_.erase(it);
                     continue;
                 }
 
                 const detection::Object face_copy = pending.last_face;
                 const std::string lost_msg_id = my_utils::GenerateUuid();
                 const std::string lost_time = my_utils::GetCurrentTimeIso8601Utc();
+                const std::string alert_description =
+                    MakeStrangerAlertDescription(lost_track_id, face_copy);
                 face_server::FaceServerClient* client = face_server_.get();
-                auto ivps = ivps_;
 
                 const auto submitted = push_pool_->Submit(
-                    [ivps, client, lost_msg_id, lost_time, lost_track_id,
-                     face_copy, frame = std::move(frame_copy)]() mutable {
+                    [this, client, lost_msg_id, lost_time, lost_track_id,
+                     alert_description, face_copy,
+                     frame = std::move(frame_copy)]() mutable {
+                        ImageData face_roi;
+                        if (!CropFaceRoiLocked(frame, face_copy, face_roi)) {
+                            LOG_ERROR("lost-track crop face failed track_id={}",
+                                      lost_track_id);
+                            return;
+                        }
+
+                        std::vector<uint8_t> face_jpg;
+                        if (!EncodeVisitorFaceLocked(face_roi, face_jpg)) {
+                            LOG_ERROR(
+                                "lost-track face JpegEncode failed track_id={}",
+                                lost_track_id);
+                            return;
+                        }
+
                         std::vector<uint8_t> frame_jpg;
                         if (JpegEncode(frame_jpg, frame) != 0 ||
                             frame_jpg.empty()) {
@@ -645,16 +506,6 @@ public:
                         ori_img.filename = lost_msg_id + ".jpeg";
                         ori_img.data = std::move(frame_jpg);
 
-                        Json desc;
-                        desc["event"] = "陌生人闯入";
-                        desc["track_id"] = lost_track_id;
-                        desc["box"] = {
-                            {"x", face_copy.rect.x},
-                            {"y", face_copy.rect.y},
-                            {"width", face_copy.rect.width},
-                            {"height", face_copy.rect.height},
-                        };
-
                         face_server::AlertPushRequest alert_req;
                         alert_req.bank_id = "test_bank_id";
                         alert_req.msg_id = lost_msg_id;
@@ -663,29 +514,13 @@ public:
                         alert_req.event_time = lost_time;
                         alert_req.event_name = "陌生人闯入";
                         alert_req.channel_name = "test_channel_name";
-                        alert_req.description = desc.dump();
+                        alert_req.description = alert_description;
                         alert_req.files = {ori_img};
 
                         auto alert_res = client->PushAlert(alert_req);
                         if (!alert_res) {
                             LOG_ERROR("lost-track PushAlert 失败: {}",
                                       alert_res.error);
-                        }
-
-                        ImageData face_roi;
-                        if (!CropFaceRoiFromFrame(ivps, frame, face_copy,
-                                                  face_roi)) {
-                            LOG_ERROR("lost-track crop face failed track_id={}",
-                                      lost_track_id);
-                            return;
-                        }
-
-                        std::vector<uint8_t> face_jpg;
-                        if (!EncodeVisitorFaceJpeg(ivps, face_roi, face_jpg)) {
-                            LOG_ERROR(
-                                "lost-track face JpegEncode failed track_id={}",
-                                lost_track_id);
-                            return;
                         }
 
                         face_server::VisitorPushRequest visitor_req;
@@ -714,19 +549,22 @@ public:
                                       vis_res.error);
                         }
                     });
-                if (!submitted) {
+                if (submitted) {
+                    it = track_pending_.erase(it);
+                } else {
                     LOG_ERROR(
                         "丢轨陌生人推送丢弃: 线程池队列已满 track_id={}",
                         lost_track_id);
+                    ++it;
                 }
             }
 
             // TIME_END(arcface);
             // TIME_USEC_SHOW(arcface);
 
-            if (Map(in_data->image) != 0)
+            if (EnsureMapped(in_data->image) != 0)
             {
-                LOG_ERROR("BusProcess Map failed, skip draw");
+                LOG_ERROR("BusProcess EnsureMapped failed, skip draw");
             }
             else if (in_data->image.data == nullptr || in_data->image.data->FrameInfo() == nullptr || in_data->image.data->FrameInfo()->stVFrame.u64VirAddr[0] == 0)
             {
@@ -787,9 +625,319 @@ private:
     struct TrackPending {
         detection::Object last_face;
         ImageData last_frame;
+        // 检索已完成（无论命中与否），该轨不再提特征、不再兜底推送
         bool feat_done = false;
+        // 特征已提取、检索在线程池中进行；期间不重复提特征也不兜底推送
+        bool identify_inflight = false;
         int last_seen_frame = 0;
     };
+
+    // 主线程 -> worker：一次检索所需的全部输入
+    struct IdentifyItem {
+        int track_id = -1;
+        detection::Object face;   // rect 用于报警 box，landmark 已用于对齐
+        std::vector<float> feat;
+        ImageData face_img;       // ArcFace 裁好的 ROI，供访客推送编码
+    };
+
+    // worker -> 主线程：检索是否完成。ok=false 表示网络失败，允许后续帧重试
+    struct IdentifyResult {
+        int track_id = -1;
+        bool ok = false;
+    };
+
+    void PostIdentifyResult(int track_id, bool ok)
+    {
+        std::lock_guard<std::mutex> lock(identify_results_mutex_);
+        identify_results_.push_back({track_id, ok});
+    }
+
+    // 仅主线程调用：把 worker 回传的结果落到 track_pending_
+    void DrainIdentifyResults()
+    {
+        std::vector<IdentifyResult> results;
+        {
+            std::lock_guard<std::mutex> lock(identify_results_mutex_);
+            results.swap(identify_results_);
+        }
+        for (const auto& r : results)
+        {
+            auto it = track_pending_.find(r.track_id);
+            if (it == track_pending_.end())
+            {
+                continue;  // 该轨已被 prune
+            }
+            it->second.identify_inflight = false;
+            if (r.ok)
+            {
+                it->second.feat_done = true;
+                it->second.last_frame = ImageData{};  // 不再需要兜底整帧
+            }
+            else
+            {
+                LOG_WARN("检索失败，track_id={} 允许后续帧重试", r.track_id);
+            }
+        }
+    }
+
+    // 仅主线程调用：Submit 失败时撤销 inflight 标记
+    void RollbackInflight(const std::vector<int>& track_ids)
+    {
+        for (int tid : track_ids)
+        {
+            auto it = track_pending_.find(tid);
+            if (it != track_pending_.end())
+            {
+                it->second.identify_inflight = false;
+            }
+        }
+    }
+
+    // ---- 以下在推送线程池中执行 ----
+
+    // push_ivps_ 由多个 worker 共用，IvpsHelper 内部无锁且 CropAndCSC 会重配
+    // 硬件 pipeline，故所有硬件调用必须串行化。耗时仅 ms 级，不阻塞网络部分。
+    bool EncodeVisitorFaceLocked(const ImageData& face_img,
+                                 std::vector<uint8_t>& face_jpg)
+    {
+        std::lock_guard<std::mutex> lock(push_ivps_mutex_);
+        return EncodeVisitorFaceJpeg(push_ivps_, face_img, face_jpg);
+    }
+
+    bool CropFaceRoiLocked(const ImageData& frame,
+                           const detection::Object& face, ImageData& face_img)
+    {
+        std::lock_guard<std::mutex> lock(push_ivps_mutex_);
+        return CropFaceRoiFromFrame(push_ivps_, frame, face, face_img);
+    }
+
+    static std::string PayloadString(const Json& payload, const char* key,
+                                     const std::string& def)
+    {
+        if (!payload.contains(key))
+        {
+            return def;
+        }
+        const auto& v = payload[key];
+        if (v.is_string())
+        {
+            return v.get<std::string>();
+        }
+        if (v.is_number_integer())
+        {
+            return std::to_string(v.get<int64_t>());
+        }
+        return def;
+    }
+
+    // 检索 -> 判定 -> 写库 -> 编码 -> 报警/访客推送，全程不占用主管线线程。
+    void RunIdentifyAndPush(std::vector<IdentifyItem> batch, ImageData frame,
+                            const std::string& capture_msg_id,
+                            const std::string& cur_time,
+                            std::int64_t cur_created_at)
+    {
+        bool is_send_alert = false;
+        std::vector<qdrant::Point> points;
+        std::vector<std::pair<int, detection::Object>> alert_stranger_faces;
+
+        face_server::VisitorPushRequest visitor_req;
+        visitor_req.msg_id = capture_msg_id;
+        visitor_req.event_time = cur_time;
+        visitor_req.camera_name = "test_camera";
+        std::vector<ImageData> visitor_faces;
+
+        for (auto& item : batch)
+        {
+            auto search_res = client_->Search(collection_, item.feat, 1, {},
+                                              true, false, 0.65f);
+            if (!search_res)
+            {
+                // 不置 feat_done：主线程回滚后该轨可在后续帧重试
+                LOG_ERROR("检索失败 track_id={}: {}", item.track_id,
+                          search_res.error);
+                PostIdentifyResult(item.track_id, false);
+                continue;
+            }
+
+            PostIdentifyResult(item.track_id, true);
+
+            std::string ehr_no = "NA";
+            std::string name = "NA";
+            if (search_res.points.empty())
+            {
+                LOG_INFO("未命中：陌生人 track_id={}", item.track_id);
+            }
+            else
+            {
+                const auto& point = search_res.points.front();
+                LOG_INFO("检索命中 id={} score={}", point.id, point.score);
+                ehr_no = PayloadString(point.payload, "ehrNo", "NA");
+                name = PayloadString(point.payload, "name", "NA");
+            }
+
+            // ehrNo=="NA" 覆盖两种情况：库里没有，或库里存的就是陌生人记录
+            const bool is_stranger = (ehr_no == "NA");
+            if (is_stranger)
+            {
+                is_send_alert = true;
+                const auto uuid = my_utils::GenerateUuid();
+                points.push_back(qdrant::Point::WithStringId(
+                    uuid, item.feat,
+                    Json{{"createdAt", cur_created_at},
+                         {"name", "NA"},
+                         {"ehrNo", "NA"}}));
+                alert_stranger_faces.push_back({item.track_id, item.face});
+            }
+
+            face_server::VisitorPerson person;
+            person.ehr_no = is_stranger ? "NA" : ehr_no;
+            person.name = is_stranger ? "NA" : name;
+            person.recognized = !is_stranger;
+            person.msg_id = capture_msg_id;
+            person.event_id = is_stranger ? "stranger" : "visitor";
+            visitor_req.persons.push_back(person);
+            visitor_faces.push_back(item.face_img);
+        }
+
+        if (!points.empty())
+        {
+            auto upsert_res = client_->UpsertPoints(collection_, points);
+            if (!upsert_res)
+            {
+                LOG_ERROR("写入点失败: {}", upsert_res.error);
+            }
+        }
+
+        const bool need_visitor =
+            !visitor_req.persons.empty() &&
+            visitor_faces.size() == visitor_req.persons.size();
+        if (!visitor_req.persons.empty() && !need_visitor)
+        {
+            LOG_ERROR("visitor person and face not eq {}=={}",
+                      visitor_faces.size(), visitor_req.persons.size());
+        }
+        if (!is_send_alert && !need_visitor)
+        {
+            return;
+        }
+
+        std::vector<uint8_t> frame_jpg;
+        if (JpegEncode(frame_jpg, frame) != 0 || frame_jpg.empty())
+        {
+            LOG_ERROR("identify JpegEncode frame failed");
+            return;
+        }
+
+        face_server::ImageBlob ori_img;
+        ori_img.content_type = "image/jpeg";
+        ori_img.filename = capture_msg_id + ".jpeg";
+        ori_img.data = std::move(frame_jpg);
+
+        if (is_send_alert)
+        {
+            face_server::AlertPushRequest alert_req;
+            alert_req.bank_id = "test_bank_id";
+            alert_req.msg_id = capture_msg_id;
+            alert_req.event_id = "stat_id";
+            alert_req.org_id = "test_org_id";
+            alert_req.event_time = cur_time;
+            alert_req.event_name = "陌生人闯入";
+            alert_req.channel_name = "test_channel_name";
+            alert_req.description =
+                MakeStrangerAlertDescription(alert_stranger_faces);
+            alert_req.files = {ori_img};
+
+            auto alert_res = face_server_->PushAlert(alert_req);
+            if (!alert_res)
+            {
+                LOG_ERROR("PushAlert 失败: {}", alert_res.error);
+            }
+        }
+
+        if (need_visitor)
+        {
+            visitor_req.original = ori_img;
+            visitor_req.faces.clear();
+            visitor_req.faces.reserve(visitor_faces.size());
+
+            for (size_t j = 0; j < visitor_faces.size(); ++j)
+            {
+                std::vector<uint8_t> face_jpg;
+                if (!EncodeVisitorFaceLocked(visitor_faces[j], face_jpg))
+                {
+                    LOG_ERROR("face JpegEncode Failed j={}", j);
+                    visitor_req.faces.clear();
+                    break;
+                }
+
+                face_server::ImageBlob img;
+                img.content_type = "image/jpeg";
+                img.filename =
+                    capture_msg_id + "_" + std::to_string(j) + ".jpeg";
+                img.data = std::move(face_jpg);
+                visitor_req.faces.push_back(std::move(img));
+            }
+
+            if (visitor_req.faces.size() == visitor_req.persons.size())
+            {
+                auto vis_res = face_server_->PushVisitor(visitor_req);
+                if (!vis_res)
+                {
+                    LOG_ERROR("PushVisitor 失败: {}", vis_res.error);
+                }
+            }
+        }
+    }
+
+    static Json MakeStrangerBoxJson(const detection::Object& face)
+    {
+        return Json{{"x", face.rect.x},
+                    {"y", face.rect.y},
+                    {"width", face.rect.width},
+                    {"height", face.rect.height}};
+    }
+
+    static std::string MakeStrangerAlertDescription(int track_id,
+                                                    const detection::Object& face)
+    {
+        Json desc;
+        desc["event"] = "陌生人闯入";
+        if (track_id >= 0)
+        {
+            desc["track_id"] = track_id;
+        }
+        desc["box"] = MakeStrangerBoxJson(face);
+        return desc.dump();
+    }
+
+    static std::string MakeStrangerAlertDescription(
+        const std::vector<std::pair<int, detection::Object>>& strangers)
+    {
+        if (strangers.empty())
+        {
+            return {};
+        }
+        if (strangers.size() == 1)
+        {
+            return MakeStrangerAlertDescription(strangers.front().first,
+                                                strangers.front().second);
+        }
+        Json desc;
+        desc["event"] = "陌生人闯入";
+        Json faces = Json::array();
+        for (const auto& item : strangers)
+        {
+            Json entry;
+            if (item.first >= 0)
+            {
+                entry["track_id"] = item.first;
+            }
+            entry["box"] = MakeStrangerBoxJson(item.second);
+            faces.push_back(std::move(entry));
+        }
+        desc["faces"] = std::move(faces);
+        return desc.dump();
+    }
 
     static bool EncodeVisitorFaceJpeg(IvpsHelper* ivps,
                                       const ImageData& face_img,
@@ -838,14 +986,24 @@ private:
     // face_tracker_：按帧关联全部人脸框，输出稳定 track_id（构造参数：fps, track_buffer）
     BYTETracker face_tracker_{25, 30};
     // track_id -> 未提特征轨的最近人脸/整帧；feat_done 后不再缓存帧
+    // 只在管线线程读写，worker 通过 identify_results_ 回传，不直接访问
     std::unordered_map<int, TrackPending> track_pending_;
     int frame_seq_ = 0;
+
+    // worker -> 主线程的检索结果回传队列
+    std::mutex identify_results_mutex_;
+    std::vector<IdentifyResult> identify_results_;
+    // 串行化 push_ivps_ 的硬件调用（2 个 worker 共用一个 IvpsHelper）
+    std::mutex push_ivps_mutex_;
     // 未见超过该帧数则 prune（约 2 * track_buffer）
     static constexpr int kTrackPruneFrames = 60;
-    // 正脸加权分 Infer 门控阈值（与 FrontalScoreRecommended 配套）
-    static constexpr float kFrontalScoreThresh = 0.55f;
+    // 丢轨后检索仍未回传的最长等待帧数（25fps 约 60s，远超 Qdrant 重试最坏耗时）
+    static constexpr int kTrackInflightMaxFrames = 1500;
+    static constexpr float kDefaultFrontalScoreThresh = 0.55f;
+    float frontal_score_thresh_ = kDefaultFrontalScoreThresh;
 
     IvpsHelper* ivps_ = nullptr;
+    IvpsHelper* push_ivps_ = nullptr;
     std::unique_ptr<Arcface> engine_;
     // uint64_t frame_id_ = 0;
     int next_thread_id_ = -1;

@@ -425,6 +425,12 @@ cv::Mat HwRoiNormCrop(IvpsHelper& ivps, const ImageData& frame,
     return aligned;
   }
 
+  // 注意：AX_FORMAT_RGB888 只是 SDK 的枚举名，IVPS 实际输出的字节序是 B,G,R。
+  // 所以下游 Copy2Mat 原样拷进 cv::Mat 后拿到的就是 OpenCV 惯例的 BGR，
+  // 正好对上 w600k_r50-bgr-std 模型期望的通道序——全链路不需要任何 CSC。
+  //
+  // 不要"修正"成 AX_FORMAT_BGR888，也不要启用 arcface.cpp 里注释掉的
+  // BgrToRgbPacked：那会真的把通道换反，特征向量系统性失准（不报错、只掉精度）。
   AX_S32 ret = ivps.CropAndCSC(AX_FORMAT_RGB888,
                                static_cast<AX_U16>(roi.x),
                                static_cast<AX_U16>(roi.y),

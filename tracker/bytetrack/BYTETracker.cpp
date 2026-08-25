@@ -216,7 +216,20 @@ BYTETracker::~BYTETracker()
 		this->lost_stracks.push_back(lost_stracks[i]);
 	}
 
+	// this->removed_stracks 只需保留"上一帧"的移除列表，上面这次 sub_stracks
+	// 用完即失效。一帧足够的理由：轨迹在第 N 帧 mark_removed 时并不会立刻从
+	// lost_stracks 摘掉（189-196 只标记不删除），靠第 N+1 帧走到这里才被 sub
+	// 掉；而 198-204 按 state==Tracked 过滤后它也回不到 tracked_stracks。
+	//
+	// 此处有意与上游实现分歧（上游不 clear，只增不减），因为不 clear 有两个后果：
+	//   1) 容器无界增长，且每帧都被 sub_stracks 整体遍历，内存与单帧 CPU 都随
+	//      运行时长线性上涨——短时测试看不出，7x24 会逐渐掉帧；
+	//   2) 更要紧的是误伤：Removed 轨在被摘掉前还会参与一帧关联(line 76)，若
+	//      此时匹配上就会 re_activate 复活，但其 id 已永久留在本容器里。该轨
+	//      日后再次 mark_lost 时会在这里被立刻删掉，彻底失去 max_time_lost 的
+	//      宽限期，只能以新 id 重新出现（对上层表现为同一人重复报警）。
 	this->lost_stracks = sub_stracks(this->lost_stracks, this->removed_stracks);
+	this->removed_stracks.clear();
 	for (int i = 0; i < removed_stracks.size(); i++)
 	{
 		this->removed_stracks.push_back(removed_stracks[i]);
