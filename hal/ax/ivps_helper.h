@@ -8,7 +8,7 @@
 
 class IvpsHelper {
  public:
-  IvpsHelper(IVPS_GRP ivps_grp, AX_U64 blk_size, AX_U32 blk_cnt);
+  IvpsHelper(AX_U64 blk_size, AX_U32 blk_cnt);
   ~IvpsHelper();
 
   AX_S32 Resize(AX_IVPS_ASPECT_RATIO_E e_mode, AX_U32 dest_width,
@@ -30,8 +30,10 @@ class IvpsHelper {
   AX_S32 DestroyResource();
   AX_S32 CreatePool();
   AX_S32 CreateGrp();
+  void ReleaseOwnedId();
 
-  IVPS_GRP ivps_grp_{0};
+  IVPS_GRP ivps_grp_{-1};
+  bool id_owned_{false};
   AX_U64 blk_size_;
   AX_U32 blk_cnt_;
   AX_IVPS_GRP_ATTR_T grp_attr_;

@@ -18,14 +18,14 @@ next_id() 用函数内 static int,非线程安全.这几个问题修复了吗？
 ## 生产上线前必须处理（测试阶段暂缓）
 
 - [ ] FaceServer API Key 目前作为 `face_server_client.h` 结构体默认值硬编码，导致
-      `BusProcess::Init()` 里「key 未配置」检查永不触发。上线前改为：默认值置空、
+      `HostServices::Init()` 里「key 未配置」检查永不触发。上线前改为：默认值置空、
       仅从环境变量/配置文件读取、缺失即 Init 失败。并轮换已泄漏的 key。
 - [ ] **人脸数据明文传输 + Qdrant 无鉴权**（测试阶段接受，生产必须调整）
 
       现状：
-      - `qdrant_client.hpp:22` `use_https = false`，`bus_process.h:77` 的
-        `config.api_key` 仍是注释状态 → Qdrant REST 6333 端口无鉴权且明文。
-      - `bus_process.h:88` `fs_cfg.base_url = "http://192.168.137.112:8848"`
+      - `qdrant_client.hpp:22` `use_https = false`，`plugin/host_services.cpp`
+        的 `config.api_key` 仍是注释状态 → Qdrant REST 6333 端口无鉴权且明文。
+      - `plugin/host_services.cpp` `fs_cfg.base_url = "http://192.168.137.112:8848"`
         → FaceServer 的整帧 JPEG 与人脸 ROI JPEG 走明文 multipart。
 
       暴露面：同网段任何人都能 dump 整个 `face_embeddings` collection、
@@ -43,7 +43,8 @@ next_id() 用函数内 static int,非线程安全.这几个问题修复了吗？
       3. Qdrant 只监听内网地址 + 防火墙限制来源 IP，不要暴露 6333。
 - [ ] RTSP 账号密码硬编码在 `apps/main_rtsp.cpp`，上线前改为配置项。
 - [ ] `test_bank_id` / `test_org_id` / `test_camera` / `stat_id` 等占位值需替换为真实配置。
-- [ ] InfProcess 与 BusProcess 各自调用全局 `AX_ENGINE_Init` / `AX_ENGINE_Deinit`。
+- [ ] InfProcess（SCRFD）与 HostServices（ArcFace）仍各自调用全局
+      `AX_ENGINE_Init` / `AX_ENGINE_Deinit`。业务插件不再持有 NPU。
       重复 Init 实测无影响；但退出时 InfProcess 先析构会调用 `AX_ENGINE_Deinit`，
-      而此时 BusProcess 的 ArcFace 句柄仍存在。目前只在退出阶段，影响可忽略，
+      而此时 HostServices 的 ArcFace 句柄仍存在。目前只在退出阶段，影响可忽略，
       若后续日志出现退出期 NPU 报错，再改为全局单次引用计数 Init/Deinit。

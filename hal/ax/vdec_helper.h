@@ -12,13 +12,8 @@ typedef int (*VdecProcessCallback)(ImageData imageData, int grp, int chn,
 
 class VdecHelper {
  public:
-  VdecHelper(AX_VDEC_GRP vd_grp, AX_PAYLOAD_TYPE_E codec_type,
-             AX_U32 frame_width, AX_U32 frame_height, int fps = 25)
-      : vd_grp_(vd_grp),
-        codec_type_(codec_type),
-        frame_width_(frame_width),
-        frame_height_(frame_height),
-        fps_(fps) {}
+  VdecHelper(AX_PAYLOAD_TYPE_E codec_type, AX_U32 frame_width,
+             AX_U32 frame_height, int fps = 25);
 
   VdecHelper() = delete;
   VdecHelper(const VdecHelper& src) = delete;
@@ -41,6 +36,8 @@ class VdecHelper {
   bool is_finished_ = false;
 
   AX_VDEC_GRP vd_grp_ = -1;
+  bool id_owned_ = false;
+  bool destroyed_ = false;
   AX_PAYLOAD_TYPE_E codec_type_ = PT_BUTT;
   AX_U32 frame_width_ = 0;
   AX_U32 frame_height_ = 0;

@@ -1,6 +1,7 @@
 #include "ivps_helper.h"
 #include "ax_base_type.h"
 #include "ax_ivps_api.h"
+#include "hw_id_allocator.h"
 #include "logger.h"
 
 #include <memory>
@@ -11,11 +12,28 @@
 ** ------------------------------- CONSTRUCTOR --------------------------------
 */
 
-IvpsHelper::IvpsHelper(IVPS_GRP IvpsGrp, AX_U64 blkSize, AX_U32 blkCnt) : ivps_grp_(IvpsGrp),
-																		  blk_size_(blkSize),
-																		  blk_cnt_(blkCnt)
+IvpsHelper::IvpsHelper(AX_U64 blkSize, AX_U32 blkCnt)
+	: blk_size_(blkSize), blk_cnt_(blkCnt)
 {
-	LOG_INFO("Create IVPS GRP {}", IvpsGrp);
+	const int id = HwIdAllocator::Acquire(HwIdKind::kIvps);
+	if (id < 0)
+	{
+		LOG_ERROR("IvpsHelper: acquire IVPS GRP failed");
+		return;
+	}
+	ivps_grp_ = id;
+	id_owned_ = true;
+	LOG_INFO("Create IVPS GRP {}", ivps_grp_);
+}
+
+void IvpsHelper::ReleaseOwnedId()
+{
+	if (!id_owned_)
+	{
+		return;
+	}
+	HwIdAllocator::Release(HwIdKind::kIvps, ivps_grp_);
+	id_owned_ = false;
 }
 
 AX_S32 IvpsHelper::CreatePool()
@@ -82,6 +100,12 @@ AX_S32 IvpsHelper::CreatePool()
 
 AX_S32 IvpsHelper::CreateGrp()
 {
+	if (ivps_grp_ < 0)
+	{
+		LOG_ERROR("IvpsHelper::CreateGrp: no IVPS GRP allocated");
+		return -1;
+	}
+
 	AX_S32 ret = 0;
 
 	memset(&grp_attr_, 0x0, sizeof(AX_IVPS_GRP_ATTR_T));
@@ -212,42 +236,48 @@ AX_S32 IvpsHelper::DestroyResource()
 	{
 		return 0;
 	}
+	is_released_ = true;
 
 	AX_S32 ret = IVPS_SUCC;
-
-	ret = AX_IVPS_StopGrp(ivps_grp_);
-	if (IVPS_SUCC != ret)
+	if (ivps_grp_ >= 0 && is_initialized_)
 	{
-		LOG_ERROR("AX_IVPS_StopGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
-		return -1;
-	}
-
-	for (IVPS_CHN chn = 0; chn < pipeline_attr_.nOutChnNum; ++chn)
-	{
-		ret = AX_IVPS_DisableChn(ivps_grp_, chn);
+		ret = AX_IVPS_StopGrp(ivps_grp_);
 		if (IVPS_SUCC != ret)
 		{
-			LOG_ERROR("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, ret);
-			return -1;
+			LOG_ERROR("AX_IVPS_StopGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
+		}
+
+		for (IVPS_CHN chn = 0; chn < pipeline_attr_.nOutChnNum; ++chn)
+		{
+			const AX_S32 chn_ret = AX_IVPS_DisableChn(ivps_grp_, chn);
+			if (IVPS_SUCC != chn_ret)
+			{
+				LOG_ERROR("AX_IVPS_DisableChn failed! Grp:{}, Chn:{}, code:{:#x}", ivps_grp_, chn, chn_ret);
+				ret = chn_ret;
+			}
+		}
+
+		const AX_S32 grp_ret = AX_IVPS_DestoryGrp(ivps_grp_);
+		if (IVPS_SUCC != grp_ret)
+		{
+			LOG_ERROR("AX_IVPS_DestoryGrp failed! Grp:{}, code:{:#x}", ivps_grp_, grp_ret);
+			ret = grp_ret;
 		}
 	}
 
-	ret = AX_IVPS_DestoryGrp(ivps_grp_);
-	if (IVPS_SUCC != ret)
+	if (pool_id_ != AX_INVALID_POOLID)
 	{
-		LOG_ERROR("AX_IVPS_DestoryGrp failed! Grp:{}, code:{:#x}", ivps_grp_, ret);
-		return -1;
+		const AX_S32 pool_ret = AX_POOL_DestroyPool(pool_id_);
+		if (IVPS_SUCC != pool_ret)
+		{
+			LOG_ERROR("AX_POOL_DestroyPool failed! PoolId:{}, code:{:#x}", pool_id_, pool_ret);
+			ret = pool_ret;
+		}
+		pool_id_ = AX_INVALID_POOLID;
 	}
 
-	ret = AX_POOL_DestroyPool(pool_id_);
-	if (IVPS_SUCC != ret)
-	{
-		LOG_ERROR("AX_POOL_DestroyPool failed! PoolId:{}, code:{:#x}", pool_id_, ret);
-		return -1;
-	}
-	pool_id_ = AX_INVALID_POOLID;
-	is_released_ = true;
-	return 0;
+	ReleaseOwnedId();
+	return ret == IVPS_SUCC ? 0 : -1;
 }
 
 /*

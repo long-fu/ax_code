@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <mutex>
+#include "hw_id_allocator.h"
 #include "logger.h"
 #include "ax_vdec_api.h"
 #include "frame_data.h"
@@ -101,6 +102,24 @@ const char* AX_VdecRetStr(AX_S32 value)
     }
 }
 
+VdecHelper::VdecHelper(AX_PAYLOAD_TYPE_E codec_type, AX_U32 frame_width,
+                       AX_U32 frame_height, int fps)
+    : codec_type_(codec_type),
+      frame_width_(frame_width),
+      frame_height_(frame_height),
+      fps_(fps)
+{
+    const int id = HwIdAllocator::Acquire(HwIdKind::kVdec);
+    if (id < 0)
+    {
+        LOG_ERROR("VdecHelper: acquire VDEC GRP failed");
+        return;
+    }
+    vd_grp_ = id;
+    id_owned_ = true;
+    LOG_INFO("Create VDEC GRP {}", vd_grp_);
+}
+
 /*
 ** ------------------------------- CONSTRUCTOR --------------------------------
 */
@@ -124,6 +143,12 @@ VdecHelper::~VdecHelper()
 
 int VdecHelper::Init()
 {
+    if (vd_grp_ < 0)
+    {
+        LOG_ERROR("VdecHelper::Init: no VDEC GRP allocated");
+        return -1;
+    }
+
     AX_S32 sRet = AX_SUCCESS;
 
     AX_U64 streamPhyAddr = 0;
@@ -581,17 +606,25 @@ int VdecHelper::Write(void* data, size_t data_size, void* user_data)
 #endif
 int VdecHelper::Destory()
 {
-    AX_S32 sRet;
-
-    while (1)
+    if (destroyed_)
     {
-        sRet = AX_VDEC_DestroyGrp(vd_grp_);
-        if (sRet == AX_ERR_VDEC_BUSY)
+        return 0;
+    }
+    destroyed_ = true;
+
+    AX_S32 sRet = AX_SUCCESS;
+    if (vd_grp_ >= 0)
+    {
+        while (1)
         {
-            usleep(10000);
-            continue;
+            sRet = AX_VDEC_DestroyGrp(vd_grp_);
+            if (sRet == AX_ERR_VDEC_BUSY)
+            {
+                usleep(10000);
+                continue;
+            }
+            break;
         }
-        break;
     }
 
     if (buf_addr_.u64PhyAddr != 0)
@@ -606,10 +639,16 @@ int VdecHelper::Destory()
             buf_addr_.pVirAddr = 0;
         }
     }
-    else
+    else if (buf_addr_.pVirAddr != 0)
     {
         free(buf_addr_.pVirAddr);
         buf_addr_.pVirAddr = 0;
+    }
+
+    if (id_owned_)
+    {
+        HwIdAllocator::Release(HwIdKind::kVdec, vd_grp_);
+        id_owned_ = false;
     }
     return sRet;
 };

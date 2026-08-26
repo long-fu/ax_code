@@ -20,12 +20,11 @@ class PreProcess : public TaskNode {
   explicit PreProcess(FFmpegDecoder* ff_decoder)
       : ff_decoder_(ff_decoder) {
 
-    vdec_ = new VdecHelper(0, PT_H264, ff_decoder->GetFrameWidth(),
+    vdec_ = new VdecHelper(PT_H264, ff_decoder->GetFrameWidth(),
                               ff_decoder->GetFrameHeight(),
                               ff_decoder->GetFps());
 
-    ivps_ = new IvpsHelper(0,
-                              ff_decoder->GetFrameWidth() *
+    ivps_ = new IvpsHelper(ff_decoder->GetFrameWidth() *
                                       ff_decoder->GetFrameHeight() * 3,
                               32);
   }

@@ -3,6 +3,7 @@
 #include <mutex>
 
 #include "venc_helper.h"
+#include "hw_id_allocator.h"
 #include "logger.h"
 
 static const AX_U32 u32MaxPixelWidth = 16384;
@@ -136,8 +137,32 @@ void *VencHelper::VencRecvThreadFunc(void *argv)
 	return nullptr;
 }
 
+VencHelper::VencHelper(int picture_width, int picture_height,
+					   float src_frame_rate, float dst_frame_rate)
+	: picture_width_(picture_width),
+	  picture_height_(picture_height),
+	  src_frame_rate_(src_frame_rate),
+	  dst_frame_rate_(dst_frame_rate)
+{
+	const int id = HwIdAllocator::Acquire(HwIdKind::kVenc);
+	if (id < 0)
+	{
+		LOG_ERROR("VencHelper: acquire VENC CHN failed");
+		return;
+	}
+	chn_ = id;
+	id_owned_ = true;
+	LOG_INFO("Create VENC CHN {}", chn_);
+}
+
 int VencHelper::Init()
 {
+	if (chn_ < 0)
+	{
+		LOG_ERROR("VencHelper::Init: no VENC CHN allocated");
+		return -1;
+	}
+
 	AX_S32 s32Ret = -1;
 
 	AX_S32 widthSrc = picture_width_;
@@ -335,14 +360,26 @@ int VencHelper::StopEncode()
 
 int VencHelper::Destroy()
 {
-	AX_S32 s32Ret = AX_SUCCESS;
-
-	s32Ret = AX_VENC_DestroyChn(chn_);
-	if (AX_SUCCESS != s32Ret)
+	if (destroyed_)
 	{
-		// LOG_ERROR("chn-%d: AX_VENC_DestroyChn failed with%#x! \n", chn_, s32Ret);
-		LOG_ERROR("AX_VENC_DestroyChn FAILED! VeChn:{},code:{:#x}",chn_,s32Ret);
-		return s32Ret;
+		return 0;
+	}
+	destroyed_ = true;
+
+	AX_S32 s32Ret = AX_SUCCESS;
+	if (chn_ >= 0)
+	{
+		s32Ret = AX_VENC_DestroyChn(chn_);
+		if (AX_SUCCESS != s32Ret)
+		{
+			LOG_ERROR("AX_VENC_DestroyChn FAILED! VeChn:{},code:{:#x}", chn_, s32Ret);
+		}
+	}
+
+	if (id_owned_)
+	{
+		HwIdAllocator::Release(HwIdKind::kVenc, chn_);
+		id_owned_ = false;
 	}
 	return s32Ret;
 }
