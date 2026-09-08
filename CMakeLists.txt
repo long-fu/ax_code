@@ -149,6 +149,7 @@ set(PIPE_HAL_SRCS
 
 add_executable(ax_core
     apps/main_rtsp.cpp
+    plugin/postprocessor_chain.cpp
     plugin/scene_config.cpp
     plugin/plugin_registry.cpp
     plugin/plugin_loader.cpp
