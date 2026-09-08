@@ -258,4 +258,10 @@ target_link_libraries(ax_core PUBLIC
     spdlog
 )
 
+include(CTest)
+option(AX_BUILD_TESTS "Build ax_core tests" OFF)
+if(AX_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
+
 # add_subdirectory(rules)

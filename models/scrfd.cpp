@@ -6,6 +6,7 @@
 
 #include "detection.h"
 #include "detection_types.h"
+#include "label_names.h"
 #include "logger.h"
 #include "opencv2/core/operations.hpp"
 #include "opencv2/core/types.hpp"
@@ -261,5 +262,11 @@ int Scrfd::Postprocess(int pic_width, int pic_height,
     for (int i : keep)
         objects.push_back(proposals[i]);
     #endif
+    std::string error;
+    if (!models::AssignLabelNames(config_.labels, objects, error))
+    {
+        LOG_ERROR("{} Postprocess: {}", config_.model_type, error);
+        return -1;
+    }
     return 0;
 }

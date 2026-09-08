@@ -27,6 +27,7 @@ typedef struct Object {
   float angle;
   /* detector / model provenance for multi-model pipelines */
   std::string model_name;
+  std::string label_name;
   /* ByteTrack 轨迹 ID：由 BusProcess 在跟踪后回写；-1 表示尚未关联到激活轨 */
   int track_id = -1;
 } Object;

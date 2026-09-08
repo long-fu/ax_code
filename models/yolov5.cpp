@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "detection.h"
+#include "label_names.h"
 #include "logger.h"
 
 Yolov5::~Yolov5() {}
@@ -88,6 +89,11 @@ int Yolov5::Postprocess(int pic_width, int pic_height,
     //     letterbox_rows, anchors.data(), 3, prob_threshold_u_sigmoid, cls_num);
   }
   detection::get_out_bbox(proposals, objects, nms_threshold, letterbox_rows, letterbox_cols, pic_height, pic_width);
+  std::string error;
+  if (!models::AssignLabelNames(labels, objects, error)) {
+    LOG_ERROR("{} Postprocess: {}", config_.model_type, error);
+    return -1;
+  }
   // detection::GetOutBbox(proposals, objects, nms_threshold, letterbox_rows,
   //                         letterbox_cols, pic_height, pic_width);
   return 0;
