@@ -149,6 +149,7 @@ set(PIPE_HAL_SRCS
 
 add_executable(ax_core
     apps/main_rtsp.cpp
+    plugin/scene_config.cpp
     plugin/plugin_registry.cpp
     plugin/plugin_loader.cpp
     plugins/face_recognition/face_plugin.cpp
@@ -263,5 +264,10 @@ option(AX_BUILD_TESTS "Build ax_core tests" OFF)
 if(AX_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
+
+configure_file(config.yaml "${CMAKE_BINARY_DIR}/config.yaml" COPYONLY)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/configs")
+configure_file(configs/scenes/face_recognition.yaml
+               "${CMAKE_BINARY_DIR}/configs/face_recognition.yaml" COPYONLY)
 
 # add_subdirectory(rules)

@@ -1,0 +1,21 @@
+version: 1
+scene:
+  name: face_recognition
+  library: "../plugins/libface_recognition.so"
+  api_version: 1
+  params:
+    frontal_score_thresh: 0.55
+    qdrant_collection: face_embeddings
+postprocessors:
+  - name: tracker
+    enabled: true
+    library: "../postprocessors/libtracker.so"
+    api_version: 1
+    params:
+      algorithm: bytetrack
+      track_labels: ["face"]
+      frame_rate: 25
+      track_buffer: 30
+      track_thresh: 0.5
+      high_thresh: 0.6
+      match_thresh: 0.8
