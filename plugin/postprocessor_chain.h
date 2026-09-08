@@ -23,6 +23,7 @@ public:
     int Process(PostProcessContext& context);
     void Unload();
     size_t Size() const;
+    const std::string& LastError() const;
 
 private:
     struct Loaded
@@ -34,7 +35,11 @@ private:
         DestroyPostProcessorFn destroy = nullptr;
     };
 
+    void SetStartupFailure(const ComponentConfig& config, const char* stage,
+                           const std::string& detail);
+
     std::vector<Loaded> loaded_;
+    std::string last_error_;
 };
 
 } // namespace plugin

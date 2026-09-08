@@ -30,6 +30,8 @@ add_postprocessor_fake(postprocessor_bad_version_fake
     fakes/postprocessor_bad_version.cpp)
 add_postprocessor_fake(postprocessor_no_factory_fake
     fakes/no_factory.cpp)
+add_postprocessor_fake(postprocessor_null_factory_fake
+    fakes/postprocessor_null_factory.cpp)
 
 add_ax_test(postprocessor_chain_test
     postprocessor_chain_test.cpp
@@ -38,10 +40,12 @@ add_dependencies(postprocessor_chain_test
     postprocessor_append_fake
     postprocessor_fail_fake
     postprocessor_bad_version_fake
-    postprocessor_no_factory_fake)
+    postprocessor_no_factory_fake
+    postprocessor_null_factory_fake)
 target_compile_definitions(postprocessor_chain_test PRIVATE
     POSTPROCESSOR_APPEND_PATH="$<TARGET_FILE:postprocessor_append_fake>"
     POSTPROCESSOR_FAIL_PATH="$<TARGET_FILE:postprocessor_fail_fake>"
     POSTPROCESSOR_BAD_VERSION_PATH="$<TARGET_FILE:postprocessor_bad_version_fake>"
-    POSTPROCESSOR_NO_FACTORY_PATH="$<TARGET_FILE:postprocessor_no_factory_fake>")
+    POSTPROCESSOR_NO_FACTORY_PATH="$<TARGET_FILE:postprocessor_no_factory_fake>"
+    POSTPROCESSOR_NULL_FACTORY_PATH="$<TARGET_FILE:postprocessor_null_factory_fake>")
 target_link_libraries(postprocessor_chain_test PRIVATE dl opencv_core)

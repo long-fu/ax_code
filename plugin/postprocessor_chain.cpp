@@ -11,17 +11,18 @@ namespace plugin
 namespace
 {
 
-void LogFailure(const ComponentConfig& config, const char* stage,
-                const std::string& detail)
+std::string FailureMessage(const std::string& name,
+                           const std::string& library_path,
+                           const char* stage, const std::string& detail)
 {
-    std::cerr << "PostProcessorChain: component='" << config.name
-              << "' path='" << config.library_path << "' stage='" << stage
-              << "' failed";
+    std::string message = "PostProcessorChain: component='" + name +
+                          "' path='" + library_path + "' stage='" + stage +
+                          "' failed";
     if (!detail.empty())
     {
-        std::cerr << ": " << detail;
+        message += ": " + detail;
     }
-    std::cerr << '\n';
+    return message;
 }
 
 void DestroyUnloaded(PostProcessor* processor, DestroyPostProcessorFn destroy,
@@ -44,9 +45,19 @@ PostProcessorChain::~PostProcessorChain()
     Unload();
 }
 
+void PostProcessorChain::SetStartupFailure(const ComponentConfig& config,
+                                           const char* stage,
+                                           const std::string& detail)
+{
+    last_error_ =
+        FailureMessage(config.name, config.library_path, stage, detail);
+    std::cerr << last_error_ << '\n';
+}
+
 int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
 {
     Unload();
+    last_error_.clear();
 
     for (const auto& config : configs)
     {
@@ -60,7 +71,8 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
         if (handle == nullptr)
         {
             const char* error = dlerror();
-            LogFailure(config, "dlopen", error == nullptr ? "unknown" : error);
+            SetStartupFailure(config, "dlopen",
+                              error == nullptr ? "unknown" : error);
             Unload();
             return -1;
         }
@@ -93,7 +105,7 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
             {
                 detail = "factory symbol resolved to null";
             }
-            LogFailure(config, "dlsym", detail);
+            SetStartupFailure(config, "dlsym", detail);
             dlclose(handle);
             Unload();
             return -1;
@@ -102,7 +114,7 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
         PostProcessor* processor = create();
         if (processor == nullptr)
         {
-            LogFailure(config, "create", "factory returned null");
+            SetStartupFailure(config, "create", "factory returned null");
             dlclose(handle);
             Unload();
             return -1;
@@ -110,10 +122,11 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
 
         if (config.api_version != kPostProcessorApiVersion)
         {
-            LogFailure(config, "config-api-version",
-                       "expected " +
-                           std::to_string(kPostProcessorApiVersion) +
-                           ", got " + std::to_string(config.api_version));
+            SetStartupFailure(config, "config-api-version",
+                              "expected " +
+                                  std::to_string(kPostProcessorApiVersion) +
+                                  ", got " +
+                                  std::to_string(config.api_version));
             DestroyUnloaded(processor, destroy, handle);
             Unload();
             return -1;
@@ -122,10 +135,11 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
         const uint32_t instance_version = processor->ApiVersion();
         if (instance_version != kPostProcessorApiVersion)
         {
-            LogFailure(config, "instance-api-version",
-                       "expected " +
-                           std::to_string(kPostProcessorApiVersion) +
-                           ", got " + std::to_string(instance_version));
+            SetStartupFailure(config, "instance-api-version",
+                              "expected " +
+                                  std::to_string(kPostProcessorApiVersion) +
+                                  ", got " +
+                                  std::to_string(instance_version));
             DestroyUnloaded(processor, destroy, handle);
             Unload();
             return -1;
@@ -134,8 +148,8 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
         const int init_result = processor->Init(config);
         if (init_result != 0)
         {
-            LogFailure(config, "init", "status " +
-                                           std::to_string(init_result));
+            SetStartupFailure(config, "init",
+                              "status " + std::to_string(init_result));
             DestroyUnloaded(processor, destroy, handle);
             Unload();
             return init_result;
@@ -155,14 +169,15 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
 
 int PostProcessorChain::Process(PostProcessContext& context)
 {
+    last_error_.clear();
     for (auto& loaded : loaded_)
     {
         const int result = loaded.processor->Process(context);
         if (result != 0)
         {
-            std::cerr << "PostProcessorChain: component='" << loaded.name
-                      << "' path='" << loaded.library_path
-                      << "' stage='process' failed: status " << result << '\n';
+            last_error_ = FailureMessage(loaded.name, loaded.library_path,
+                                         "process",
+                                         "status " + std::to_string(result));
             return result;
         }
     }
@@ -191,6 +206,11 @@ void PostProcessorChain::Unload()
 size_t PostProcessorChain::Size() const
 {
     return loaded_.size();
+}
+
+const std::string& PostProcessorChain::LastError() const
+{
+    return last_error_;
 }
 
 } // namespace plugin

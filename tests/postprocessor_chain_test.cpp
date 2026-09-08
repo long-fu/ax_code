@@ -119,10 +119,23 @@ void TestProcessStopsAtFirstFailure(int& failures)
     ImageData frame{};
     std::vector<detection::Object> objects(1);
     auto context = Context(frame, objects);
-    Expect(chain.Process(context) == -77,
+    std::ostringstream process_stderr;
+    std::streambuf* original_stderr = std::cerr.rdbuf(process_stderr.rdbuf());
+    const int process_result = chain.Process(context);
+    std::cerr.rdbuf(original_stderr);
+    Expect(process_result == -77,
            "Process returns the failing processor status", failures);
     Expect(objects[0].track_id == 1,
            "processors after the first failure do not run", failures);
+    Expect(process_stderr.str().empty(),
+           "Process failure does not write an unbounded per-frame log",
+           failures);
+    Expect(chain.LastError().find("component='failure'") != std::string::npos &&
+               chain.LastError().find("stage='process'") !=
+                   std::string::npos &&
+               chain.LastError().find("status -77") != std::string::npos,
+           "Process exposes processor identity, stage, and status to caller",
+           failures);
 }
 
 void TestDisabledProcessorIsSkipped(int& failures)
@@ -170,6 +183,21 @@ void TestLoadFailures(int& failures)
     Expect(chain.Size() == 0, "Init failure leaves an empty chain", failures);
 }
 
+void TestNullFactoryFailsLoad(int& failures)
+{
+    plugin::PostProcessorChain chain;
+    Expect(chain.Load(
+               {Config("null-factory", POSTPROCESSOR_NULL_FACTORY_PATH)}) != 0,
+           "null CreatePostProcessor result fails Load", failures);
+    Expect(chain.Size() == 0, "null factory leaves an empty chain", failures);
+    Expect(chain.LastError().find("component='null-factory'") !=
+                   std::string::npos &&
+               chain.LastError().find("stage='create'") != std::string::npos &&
+               chain.LastError().find("factory returned null") !=
+                   std::string::npos,
+           "null factory failure exposes useful startup context", failures);
+}
+
 void TestPartialLoadRollsBackInReverseOrder(const TempDir& temp,
                                             int& failures)
 {
@@ -209,6 +237,7 @@ int main()
     TestProcessStopsAtFirstFailure(failures);
     TestDisabledProcessorIsSkipped(failures);
     TestLoadFailures(failures);
+    TestNullFactoryFailsLoad(failures);
     TestPartialLoadRollsBackInReverseOrder(temp, failures);
 
     if (failures != 0)
