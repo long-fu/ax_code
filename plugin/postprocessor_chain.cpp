@@ -26,10 +26,14 @@ std::string FailureMessage(const std::string& name,
 }
 
 void DestroyUnloaded(PostProcessor* processor, DestroyPostProcessorFn destroy,
-                     void* handle)
+                     void* handle, bool init_invoked = false)
 {
     if (processor != nullptr && destroy != nullptr)
     {
+        if (init_invoked)
+        {
+            processor->Shutdown();
+        }
         destroy(processor);
     }
     if (handle != nullptr)
@@ -150,7 +154,7 @@ int PostProcessorChain::Load(const std::vector<ComponentConfig>& configs)
         {
             SetStartupFailure(config, "init",
                               "status " + std::to_string(init_result));
-            DestroyUnloaded(processor, destroy, handle);
+            DestroyUnloaded(processor, destroy, handle, true);
             Unload();
             return init_result;
         }

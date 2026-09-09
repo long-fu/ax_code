@@ -49,7 +49,8 @@ public:
     void DrawCircle(const ImageData& frame, int cx, int cy, int radius,
                     const YUVColor& color);
 
-    // 提交到宿主线程池。plugin_name 用于 per-plugin 在途计数。
+    // 提交到宿主线程池。业务插件必须传入其经宿主校验、与配置一致的 Name()；
+    // plugin_name 用于 per-plugin 在途计数和卸载前静默等待。
     // 队列满返回 false，不入队。
     bool SubmitAsync(const std::string& plugin_name, std::function<void()> fn);
     // timeout_ms < 0 表示无限等待。返回是否在超时前归零。

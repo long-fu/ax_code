@@ -51,7 +51,7 @@ class OkBusinessPlugin final : public BusinessPlugin
 public:
     const char* Name() const override
     {
-        return "business-ok";
+        return "scene";
     }
 
     uint32_t ApiVersion() const override

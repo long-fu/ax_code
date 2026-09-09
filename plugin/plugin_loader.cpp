@@ -17,10 +17,20 @@ void LogLoadFailure(const ComponentConfig& config, const char* stage,
 }
 
 void DestroyUnloaded(BusinessPlugin* plugin, DestroyPluginFn destroy,
-                     void* handle)
+                     void* handle, HostServices* host = nullptr,
+                     const std::string& canonical_name = {},
+                     bool init_invoked = false)
 {
     if (plugin != nullptr && destroy != nullptr)
     {
+        if (init_invoked)
+        {
+            if (host != nullptr)
+            {
+                host->WaitQuiesce(canonical_name, -1);
+            }
+            plugin->Shutdown();
+        }
         destroy(plugin);
     }
     if (handle != nullptr)
@@ -86,6 +96,22 @@ int PluginManager::Load(HostServices* host, const ComponentConfig& config)
         return -1;
     }
 
+    const char* actual_name_text = plugin->Name();
+    const std::string actual_name =
+        actual_name_text == nullptr ? "" : actual_name_text;
+    if (actual_name.empty() || actual_name != config.name)
+    {
+        const std::string display_name =
+            actual_name_text == nullptr
+                ? "<null>"
+                : (actual_name.empty() ? "<empty>" : actual_name);
+        LogLoadFailure(config, "name",
+                       "plugin name '" + display_name +
+                           "' does not match configured scene name");
+        DestroyUnloaded(plugin, destroy, handle);
+        return -1;
+    }
+
     if (config.api_version != kBusinessPluginApiVersion)
     {
         LogLoadFailure(config, "config-api-version",
@@ -118,7 +144,7 @@ int PluginManager::Load(HostServices* host, const ComponentConfig& config)
     {
         LogLoadFailure(config, "init",
                        "status " + std::to_string(init_result));
-        DestroyUnloaded(plugin, destroy, handle);
+        DestroyUnloaded(plugin, destroy, handle, host, config.name, true);
         return init_result;
     }
 

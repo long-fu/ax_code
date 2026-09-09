@@ -19,8 +19,12 @@ struct PluginConfig {
 
 inline constexpr uint32_t kBusinessPluginApiVersion = 1;
 
-// 业务插件：管线只把「帧 + 检测结果」交给插件。
-// OnFrame 在管线线程调用；异步工作必须走 HostServices::SubmitAsync。
+// 单个业务插件只读消费后处理完成的检测对象及外部生成的 track_id。
+// OnFrame 在管线线程调用；异步工作必须使用 Name() 作为
+// HostServices::SubmitAsync 的 plugin_name。宿主在 Init 前保证 Name() 非空且
+// 与配置名称一致，并在 Init 被调用后的所有退出路径先等待异步任务归零，再调用
+// Shutdown。即使 Init 返回失败，插件也必须允许 Shutdown 清理部分初始化状态；
+// Shutdown 必须幂等且不得假设 Init 已完整成功。
 class BusinessPlugin {
 public:
     virtual ~BusinessPlugin() = default;
@@ -31,7 +35,7 @@ public:
 
     virtual int Init(HostServices* host, const PluginConfig& cfg) = 0;
 
-    // objects 为 const：多插件共享同一帧时互不污染。需要 track_id 时自行拷贝。
+    // objects 为只读的后处理最终结果，track_id 由外部后处理器提供。
     virtual int OnFrame(const ImageData& frame,
                         const std::vector<detection::Object>& objects) = 0;
 

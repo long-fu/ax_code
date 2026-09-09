@@ -188,6 +188,7 @@ void TestStartupRollbackAndRepeatedShutdown(const TempDir& temp, int& failures)
                "processor-init:first\n"
                "processor-init:second\n"
                "init\n"
+               "shutdown\n"
                "destroy\n"
                "dlclose\n"
                "processor-shutdown:second\n"

@@ -226,6 +226,21 @@ void TestPartialLoadRollsBackInReverseOrder(const TempDir& temp,
            failures);
 }
 
+void TestFailedInitCleansPartialProcessorState(int& failures)
+{
+    const std::filesystem::path lifecycle =
+        POSTPROCESSOR_PARTIAL_INIT_LIFECYCLE;
+    std::filesystem::remove(lifecycle);
+    plugin::PostProcessorChain chain;
+    Expect(chain.Load({Config("partial-init-processor",
+                              POSTPROCESSOR_PARTIAL_INIT_PATH)}) == -66,
+           "partial processor Init failure status is returned", failures);
+    Expect(ReadFile(lifecycle) ==
+               "init-allocated\nshutdown-with-state\ndestroy\ndlclose\n",
+           "failed processor Init shuts down partial state before destroy and close",
+           failures);
+}
+
 } // namespace
 
 int main()
@@ -239,6 +254,7 @@ int main()
     TestLoadFailures(failures);
     TestNullFactoryFailsLoad(failures);
     TestPartialLoadRollsBackInReverseOrder(temp, failures);
+    TestFailedInitCleansPartialProcessorState(failures);
 
     if (failures != 0)
     {
