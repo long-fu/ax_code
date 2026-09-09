@@ -13,6 +13,7 @@
 #include "process_msg.h"
 #include "logger.h"
 #include "resource.h"
+#include "scene_config.h"
 
 static std::atomic<bool> g_running{true};
 static std::atomic<pipeline::TaskScheduler*> g_scheduler{nullptr};
@@ -46,6 +47,18 @@ void ExitPipeline(pipeline::TaskScheduler &app,
 {
   LOG_INFO("ExitPipeline {}", thread_tbl.size());
 
+  // 必须先停外部线程：app.Exit() 会销毁 TaskNodeMgr 并把 thread_list_ 元素
+  // 置空，而 size 保持不变，于是 SendMessage 的边界检查形同虚设，解码回调
+  // 会解引用空指针。StopSources() 同步返回后外部线程已 join。
+  for (size_t i = 0; i < thread_tbl.size(); i++)
+  {
+    if (thread_tbl[i].node == nullptr) {
+      continue;
+    }
+    thread_tbl[i].node->StopSources();
+  }
+  LOG_INFO("ExitPipeline sources stopped");
+
   // Stop and join worker threads before deleting TaskNode objects they use.
   app.Exit();
   LOG_INFO("app.Exit()");
@@ -64,8 +77,15 @@ void ExitPipeline(pipeline::TaskScheduler &app,
 
 int main(int argc, char const *argv[])
 {
-  (void)argc;
-  (void)argv;
+  const std::string app_config_path =
+      argc > 1 ? argv[1] : plugin::DefaultAppConfigPath();
+  std::string scene_config_path;
+  std::string config_error;
+  if (!plugin::LoadSceneConfigPath(app_config_path, scene_config_path,
+                                   config_error)) {
+    LOG_ERROR("load scene config path failed: {}", config_error);
+    return -1;
+  }
 
   // InitLogger("logs/app.log", spdlog::level::trace);
 
@@ -110,7 +130,7 @@ int main(int argc, char const *argv[])
 
   {
     pipeline::TaskNodeParam param;
-    param.node = new BusProcess();
+    param.node = new BusProcess(scene_config_path);
     param.node_name.assign("BusProcess");
     thread_tbl.push_back(param);
   }

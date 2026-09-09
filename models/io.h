@@ -35,7 +35,12 @@ namespace middleware
 {
     void FreeIoIndex(AX_ENGINE_IO_BUFFER_T *io_buf, size_t index);
 
+    // 释放 CMM 并把 io 复位为空状态，可安全重复调用。
     void FreeIo(AX_ENGINE_IO_T *io);
+
+    // 只 delete[] 数组并清零 io，不触碰 CMM。供 PrepareIo 的回滚路径使用
+    // （CMM 此时已由 FreeIoIndex 释放，再走 FreeIo 会二次释放）。
+    void ResetIo(AX_ENGINE_IO_T *io);
 
     int PrepareIo(AX_ENGINE_IO_INFO_T *info, AX_ENGINE_IO_T *io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy);
 

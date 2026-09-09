@@ -18,6 +18,17 @@ namespace middleware
         }
     }
 
+    // PrepareIo 失败后把 io_data 复位成"干净的空状态"。
+    // CMM 已由 FreeIoIndex 释放，但数组与 nInputSize/nOutputSize 仍然有效，
+    // 若不复位，调用方后续走 Destroy() -> FreeIo() 会对同一批缓冲二次
+    // AX_SYS_MemFree（双重释放）。复位后 FreeIo 可安全地重复调用。
+    void ResetIo(AX_ENGINE_IO_T* io)
+    {
+        delete[] io->pInputs;
+        delete[] io->pOutputs;
+        memset(io, 0, sizeof(*io));
+    }
+
     void FreeIo(AX_ENGINE_IO_T* io)
     {
         for (size_t j = 0; j < io->nInputSize; ++j)
@@ -30,20 +41,17 @@ namespace middleware
             AX_ENGINE_IO_BUFFER_T* pBuf = io->pOutputs + j;
             AX_SYS_MemFree(pBuf->phyAddr, pBuf->pVirAddr);
         }
-        
-        if(io->pInputs){
-            delete[] io->pInputs;
-        }
-        
-        if(io->pOutputs) {
-            delete[] io->pOutputs;
-        }
+
+        // 复位后本函数可安全重复调用（Engine::Init 的失败路径会走 Destroy()）
+        ResetIo(io);
     }
 
     int PrepareIo(AX_ENGINE_IO_INFO_T* info, AX_ENGINE_IO_T* io_data, INPUT_OUTPUT_ALLOC_STRATEGY strategy)
     {
         memset(io_data, 0, sizeof(*io_data));
-        io_data->pInputs = new AX_ENGINE_IO_BUFFER_T[info->nInputSize];
+        // 用 new T[n]() 零初始化：失败回滚路径会遍历整个数组，若残留 new[] 的
+        // 不定值，FreeIo 会拿垃圾指针去 AX_SYS_MemFree。
+        io_data->pInputs = new AX_ENGINE_IO_BUFFER_T[info->nInputSize]();
         io_data->nInputSize = info->nInputSize;
         // printf("info->nInputSize: %d\n", info->nInputSize);
         // INPUT
@@ -53,6 +61,7 @@ namespace middleware
             auto meta = info->pInputs[i];
             // printf("meta->nInputSize: %d\n", meta.nSize);
             auto buffer = &io_data->pInputs[i];
+            buffer->nSize = meta.nSize;
             if (strategy.first == AX_ENGINE_ABST_CACHED)
             {
                 ret = AX_SYS_MemAllocCached((AX_U64*)(&buffer->phyAddr), &buffer->pVirAddr, meta.nSize, AX_CMM_ALIGN_SIZE, (const AX_S8*)(AX_CMM_SESSION_NAME));
@@ -64,15 +73,16 @@ namespace middleware
 
             if (ret != 0)
             {
-                FreeIoIndex(io_data->pInputs, i);
                 LOG_ERROR("Allocate input{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
+                FreeIoIndex(io_data->pInputs, i);
+                ResetIo(io_data);
                 return ret;
             }
             LOG_INFO("Allocate input {} [ phy: {}, vir: {}, size: {} Bytes ]. ", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
         }
 
         //OUTPUT
-        io_data->pOutputs = new AX_ENGINE_IO_BUFFER_T[info->nOutputSize];
+        io_data->pOutputs = new AX_ENGINE_IO_BUFFER_T[info->nOutputSize]();
         io_data->nOutputSize = info->nOutputSize;
         for (AX_U32 i = 0; i < info->nOutputSize; ++i)
         {
@@ -92,6 +102,7 @@ namespace middleware
                 LOG_ERROR("Allocate output{} {{ phy: {}, vir: {}, size: {} Bytes }}. fail", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);
                 FreeIoIndex(io_data->pInputs, io_data->nInputSize);
                 FreeIoIndex(io_data->pOutputs, i);
+                ResetIo(io_data);
                 return ret;
             }
             LOG_INFO("Allocate output {} [ phy: {}, vir: {}, size: {} Bytes ].", i, (void*)buffer->phyAddr, buffer->pVirAddr, (long)meta.nSize);

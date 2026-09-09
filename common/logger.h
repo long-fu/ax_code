@@ -185,11 +185,16 @@ private:
     std::chrono::duration_cast<std::chrono::microseconds>( \
         X##_END - X##_START).count()
 
+#if 0
 #define TIME_USEC_SHOW(X)                               \
     do {                                                \
         std::cout << "Func " << #X << " cost : "        \
                   << TIME_USEC(X) << " us" << std::endl; \
     } while (0)
+#endif
+
+#define TIME_USEC_SHOW(X)                               \
+        LOG_INFO("Func {} cost : {} us",#X, TIME_USEC(X))
 
 #define TIME_MSEC(X) \
     std::chrono::duration_cast<std::chrono::milliseconds>( \

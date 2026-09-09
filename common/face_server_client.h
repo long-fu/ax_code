@@ -17,8 +17,8 @@ using Json = nlohmann::json;
 
 struct FaceServerConfig {
   std::string base_url = "http://127.0.0.1:8848";
-  std::string alerts_api_key;
-  std::string visitors_api_key;
+  std::string alerts_api_key = "d16f6b2fe30b552b4744dbe0157d26a13530632ef430f66e";
+  std::string visitors_api_key = "9e4c1a7b3f82d056e1c8a94b7d203f5e6a18c4b9d7e2f0a3";
   http::HttpConfig http;
 };
 
@@ -35,7 +35,7 @@ struct AlertPushRequest {
   std::string event_id;
   std::string org_id;
   std::string bank_id;
-  std::string event_time;  // YYYY-MM-DD HH:MM:SS or YYYYMMDD
+  std::string event_time;  // ISO-8601 UTC, e.g. 2026-08-21T08:33:00Z
   std::string event_name;
   std::string channel_name;
   std::string description;  // key required; value may be empty
@@ -51,7 +51,7 @@ struct VisitorPerson {
 };
 
 struct VisitorPushRequest {
-  std::string event_time;   // YYYY-MM-DD HH:MM:SS
+  std::string event_time;   // ISO-8601 UTC, e.g. 2026-08-21T08:33:00Z
   std::string camera_name;
   std::optional<std::string> msg_id;  // optional top-level default
   std::vector<VisitorPerson> persons;

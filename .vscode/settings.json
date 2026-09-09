@@ -1,5 +1,9 @@
 {
     "C_Cpp.default.compileCommands": 
     "${workspaceFolder}/build/compile_commands.json",
-    "C_Cpp.intelliSenseEngine": "disabled"
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "cursor.general.disableHttp2": true,
+    "http.proxy": "http://127.0.0.1:7892",
+    "http.proxySupport": "override",
+    "http.proxyStrictSSL": false
 }

@@ -2,6 +2,7 @@
 pipeline:
   rtsp_input: "rtsp://..."
   rtmp_output: "rtmp://..."
+  scene_config: "./configs/face_recognition.yaml"
 
 rules:
   - name: sample_rule

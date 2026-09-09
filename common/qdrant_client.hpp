@@ -17,7 +17,7 @@ using Json = nlohmann::json;
 // ------------------------- 配置 -------------------------
 
 struct QdrantConfig {
-  std::string host = "localhost";
+  std::string host = "192.168.137.112";
   int port = 6333;
   bool use_https = false;
   std::string api_key;  // 为空则不携带 api-key 头

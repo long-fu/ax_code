@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <mutex>
+#include "hw_id_allocator.h"
 #include "logger.h"
 #include "ax_vdec_api.h"
 #include "frame_data.h"
@@ -19,6 +20,10 @@
 #define AX_DEC_VALUE_2_STR_CASE(s32Ret) \
     case (s32Ret):                      \
         return (#s32Ret)
+
+// 接收线程单次取帧的等待上限。决定 StopDecode() 的最坏收敛时间，
+// 同时远大于 25fps 的 40ms 帧间隔，正常码流下不会因超时空转。
+static constexpr int kRecvFrameTimeoutMs = 200;
 
 static char s_str_unknown[16] = ("Unknown code");
 
@@ -97,6 +102,24 @@ const char* AX_VdecRetStr(AX_S32 value)
     }
 }
 
+VdecHelper::VdecHelper(AX_PAYLOAD_TYPE_E codec_type, AX_U32 frame_width,
+                       AX_U32 frame_height, int fps)
+    : codec_type_(codec_type),
+      frame_width_(frame_width),
+      frame_height_(frame_height),
+      fps_(fps)
+{
+    const int id = HwIdAllocator::Acquire(HwIdKind::kVdec);
+    if (id < 0)
+    {
+        LOG_ERROR("VdecHelper: acquire VDEC GRP failed");
+        return;
+    }
+    vd_grp_ = id;
+    id_owned_ = true;
+    LOG_INFO("Create VDEC GRP {}", vd_grp_);
+}
+
 /*
 ** ------------------------------- CONSTRUCTOR --------------------------------
 */
@@ -120,6 +143,12 @@ VdecHelper::~VdecHelper()
 
 int VdecHelper::Init()
 {
+    if (vd_grp_ < 0)
+    {
+        LOG_ERROR("VdecHelper::Init: no VDEC GRP allocated");
+        return -1;
+    }
+
     AX_S32 sRet = AX_SUCCESS;
 
     AX_U64 streamPhyAddr = 0;
@@ -262,25 +291,22 @@ void* VdecHelper::RecvStreamFunc(void* argv)
     VdecHelper* self = (VdecHelper*)argv;
     AX_VDEC_CHN VdChn = 0;
     AX_VDEC_GRP VdGrp = self->vd_grp_;
-    self->is_stop_.store(false);
     pthread_setname_np(pthread_self(), "VDECGet");
     while (!self->is_stop_)
     {
         AX_VIDEO_FRAME_INFO_T* frameInfo = new AX_VIDEO_FRAME_INFO_T();
         memset(frameInfo, 0x0, sizeof(AX_VIDEO_FRAME_INFO_T));
 
-        // 0：非阻塞 -1：阻塞；有限超时避免 StopDecode 时永久卡住
-        sRet = AX_VDEC_GetChnFrame(VdGrp, VdChn, frameInfo, -1);
+        // 用有限超时而非 -1(无限阻塞)：StopDecode() 里的 pthread_join 依赖本
+        // 循环能周期性回到 while 条件去看 is_stop_。若 StopRecvStream 没能唤醒
+        // GetChnFrame，无限阻塞会让 join 永久挂死，进程退不出去。
+        // 超时返回 AX_ERR_VDEC_QUEUE_EMPTY，按“无数据”正常处理。
+        sRet = AX_VDEC_GetChnFrame(VdGrp, VdChn, frameInfo, kRecvFrameTimeoutMs);
         // frameInfo->stVFrame.u64UserData
         if (sRet != AX_SUCCESS)
         {
-            LOG_ERROR("AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{:#x}, msg:{}", VdGrp, VdChn, (uint32_t)sRet, AX_VdecRetStr(sRet));
             // Never ReleaseChnFrame on a frame that was not successfully acquired.
             delete frameInfo;
-        }
-        else
-        {
-            // fprintf(stdout, "AX_VDEC_GetChnFrame AX_SUCCESS\n");
         }
 
         if (sRet == AX_SUCCESS)
@@ -328,9 +354,8 @@ void* VdecHelper::RecvStreamFunc(void* argv)
         }
         else if (sRet == AX_ERR_VDEC_QUEUE_EMPTY)
         {
-            // 队列中无数据
-            /* no data in unblock mode or timeout mode */
-            usleep(20 * 1000);
+            // 队列中无数据，也是上面有限超时到期的返回值。
+            // GetChnFrame 已经等过 kRecvFrameTimeoutMs，无需再 usleep。
             continue;
         }
         else if (sRet == AX_ERR_VDEC_UNEXIST)
@@ -352,10 +377,16 @@ void* VdecHelper::RecvStreamFunc(void* argv)
         else if (AX_ERR_VDEC_NOT_PERM == sRet)
         {
             // 操作不允许 硬件初始化中
+            usleep(20 * 1000);
             continue;
         }
         else
         {
+            // 未预期的错误码才记日志：上面那些"无数据/超时"分支在空闲时会正常
+            // 命中，若统一记 ERROR 会刷屏。
+            LOG_ERROR(
+                "AX_VDEC_GetChnFrame FAILED VdGrp:{} VdChn:{} code:{:#x}, msg:{}",
+                VdGrp, VdChn, (uint32_t)sRet, AX_VdecRetStr(sRet));
             break;
         }
     }
@@ -384,7 +415,18 @@ int VdecHelper::Decode(VdecProcessCallback callbac, void* user_data)
     user_data_ = user_data;
     // callback_mutex_.unlock();
 
-    pthread_create(&recv_tid_, nullptr, RecvStreamFunc, this);
+    // 必须在建线程前清标志。若放在 RecvStreamFunc 内部，一旦 StopDecode()
+    // 在线程真正开跑之前就把 is_stop_ 置了 true，线程反手又清成 false，
+    // 循环便永不退出，pthread_join 挂死。
+    is_stop_.store(false);
+
+    if (0 != pthread_create(&recv_tid_, nullptr, RecvStreamFunc, this))
+    {
+        LOG_ERROR("VdecHelper: pthread_create for recv thread failed VdGrp:{}",
+                  vd_grp_);
+        return -1;
+    }
+    recv_started_ = true;
 
     return 0;
 }
@@ -398,27 +440,32 @@ int VdecHelper::StopDecode()
     AX_S32 sRet;
 
     sRet = AX_VDEC_StopRecvStream(vd_grp_);
-    if (sRet)
+    if (sRet != AX_SUCCESS && sRet != AX_ERR_VDEC_UNEXIST)
     {
-        if (sRet == AX_ERR_VDEC_UNEXIST)
-        {
-            return 0;
-        }
+        LOG_ERROR("AX_VDEC_StopRecvStream FAILED VdGrp:{} code:{:#x}, msg:{}",
+                  vd_grp_, (uint32_t)sRet, AX_VdecRetStr(sRet));
     }
 
-    void* res = nullptr;
-    int joinThreadErr = pthread_join(recv_tid_, &res);
-    if (joinThreadErr)
+    // 无论 StopRecvStream 结果如何都必须 join。此前 UNEXIST 会提前 return，
+    // 接收线程没被回收，随后 delete vdec_ 就变成对仍在解引用 self 的
+    // RecvStreamFunc 的 use-after-free。
+    if (recv_started_)
     {
-        LOG_ERROR("Join thread failed, threadId = {}, err = {:#x}",
-                  recv_tid_, joinThreadErr);
-    }
-    else
-    {
-        if ((uint64_t)res != 0)
+        void* res = nullptr;
+        int joinThreadErr = pthread_join(recv_tid_, &res);
+        if (joinThreadErr)
         {
-            LOG_ERROR("thread run failed. ret is {}", (uint64_t)res);
+            LOG_ERROR("Join thread failed, threadId = {}, err = {:#x}",
+                      recv_tid_, joinThreadErr);
         }
+        else
+        {
+            if ((uint64_t)res != 0)
+            {
+                LOG_ERROR("thread run failed. ret is {}", (uint64_t)res);
+            }
+        }
+        recv_started_ = false;
     }
     // 等待线程退出
 
@@ -474,6 +521,15 @@ int VdecHelper::Write(void* data, size_t data_size, void* user_data)
 {
     int sRet;
     AX_VDEC_STREAM_T tStrInfo = {0};
+
+    // buf_addr_ 是 CMM 连续物理内存，越界会静默覆写相邻硬件 pool，
+    // 症状出现在其他 stage 且无日志可循，故此处必须拦下。
+    if (data == nullptr || data_size == 0 || data_size > buf_size_)
+    {
+        LOG_ERROR("VdecHelper::Write 码流长度非法 VdGrp:{}, size:{}, buf:{}",
+                  vd_grp_, data_size, buf_size_);
+        return -1;
+    }
 
     memset(buf_addr_.pVirAddr, 0x0, data_size);
     memcpy(buf_addr_.pVirAddr, data, data_size);
@@ -550,17 +606,25 @@ int VdecHelper::Write(void* data, size_t data_size, void* user_data)
 #endif
 int VdecHelper::Destory()
 {
-    AX_S32 sRet;
-
-    while (1)
+    if (destroyed_)
     {
-        sRet = AX_VDEC_DestroyGrp(vd_grp_);
-        if (sRet == AX_ERR_VDEC_BUSY)
+        return 0;
+    }
+    destroyed_ = true;
+
+    AX_S32 sRet = AX_SUCCESS;
+    if (vd_grp_ >= 0)
+    {
+        while (1)
         {
-            usleep(10000);
-            continue;
+            sRet = AX_VDEC_DestroyGrp(vd_grp_);
+            if (sRet == AX_ERR_VDEC_BUSY)
+            {
+                usleep(10000);
+                continue;
+            }
+            break;
         }
-        break;
     }
 
     if (buf_addr_.u64PhyAddr != 0)
@@ -575,10 +639,16 @@ int VdecHelper::Destory()
             buf_addr_.pVirAddr = 0;
         }
     }
-    else
+    else if (buf_addr_.pVirAddr != 0)
     {
         free(buf_addr_.pVirAddr);
         buf_addr_.pVirAddr = 0;
+    }
+
+    if (id_owned_)
+    {
+        HwIdAllocator::Release(HwIdKind::kVdec, vd_grp_);
+        id_owned_ = false;
     }
     return sRet;
 };

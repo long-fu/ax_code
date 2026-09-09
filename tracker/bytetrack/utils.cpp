@@ -1,8 +1,8 @@
-#include "byte_tracker.h"
+#include "BYTETracker.h"
 #include "lapjv.h"
 #include "logger.h"
 
-std::vector<STrack*> ByteTracker::JointStracks( std::vector<STrack*> &tlista,  std::vector<STrack> &tlistb)
+std::vector<STrack*> BYTETracker::joint_stracks( std::vector<STrack*> &tlista,  std::vector<STrack> &tlistb)
 {
     std::map<int, int> exists;
     std::vector<STrack*> res;
@@ -23,7 +23,7 @@ std::vector<STrack*> ByteTracker::JointStracks( std::vector<STrack*> &tlista,  s
     return res;
 }
 
-std::vector<STrack> ByteTracker::JointStracks( std::vector<STrack> &tlista,  std::vector<STrack> &tlistb)
+std::vector<STrack> BYTETracker::joint_stracks( std::vector<STrack> &tlista,  std::vector<STrack> &tlistb)
 {
     std::map<int, int> exists;
     std::vector<STrack> res;
@@ -44,7 +44,7 @@ std::vector<STrack> ByteTracker::JointStracks( std::vector<STrack> &tlista,  std
     return res;
 }
 
-std::vector<STrack> ByteTracker::SubStracks( std::vector<STrack> &tlista,  std::vector<STrack> &tlistb)
+std::vector<STrack> BYTETracker::sub_stracks( std::vector<STrack> &tlista,  std::vector<STrack> &tlistb)
 {
     std::map<int, STrack> stracks;
     for (int i = 0; i < tlista.size(); i++)
@@ -70,7 +70,7 @@ std::vector<STrack> ByteTracker::SubStracks( std::vector<STrack> &tlista,  std::
     return res;
 }
 
-void ByteTracker::RemoveDuplicateStracks( std::vector<STrack> &resa,  std::vector<STrack> &resb,  std::vector<STrack> &stracksa,  std::vector<STrack> &stracksb)
+void BYTETracker::remove_duplicate_stracks( std::vector<STrack> &resa,  std::vector<STrack> &resb,  std::vector<STrack> &stracksa,  std::vector<STrack> &stracksb)
 {
     std::vector< std::vector<float> > pdist = iou_distance(stracksa, stracksb);
     std::vector<std::pair<int, int> > pairs;
@@ -98,7 +98,7 @@ void ByteTracker::RemoveDuplicateStracks( std::vector<STrack> &resa,  std::vecto
 
     for (int i = 0; i < stracksa.size(); i++)
     {
-        std::vector<int>::iterator iter = std::find(dupa.begin(), dupa.end(), i);
+        std::vector<int>::iterator iter = find(dupa.begin(), dupa.end(), i);
         if (iter == dupa.end())
         {
             resa.push_back(stracksa[i]);
@@ -107,7 +107,7 @@ void ByteTracker::RemoveDuplicateStracks( std::vector<STrack> &resa,  std::vecto
 
     for (int i = 0; i < stracksb.size(); i++)
     {
-        std::vector<int>::iterator iter = std::find(dupb.begin(), dupb.end(), i);
+        std::vector<int>::iterator iter = find(dupb.begin(), dupb.end(), i);
         if (iter == dupb.end())
         {
             resb.push_back(stracksb[i]);
@@ -115,7 +115,7 @@ void ByteTracker::RemoveDuplicateStracks( std::vector<STrack> &resa,  std::vecto
     }
 }
 
-void ByteTracker::LinearAssignment( std::vector< std::vector<float> > &cost_matrix, int cost_matrix_size, int cost_matrix_size_size, float thresh,
+void BYTETracker::linear_assignment( std::vector< std::vector<float> > &cost_matrix, int cost_matrix_size, int cost_matrix_size_size, float thresh,
                                      std::vector< std::vector<int> > &matches,  std::vector<int> &unmatched_a,  std::vector<int> &unmatched_b)
 {
     if (cost_matrix.size() == 0)
@@ -157,7 +157,7 @@ void ByteTracker::LinearAssignment( std::vector< std::vector<float> > &cost_matr
     }
 }
 
-std::vector< std::vector<float> > ByteTracker::Ious( std::vector< std::vector<float> > &atlbrs,  std::vector< std::vector<float> > &btlbrs)
+std::vector< std::vector<float> > BYTETracker::ious( std::vector< std::vector<float> > &atlbrs,  std::vector< std::vector<float> > &btlbrs)
 {
     std::vector< std::vector<float> > ious;
     if (atlbrs.size()*btlbrs.size() == 0)
@@ -200,7 +200,7 @@ std::vector< std::vector<float> > ByteTracker::Ious( std::vector< std::vector<fl
     return ious;
 }
 
-std::vector< std::vector<float> > ByteTracker::IouDistance( std::vector<STrack*> &atracks,  std::vector<STrack> &btracks, int &dist_size, int &dist_size_size)
+std::vector< std::vector<float> > BYTETracker::iou_distance( std::vector<STrack*> &atracks,  std::vector<STrack> &btracks, int &dist_size, int &dist_size_size)
 {
     std::vector< std::vector<float> > cost_matrix;
     if (atracks.size() * btracks.size() == 0)
@@ -237,7 +237,7 @@ std::vector< std::vector<float> > ByteTracker::IouDistance( std::vector<STrack*>
     return cost_matrix;
 }
 
-std::vector< std::vector<float> > ByteTracker::IouDistance( std::vector<STrack> &atracks,  std::vector<STrack> &btracks)
+std::vector< std::vector<float> > BYTETracker::iou_distance( std::vector<STrack> &atracks,  std::vector<STrack> &btracks)
 {
     std::vector< std::vector<float> > atlbrs, btlbrs;
     for (int i = 0; i < atracks.size(); i++)
@@ -264,7 +264,7 @@ std::vector< std::vector<float> > ByteTracker::IouDistance( std::vector<STrack> 
     return cost_matrix;
 }
 
-double ByteTracker::Lapjv(const  std::vector< std::vector<float> > &cost,  std::vector<int> &rowsol,  std::vector<int> &colsol,
+double BYTETracker::lapjv(const  std::vector< std::vector<float> > &cost,  std::vector<int> &rowsol,  std::vector<int> &colsol,
                           bool extend_cost, float cost_limit, bool return_cost)
 {
     std::vector< std::vector<float> > cost_c;
@@ -286,9 +286,16 @@ double ByteTracker::Lapjv(const  std::vector< std::vector<float> > &cost,  std::
     {
         if (!extend_cost)
         {
-            LOG_ERROR("set extend_cost=True");
-            system("pause");
-            exit(0);
+            // 当前调用方恒传 extend_cost=true（见 linear_assignment），此分支
+            // 不可达；但把 exit 留在库代码里，将来新增调用点就会变成进程级杀手。
+            // 与下方失败路径一致：放弃本帧匹配，而不是终止进程。
+            LOG_ERROR("lapjv 需要 extend_cost=true (n_rows={} n_cols={})",
+                      n_rows, n_cols);
+            for (int i = 0; i < n_rows; i++)
+                rowsol[i] = -1;
+            for (int i = 0; i < n_cols; i++)
+                colsol[i] = -1;
+            return 0.0;
         }
     }
 
@@ -348,10 +355,13 @@ double ByteTracker::Lapjv(const  std::vector< std::vector<float> > &cost,  std::
         cost_c.assign(cost_c_extended.begin(), cost_c_extended.end());
     }
 
+    // 原实现写成 new double*[sizeof(double*) * n]，把 sizeof 当成了长度的一部分，
+    // 64 位平台上每次多分配 8 倍。循环只用 [0, n) 故不越界，但 linear_assignment
+    // 每帧调用 3 次，等于持续制造 8 倍的分配/释放抖动。
     double **cost_ptr;
-    cost_ptr = new double *[sizeof(double *) * n];
+    cost_ptr = new double *[n];
     for (int i = 0; i < n; i++)
-        cost_ptr[i] = new double[sizeof(double) * n];
+        cost_ptr[i] = new double[n];
 
     for (int i = 0; i < n; i++)
     {
@@ -361,15 +371,29 @@ double ByteTracker::Lapjv(const  std::vector< std::vector<float> > &cost,  std::
         }
     }
 
-    int* x_c = new int[sizeof(int) * n];
-    int *y_c = new int[sizeof(int) * n];
+    int* x_c = new int[n];
+    int *y_c = new int[n];
 
     int ret = lapjv_internal(n, cost_ptr, x_c, y_c);
     if (ret != 0)
     {
-        LOG_ERROR("Calculate Wrong!");
-        system("pause");
-        exit(0);
+        // lapjv_internal 只在 malloc 失败时返回非 0（见 lapjv.h 的 NEW 宏），
+        // 没有算法性失败分支。原实现在此 system("pause") + exit(0)：前者在
+        // Linux 上无意义，后者用退出码 0 杀掉整个视频服务——退出码 0 会让
+        // supervisor 误判为正常退出而不触发重启，比崩溃更难发现。
+        // 改为放弃本帧匹配：全部置 -1，上层按"全未匹配"处理（轨迹转入 lost、
+        // 检测另起新轨），下一帧内存恢复后自然回到正常匹配。
+        LOG_ERROR("lapjv_internal 失败(ret={} n={})，本帧放弃匹配", ret, n);
+        for (int i = 0; i < n_rows; i++)
+            rowsol[i] = -1;
+        for (int i = 0; i < n_cols; i++)
+            colsol[i] = -1;
+        for (int i = 0; i < n; i++)
+            delete[] cost_ptr[i];
+        delete[] cost_ptr;
+        delete[] x_c;
+        delete[] y_c;
+        return 0.0;
     }
 
     double opt = 0.0;
@@ -423,7 +447,7 @@ double ByteTracker::Lapjv(const  std::vector< std::vector<float> > &cost,  std::
     return opt;
 }
 
-cv::Scalar ByteTracker::GetColor(int idx)
+cv::Scalar BYTETracker::get_color(int idx)
 {
     idx += 3;
     return cv::Scalar(37 * idx % 255, 17 * idx % 255, 29 * idx % 255);

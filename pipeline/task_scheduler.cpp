@@ -110,15 +110,23 @@ int TaskScheduler::TaskNodeIdByName(const std::string& node_name) {
 
 TaskError TaskScheduler::SendMessage(int dest, int msg_id,
                                      std::shared_ptr<void> data) {
-    if (static_cast<uint32_t>(dest) >= thread_list_.size()) {
+    if (dest < 0 || static_cast<uint32_t>(dest) >= thread_list_.size()) {
         PIPELINE_LOG_ERROR("Send message to {} failed for node not exist", dest);
+        return kDestInvalid;
+    }
+    // ReleaseThreads() 把元素置空但不缩小 thread_list_，故上面的边界检查拦不住
+    // 已释放的槽位。正常关机路径由 TaskNode::StopSources() 保证外部线程先停，
+    // 这里只是兜底：若本分支被命中，说明还有未纳管的外部线程。
+    TaskNodeMgr* mgr = thread_list_[dest];
+    if (mgr == nullptr) {
+        PIPELINE_LOG_ERROR("Send message to {} failed for node released", dest);
         return kDestInvalid;
     }
     auto message = std::make_shared<TaskMessage>();
     message->dest = dest;
     message->msg_id = msg_id;
     message->data = data;
-    return thread_list_[dest]->PushMessage(message);
+    return mgr->PushMessage(message);
 }
 
 void TaskScheduler::Wait() {

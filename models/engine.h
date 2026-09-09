@@ -17,6 +17,9 @@ class Engine {
   virtual int Init();
   virtual int Destroy();
 
+  // Init 成功且尚未 Destroy。Process 会先自查，调用方一般无需关心。
+  bool IsReady() const;
+
   int Process(const std::vector<uint8_t>& data);
   int Process(const uint8_t* data, size_t size);
 

@@ -14,13 +14,8 @@ typedef int (*VencProcessCallback)(AX_VENC_STREAM_T streamData, int chn,
 
 class VencHelper {
  public:
-  VencHelper(VENC_CHN ve_chn, int picture_width, int picture_height,
-             float src_frame_rate, float dst_frame_rate)
-      : chn_(ve_chn),
-        picture_width_(picture_width),
-        picture_height_(picture_height),
-        src_frame_rate_(src_frame_rate),
-        dst_frame_rate_(dst_frame_rate) {}
+  VencHelper(int picture_width, int picture_height, float src_frame_rate,
+             float dst_frame_rate);
 
   int Init();
   int Encode(VencProcessCallback callback, void* user_data);
@@ -46,7 +41,9 @@ class VencHelper {
  private:
   static void* VencRecvThreadFunc(void* argv);
 
-  VENC_CHN chn_;
+  VENC_CHN chn_{-1};
+  bool id_owned_{false};
+  bool destroyed_{false};
   int picture_width_;
   int picture_height_;
   int src_frame_rate_;

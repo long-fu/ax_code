@@ -6,6 +6,7 @@
 #include "ax_buffer_tool.h"
 
 #include "logger.h"
+#include <cstdint>
 #define AX_SHIFT_LEFT_ALIGN(a) (1 << (a))
 
 #define AX_VDEC_WIDTH_ALIGN AX_SHIFT_LEFT_ALIGN(8)
@@ -16,6 +17,27 @@
 #define STREAM_BUFFER_MAX_SIZE (3 * 1024 * 1024)
 
 #define ALIGN_UP(x, align) (((x) + ((align) - 1)) & ~((align) - 1))
+
+namespace {
+
+static AX_S32 MallocJpegOutBuffer(AX_JPEG_ENCODE_ONCE_PARAMS_T* pStJpegEncodeOnceParam, AX_U32 frameSize) {
+    AX_U64 phyBuff = 0;
+    AX_VOID* virBuff = NULL;
+    AX_S32 s32Ret = AX_SUCCESS;
+
+    s32Ret = AX_SYS_MemAlloc(&phyBuff, &virBuff, frameSize, 0, (AX_S8 *)"JENC_ONCE");
+    if (s32Ret != 0) {
+        // LOG_MM_E(CAPTURE, "alloc mem err, size(%d).\n", frameSize);
+        return s32Ret;
+    }
+
+    pStJpegEncodeOnceParam->u32Len = frameSize;
+    pStJpegEncodeOnceParam->ulPhyAddr = phyBuff;
+    pStJpegEncodeOnceParam->pu8Addr = (AX_U8 *)virBuff;
+
+    return AX_SUCCESS;
+}
+}
 
 typedef struct axSAMPLE_STREAM_BUF_T
 {
@@ -841,9 +863,10 @@ int JpegHelp::JpegDecode(AX_VIDEO_FRAME_INFO_T **tempImage,const std::string &fi
     return ret;
 }
 
+
 /// @brief 把Image编码成Jpeg格式的图片
 /// @param dest
-/// @param src
+/// @param src 支持YUV数据转换
 /// @return
 int JpegHelp::JpegEncode(std::vector<uint8_t> &dest, AX_VIDEO_FRAME_INFO_T* src)
 {
@@ -860,53 +883,72 @@ int JpegHelp::JpegEncode(std::vector<uint8_t> &dest, AX_VIDEO_FRAME_INFO_T* src)
 	AX_VIDEO_FRAME_INFO_T stFrame = *src;
 
 	picFormat = stFrame.stVFrame.enImgFormat;
-	input_width = stFrame.stVFrame.u32Width;
-	input_height = stFrame.stVFrame.u32Height;
+    
+    // 正常逻辑外面都已经对齐
+    input_width = ALIGN_UP(stFrame.stVFrame.u32Width, 2);
+	input_height = ALIGN_UP(stFrame.stVFrame.u32Height, 2);
 
-	if (stFrame.stVFrame.u32FrameSize == 0)
-	{
-		frameSize = CalcImgSize(stFrame.stVFrame.u32PicStride[0], stFrame.stVFrame.u32Width,
-								stFrame.stVFrame.u32Height, stFrame.stVFrame.enImgFormat, 16);
-	}
-	else
-	{
-		frameSize = stFrame.stVFrame.u32FrameSize;
-	}
+    // LOG_INFO("JpegEncode frame info {} {} {} {}",(int)picFormat,input_width,input_height,stFrame.stVFrame.u32FrameSize);
+	
+    // if (stFrame.stVFrame.u32FrameSize == 0)
+	// {
+	// 	frameSize = CalcImgSize(stFrame.stVFrame.u32PicStride[0], stFrame.stVFrame.u32Width,
+	// 							stFrame.stVFrame.u32Height, stFrame.stVFrame.enImgFormat, 16);
+	// }
+	// else
+	// {
+	// 	frameSize = stFrame.stVFrame.u32FrameSize;
+	// }
 
-	if (frameSize == 0)
-	{
-		return -1;
-	}
+	// if (frameSize == 0)
+	// {
+	// 	return -1;
+	// }
 
 	stJpegEncodeOnceParam.stJpegParam.u32Qfactor = 90;
 	stJpegEncodeOnceParam.u32Width = input_width;
 	stJpegEncodeOnceParam.u32Height = input_height;
 	stJpegEncodeOnceParam.enImgFormat = picFormat;
 
-	stJpegEncodeOnceParam.enStrmBufType = AX_STREAM_BUF_NON_CACHE;
+	stJpegEncodeOnceParam.enStrmBufType = AX_STREAM_BUF_CACHE;
 
-	AX_U64 phyBuff = 0;
-	AX_VOID *virBuff = NULL;
+	// AX_U64 phyBuff = 0;
+	// AX_VOID *virBuff = NULL;
 
-	s32Ret = AX_SYS_MemAlloc(&phyBuff, &virBuff, frameSize, 0, (AX_S8 *)MEM_TOKEN);
-	if (s32Ret)
-	{
-		return s32Ret;
-	}
+	// s32Ret = AX_SYS_MemAlloc(&phyBuff, &virBuff, frameSize, 0, (AX_S8 *)MEM_TOKEN);
+	// if (s32Ret)
+	// {
+    //     LOG_ERROR("JpegEncode AX_SYS_MemAlloc {}", static_cast<uint32_t>(s32Ret));
+	// 	return s32Ret;
+	// }
+    
+    // LOG_INFO("Jpeg u32Len {}", frameSize);
 
 	stJpegEncodeOnceParam.u32Len = frameSize;
-	stJpegEncodeOnceParam.ulPhyAddr = phyBuff;
-	stJpegEncodeOnceParam.pu8Addr = (AX_U8 *)virBuff;
-
+	// stJpegEncodeOnceParam.ulPhyAddr = phyBuff;
+	// stJpegEncodeOnceParam.pu8Addr = (AX_U8 *)virBuff;
+    stJpegEncodeOnceParam.stCompressInfo = stFrame.stVFrame.stCompressInfo;
 	for (int i = 0; i < 3; i++)
 	{
 		stJpegEncodeOnceParam.u64PhyAddr[i] = stFrame.stVFrame.u64PhyAddr[i];
 		stJpegEncodeOnceParam.u32PicStride[i] = stFrame.stVFrame.u32PicStride[i];
+        stJpegEncodeOnceParam.u32HeaderSize[i] = stFrame.stVFrame.u32HeaderSize[i];
 	}
+
+    s32Ret = MallocJpegOutBuffer(&stJpegEncodeOnceParam, stFrame.stVFrame.u32FrameSize);
+    if (AX_SUCCESS != s32Ret) {
+        // if (AX_SUCCESS == AX_VENC_JpegEncodeOneFrame(&stJpegEncodeOnceParam)) {
+        //     // const AX_U32 uDataSize = stJpegEncodeOnceParam.u32Len;
+        //     // pSnapshotData->second(stJpegEncodeOnceParam.pu8Addr, uDataSize);
+        // }
+        // AX_SYS_MemFree(stJpegEncodeOnceParam.ulPhyAddr, stJpegEncodeOnceParam.pu8Addr);
+        goto EXIT;
+    }    
 
 	s32Ret = AX_VENC_JpegEncodeOneFrame(&stJpegEncodeOnceParam);
 	if (AX_SUCCESS != s32Ret)
 	{
+        LOG_ERROR("AX_VENC_JpegEncodeOneFrame = 0x{:08X}", static_cast<uint32_t>(s32Ret));
 		goto EXIT;
 	}
 
@@ -917,8 +959,8 @@ EXIT:
 
 	if (stJpegEncodeOnceParam.ulPhyAddr && (NULL != stJpegEncodeOnceParam.pu8Addr))
 	{
-		s32Ret = AX_SYS_MemFree(stJpegEncodeOnceParam.ulPhyAddr, stJpegEncodeOnceParam.pu8Addr);
-		if (s32Ret != AX_SUCCESS)
+		auto tmp_ret = AX_SYS_MemFree(stJpegEncodeOnceParam.ulPhyAddr, stJpegEncodeOnceParam.pu8Addr);
+		if (tmp_ret != AX_SUCCESS)
 		{
 		}
 		else

@@ -19,6 +19,18 @@ public:
         return kOk;
     }
 
+    // 停止本节点自行创建的外部线程（解码回调线程等）。
+    //
+    // 由 ExitPipeline 在 TaskScheduler::Exit() **之前**同步调用：Exit() 会销毁
+    // TaskNodeMgr 并把 thread_list_ 元素置空（size 不变），此后外部线程再调
+    // SendMessage 会通过边界检查后解引用空指针。
+    //
+    // 实现要求：同步返回（返回后相关线程必须已 join），且幂等（析构会再调一次）。
+    //
+    // 只有管线**头部**（外部数据来源）需要覆写。尾部节点（如 EncProcess）不应在
+    // 此停止编码器，否则 Exit() 期间上游仍在排空队列，会往已停止的编码器投数据。
+    virtual void StopSources() {}
+
     virtual int Process(int msg_id, std::shared_ptr<void> msg_data) = 0;
 
     int InstanceId() const {

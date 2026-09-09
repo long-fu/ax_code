@@ -14,7 +14,7 @@ class EncProcess : public pipeline::TaskNode
 public:
     EncProcess(const std::string& rtmp, FFmpegDecoder* ff_decoder)
     {
-        venc_ = new VencHelper(0, ff_decoder->GetFrameWidth(),
+        venc_ = new VencHelper(ff_decoder->GetFrameWidth(),
                                ff_decoder->GetFrameHeight(), 25, 25);
         ff_encoder_ = new FFmpegEncoder(
             rtmp, 25, ff_decoder->GetFrameWidth(), ff_decoder->GetFrameHeight(),
