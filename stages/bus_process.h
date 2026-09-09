@@ -14,6 +14,7 @@
 
 #include "host_services.h"
 #include "bus_process_dispatch.h"
+#include "failure_rate_limiter.h"
 #include "scene_config.h"
 #include "scene_runtime.h"
 
@@ -141,65 +142,37 @@ public:
     }
 
 private:
-    struct FailureStreak
+    void ReportFailure(FailureRateLimiter& failure, const char* stage,
+                       int code)
     {
-        uint64_t streak = 0;
-        uint64_t total = 0;
-        std::chrono::steady_clock::time_point started;
-        std::chrono::steady_clock::time_point last_log;
-        int last_code = 0;
-    };
-
-    void ReportFailure(FailureStreak& failure, const char* stage, int code)
-    {
-        const auto now = std::chrono::steady_clock::now();
-        ++failure.total;
-        if (failure.streak == 0)
+        const auto report =
+            failure.OnFailure(code, std::chrono::steady_clock::now());
+        if (report.event == FailureReportEvent::kFirst)
         {
             LOG_ERROR("BusProcess: {} failed ret={}, start skipping frames",
-                      stage, code);
-            failure.started = now;
-            failure.last_log = now;
-            failure.last_code = code;
+                      stage, report.latest_code);
         }
-        else if (failure.last_code != code)
+        else if (report.event == FailureReportEvent::kSummary)
         {
             LOG_ERROR(
-                "BusProcess: {} failure code changed ret={} -> ret={}, start new streak",
-                stage, failure.last_code, code);
-            failure.streak = 0;
-            failure.started = now;
-            failure.last_log = now;
-            failure.last_code = code;
+                "BusProcess: {} continuously failed for {} seconds, skipped {} frames, latest ret={}, code changed {} times",
+                stage, report.duration_seconds, report.episode_failures,
+                report.latest_code, report.code_changes);
         }
-        else if (now - failure.last_log >= kFailLogInterval)
-        {
-            const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
-                                     now - failure.started)
-                                     .count();
-            LOG_ERROR(
-                "BusProcess: {} continuously failed ret={} for {} seconds, skipped {} frames (total {})",
-                stage, failure.last_code, seconds, failure.streak,
-                failure.total);
-            failure.last_log = now;
-        }
-        ++failure.streak;
     }
 
-    void ReportRecovered(FailureStreak& failure, const char* stage)
+    void ReportRecovered(FailureRateLimiter& failure, const char* stage)
     {
-        if (failure.streak == 0)
+        const auto report =
+            failure.OnRecovery(std::chrono::steady_clock::now());
+        if (report.event != FailureReportEvent::kRecovery)
         {
             return;
         }
-        const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
-                                 std::chrono::steady_clock::now() -
-                                 failure.started)
-                                 .count();
         LOG_WARN(
-            "BusProcess: {} recovered after {} seconds, skipped {} frames (total {})",
-            stage, seconds, failure.streak, failure.total);
-        failure.streak = 0;
+            "BusProcess: {} recovered after {} seconds, skipped {} frames, latest ret={}, code changed {} times",
+            stage, report.duration_seconds, report.episode_failures,
+            report.latest_code, report.code_changes);
     }
 
     void ReportResult(const plugin::SceneProcessResult& result)
@@ -237,7 +210,7 @@ private:
     plugin::SceneRuntime runtime_;
     int next_thread_id_ = -1;
     uint64_t frame_seq_ = 0;
-    FailureStreak postprocessor_failure_;
-    FailureStreak business_failure_;
+    FailureRateLimiter postprocessor_failure_{kFailLogInterval};
+    FailureRateLimiter business_failure_{kFailLogInterval};
     bool shutdown_ = false;
 };

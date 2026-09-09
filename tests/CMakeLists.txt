@@ -106,3 +106,6 @@ target_link_libraries(scene_runtime_test PRIVATE ax_runtime dl opencv_core)
 
 add_ax_test(bus_process_dispatch_test
     bus_process_dispatch_test.cpp)
+
+add_ax_test(failure_rate_limiter_test
+    failure_rate_limiter_test.cpp)
