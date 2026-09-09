@@ -1,21 +1,33 @@
 #include "BYTETracker.h"
-#include <fstream>
 
-BYTETracker::BYTETracker(int frame_rate, int track_buffer)
+BYTETracker::BYTETracker(const BYTETrackerConfig& config)
 {
-	track_thresh = 0.5;
-	high_thresh = 0.6;
-	match_thresh = 0.8;
+	track_thresh = config.track_thresh;
+	high_thresh = config.high_thresh;
+	match_thresh = config.match_thresh;
 
 	frame_id = 0;
-	max_time_lost = int(frame_rate / 30.0 * track_buffer);
+	max_time_lost =
+		int(config.frame_rate / 30.0 * config.track_buffer);
+}
+
+BYTETracker::BYTETracker(int frame_rate, int track_buffer)
+	: BYTETracker(BYTETrackerConfig{frame_rate, track_buffer})
+{
 }
 
 BYTETracker::~BYTETracker()
 {
 }
 
- std::vector<STrack> BYTETracker::update(const  std::vector<detection::Object>& objects)
+std::vector<STrack> BYTETracker::update(
+	const std::vector<detection::Object>& objects)
+{
+	return update(objects, legacy_next_track_id);
+}
+
+ std::vector<STrack> BYTETracker::update(
+	 const std::vector<detection::Object>& objects, int& next_track_id)
 {
 
 	////////////////// Step 1: Get detections //////////////////
@@ -95,7 +107,7 @@ BYTETracker::~BYTETracker()
 		}
 		else
 		{
-			track->re_activate(*det, this->frame_id, false);
+			track->re_activate(*det, this->frame_id);
 			refind_stracks.push_back(*track);
 		}
 	}
@@ -135,7 +147,7 @@ BYTETracker::~BYTETracker()
 		}
 		else
 		{
-			track->re_activate(*det, this->frame_id, false);
+			track->re_activate(*det, this->frame_id);
 			refind_stracks.push_back(*track);
 		}
 	}
@@ -181,7 +193,8 @@ BYTETracker::~BYTETracker()
 		STrack *track = &detections[u_detection[i]];
 		if (track->score < this->high_thresh)
 			continue;
-		track->activate(this->kalman_filter, this->frame_id);
+		track->activate(this->kalman_filter, this->frame_id,
+						next_track_id++);
 		activated_stracks.push_back(*track);
 	}
 

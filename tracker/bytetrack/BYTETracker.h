@@ -4,13 +4,25 @@
 #include "detection_types.h"
 
 
+struct BYTETrackerConfig
+{
+	int frame_rate = 30;
+	int track_buffer = 30;
+	float track_thresh = 0.5f;
+	float high_thresh = 0.6f;
+	float match_thresh = 0.8f;
+};
+
 class BYTETracker
 {
 public:
-	BYTETracker(int frame_rate = 30, int track_buffer = 30);
+	explicit BYTETracker(const BYTETrackerConfig& config = {});
+	BYTETracker(int frame_rate, int track_buffer);
 	~BYTETracker();
 
-	 std::vector<STrack> update(const  std::vector<detection::Object>& objects);
+	 std::vector<STrack> update(const std::vector<detection::Object>& objects,
+		int& next_track_id);
+	 std::vector<STrack> update(const std::vector<detection::Object>& objects);
     cv::Scalar get_color(int idx);
 
 private:
@@ -36,6 +48,7 @@ private:
 	float match_thresh;
 	int frame_id;
 	int max_time_lost;
+	int legacy_next_track_id = 1;
 
 	 std::vector<STrack> tracked_stracks;
 	 std::vector<STrack> lost_stracks;

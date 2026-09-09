@@ -19,11 +19,11 @@ public:
 	 std::vector<float> to_xyah();
 	void mark_lost();
 	void mark_removed();
-	int next_id();
 	int end_frame();
-	
-	void activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id);
-	void re_activate(STrack &new_track, int frame_id, bool new_id = false);
+
+	void activate(byte_kalman::ByteKalmanFilter &kalman_filter, int frame_id,
+		int track_id);
+	void re_activate(STrack &new_track, int frame_id);
 	void update(STrack &new_track, int frame_id);
 
 public:

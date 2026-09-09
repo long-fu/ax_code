@@ -49,3 +49,13 @@ target_compile_definitions(postprocessor_chain_test PRIVATE
     POSTPROCESSOR_NO_FACTORY_PATH="$<TARGET_FILE:postprocessor_no_factory_fake>"
     POSTPROCESSOR_NULL_FACTORY_PATH="$<TARGET_FILE:postprocessor_null_factory_fake>")
 target_link_libraries(postprocessor_chain_test PRIVATE dl opencv_core)
+
+add_ax_test(tracker_processor_test
+    tracker_processor_test.cpp
+    ${CMAKE_SOURCE_DIR}/plugin/postprocessor_chain.cpp)
+set_source_files_properties(tracker_processor_test.cpp
+    PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Werror")
+add_dependencies(tracker_processor_test tracker_postprocessor)
+target_compile_definitions(tracker_processor_test PRIVATE
+    TRACKER_POSTPROCESSOR_PATH="$<TARGET_FILE:tracker_postprocessor>")
+target_link_libraries(tracker_processor_test PRIVATE dl opencv_core)

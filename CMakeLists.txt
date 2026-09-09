@@ -168,6 +168,22 @@ add_library(face_recognition SHARED
     plugins/face_recognition/face_plugin.cpp
     ${TRACKER_SRCS}
 )
+
+add_library(tracker_postprocessor SHARED
+    postprocessors/tracker/tracker_processor.cpp
+    ${TRACKER_SRCS}
+)
+set_source_files_properties(
+    postprocessors/tracker/tracker_processor.cpp
+    PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Werror")
+set_target_properties(tracker_postprocessor PROPERTIES
+    PREFIX "lib"
+    OUTPUT_NAME "tracker"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/postprocessors"
+    BUILD_RPATH "$ORIGIN/.."
+    INSTALL_RPATH "$ORIGIN/.."
+    POSITION_INDEPENDENT_CODE ON
+)
 target_compile_definitions(face_recognition PRIVATE FACE_PLUGIN_SHARED ${_AX_OSD_TEXT_DEF})
 set_target_properties(face_recognition PROPERTIES
     PREFIX "lib"
@@ -249,6 +265,7 @@ target_link_libraries(ax_runtime PUBLIC
 )
 
 target_link_libraries(face_recognition PRIVATE ax_runtime)
+target_link_libraries(tracker_postprocessor PRIVATE yaml-cpp opencv_core)
 
 target_link_libraries(ax_core PUBLIC
     ax_runtime
