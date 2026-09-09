@@ -163,7 +163,7 @@ target_compile_definitions(ax_core PRIVATE ${_AX_OSD_TEXT_DEF})
 # Face plugin .so: C ABI factory loaded from the scene configuration.
 add_library(face_recognition SHARED
     plugins/face_recognition/face_plugin.cpp
-    ${TRACKER_SRCS}
+    plugins/face_recognition/face_plugin_config.cpp
 )
 
 add_library(tracker_postprocessor SHARED

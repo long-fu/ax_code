@@ -15,6 +15,11 @@ add_ax_test(scene_config_test
     ${CMAKE_SOURCE_DIR}/plugin/scene_config.cpp)
 target_link_libraries(scene_config_test PRIVATE yaml-cpp)
 
+add_ax_test(face_plugin_config_test
+    face_plugin_config_test.cpp
+    ${CMAKE_SOURCE_DIR}/plugins/face_recognition/face_plugin_config.cpp)
+target_link_libraries(face_plugin_config_test PRIVATE yaml-cpp)
+
 function(add_postprocessor_fake target source)
   add_library(${target} SHARED ${source})
   set_target_properties(${target} PROPERTIES

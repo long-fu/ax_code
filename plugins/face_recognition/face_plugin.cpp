@@ -1,10 +1,10 @@
 #include "face_plugin.h"
 
-#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "face_align.h"
+#include "face_plugin_config.h"
 #include "logger.h"
 #include "my_utils.h"
 
@@ -25,16 +25,23 @@ uint32_t FacePlugin::ApiVersion() const
 
 int FacePlugin::Init(HostServices* host, const PluginConfig& cfg)
 {
-    (void)cfg;
     if (host == nullptr)
     {
         LOG_ERROR("FacePlugin: host is null");
         return -1;
     }
+
+    FacePluginConfig config;
+    std::string error;
+    if (!ParseFacePluginConfig(cfg.params_yaml, config, error))
+    {
+        LOG_ERROR("FacePlugin: invalid configuration: {}", error);
+        return -1;
+    }
+
     host_ = host;
-    frontal_score_thresh_ =
-        host_->ConfigFloat("frontal_score_thresh", 0.55f);
-    collection_ = host_->ConfigString("qdrant_collection", "face_embeddings");
+    frontal_score_thresh_ = config.frontal_score_thresh;
+    collection_ = std::move(config.qdrant_collection);
     return 0;
 }
 
@@ -62,75 +69,9 @@ int FacePlugin::OnFrame(const ImageData& frame,
 
     DrainIdentifyResults();
 
-    std::vector<detection::Object> tracked_faces = objects;
+    const auto& tracked_faces = objects;
     ++frame_seq_;
     const auto& frontal_score_cfg = face_align::FrontalScoreRecommended();
-    auto tracks = face_tracker_.update(tracked_faces);
-
-    auto rect_iou = [](const cv::Rect_<float>& a, float x1, float y1, float x2,
-                       float y2) -> float {
-        const float ax2 = a.x + a.width;
-        const float ay2 = a.y + a.height;
-        const float xx1 = std::max(a.x, x1);
-        const float yy1 = std::max(a.y, y1);
-        const float xx2 = std::min(ax2, x2);
-        const float yy2 = std::min(ay2, y2);
-        const float w = std::max(0.f, xx2 - xx1);
-        const float h = std::max(0.f, yy2 - yy1);
-        const float inter = w * h;
-        const float uni = a.width * a.height +
-                          std::max(0.f, x2 - x1) * std::max(0.f, y2 - y1) -
-                          inter;
-        return uni > 0.f ? inter / uni : 0.f;
-    };
-
-    for (auto& f : tracked_faces)
-    {
-        f.track_id = -1;
-    }
-    std::vector<char> face_used(tracked_faces.size(), 0);
-    int matched = 0;
-    for (const auto& t : tracks)
-    {
-        if (t.tlbr.size() < 4)
-        {
-            continue;
-        }
-        int best_i = -1;
-        float best_iou = 0.1f;
-        for (size_t i = 0; i < tracked_faces.size(); ++i)
-        {
-            if (face_used[i])
-            {
-                continue;
-            }
-            const float iou = rect_iou(tracked_faces[i].rect, t.tlbr[0],
-                                       t.tlbr[1], t.tlbr[2], t.tlbr[3]);
-            if (iou > best_iou)
-            {
-                best_iou = iou;
-                best_i = static_cast<int>(i);
-            }
-        }
-        if (best_i >= 0)
-        {
-            tracked_faces[best_i].track_id = t.track_id;
-            face_used[best_i] = 1;
-            ++matched;
-        }
-    }
-
-    LOG_INFO("bytetrack: faces={} tracks={} matched={}", tracked_faces.size(),
-             tracks.size(), matched);
-
-    for (const auto& t : tracks)
-    {
-        auto it = track_pending_.find(t.track_id);
-        if (it != track_pending_.end())
-        {
-            it->second.last_seen_frame = frame_seq_;
-        }
-    }
 
     for (const auto& f : tracked_faces)
     {
@@ -175,8 +116,8 @@ int FacePlugin::OnFrame(const ImageData& frame,
 
     host_->InferFaces(frame, to_process, face_imgs, feats);
 
-    LOG_INFO("feats size {} (tracks {}/new {}/faces {} )", feats.size(),
-             tracks.size(), to_process.size(), tracked_faces.size());
+    LOG_INFO("feats size {} (new {}/tracked faces {} )", feats.size(),
+             to_process.size(), tracked_faces.size());
 
     std::vector<IdentifyItem> identify_batch;
     identify_batch.reserve(feats.size());

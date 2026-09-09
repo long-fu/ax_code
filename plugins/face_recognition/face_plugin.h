@@ -9,7 +9,6 @@
 
 #include <nlohmann/json.hpp>
 
-#include "BYTETracker.h"
 #include "business_plugin.h"
 #include "detection_types.h"
 #include "host_services.h"
@@ -70,7 +69,6 @@ private:
     std::string collection_ = "face_embeddings";
     float frontal_score_thresh_ = 0.55f;
 
-    BYTETracker face_tracker_{25, 30};
     std::unordered_map<int, TrackPending> track_pending_;
     int frame_seq_ = 0;
 
