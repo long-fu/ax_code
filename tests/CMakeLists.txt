@@ -33,6 +33,28 @@ add_postprocessor_fake(postprocessor_no_factory_fake
 add_postprocessor_fake(postprocessor_null_factory_fake
     fakes/postprocessor_null_factory.cpp)
 
+add_postprocessor_fake(business_plugin_ok_fake
+    fakes/business_plugin_ok.cpp)
+add_postprocessor_fake(business_plugin_bad_version_fake
+    fakes/business_plugin_bad_version.cpp)
+add_postprocessor_fake(business_plugin_null_factory_fake
+    fakes/business_plugin_null_factory.cpp)
+
+add_ax_test(business_plugin_loader_test
+    business_plugin_loader_test.cpp
+    ${CMAKE_SOURCE_DIR}/plugin/plugin_loader.cpp)
+add_dependencies(business_plugin_loader_test
+    business_plugin_ok_fake
+    business_plugin_bad_version_fake
+    business_plugin_null_factory_fake
+    postprocessor_no_factory_fake)
+target_compile_definitions(business_plugin_loader_test PRIVATE
+    BUSINESS_PLUGIN_OK_PATH="$<TARGET_FILE:business_plugin_ok_fake>"
+    BUSINESS_PLUGIN_BAD_VERSION_PATH="$<TARGET_FILE:business_plugin_bad_version_fake>"
+    BUSINESS_PLUGIN_NULL_FACTORY_PATH="$<TARGET_FILE:business_plugin_null_factory_fake>"
+    BUSINESS_PLUGIN_NO_FACTORY_PATH="$<TARGET_FILE:postprocessor_no_factory_fake>")
+target_link_libraries(business_plugin_loader_test PRIVATE ax_runtime dl)
+
 add_ax_test(postprocessor_chain_test
     postprocessor_chain_test.cpp
     ${CMAKE_SOURCE_DIR}/plugin/postprocessor_chain.cpp)

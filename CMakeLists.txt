@@ -151,9 +151,7 @@ add_executable(ax_core
     apps/main_rtsp.cpp
     plugin/postprocessor_chain.cpp
     plugin/scene_config.cpp
-    plugin/plugin_registry.cpp
     plugin/plugin_loader.cpp
-    plugins/face_recognition/face_plugin.cpp
     ${PIPE_HAL_SRCS}
     ${STAGES_SRCS}
     ${PIP_SRCS}
@@ -162,8 +160,7 @@ add_executable(ax_core
 )
 target_compile_definitions(ax_core PRIVATE ${_AX_OSD_TEXT_DEF})
 
-# Face plugin .so: C ABI factory. Prefer this at runtime; exe keeps a static
-# registrar fallback when libface_recognition.so is missing.
+# Face plugin .so: C ABI factory loaded from the scene configuration.
 add_library(face_recognition SHARED
     plugins/face_recognition/face_plugin.cpp
     ${TRACKER_SRCS}

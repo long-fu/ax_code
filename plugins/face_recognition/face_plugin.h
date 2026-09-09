@@ -23,6 +23,7 @@ public:
     ~FacePlugin() override;
 
     const char* Name() const override;
+    uint32_t ApiVersion() const override;
     int Init(HostServices* host, const PluginConfig& cfg) override;
     int OnFrame(const ImageData& frame,
                 const std::vector<detection::Object>& objects) override;

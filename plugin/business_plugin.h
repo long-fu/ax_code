@@ -1,8 +1,7 @@
 #pragma once
 
-#include <functional>
+#include <cstdint>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "detection_types.h"
@@ -12,9 +11,13 @@ class HostServices;
 
 struct PluginConfig {
     std::string name;
-    std::string plugin_dir;
-    std::unordered_map<std::string, std::string> kv;
+    std::string library_path;
+    std::string config_dir;
+    std::string params_yaml;
+    uint32_t api_version = 0;
 };
+
+inline constexpr uint32_t kBusinessPluginApiVersion = 1;
 
 // 业务插件：管线只把「帧 + 检测结果」交给插件。
 // OnFrame 在管线线程调用；异步工作必须走 HostServices::SubmitAsync。
@@ -23,6 +26,8 @@ public:
     virtual ~BusinessPlugin() = default;
 
     virtual const char* Name() const = 0;
+
+    virtual uint32_t ApiVersion() const = 0;
 
     virtual int Init(HostServices* host, const PluginConfig& cfg) = 0;
 

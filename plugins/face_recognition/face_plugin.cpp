@@ -8,10 +8,6 @@
 #include "logger.h"
 #include "my_utils.h"
 
-#ifndef FACE_PLUGIN_SHARED
-#include "plugin_registry.h"
-#endif
-
 FacePlugin::~FacePlugin()
 {
     Shutdown();
@@ -20,6 +16,11 @@ FacePlugin::~FacePlugin()
 const char* FacePlugin::Name() const
 {
     return "face_recognition";
+}
+
+uint32_t FacePlugin::ApiVersion() const
+{
+    return kBusinessPluginApiVersion;
 }
 
 int FacePlugin::Init(HostServices* host, const PluginConfig& cfg)
@@ -717,16 +718,3 @@ __attribute__((visibility("default"))) void DestroyPlugin(BusinessPlugin* p)
 }
 
 }  // extern "C"
-
-#ifndef FACE_PLUGIN_SHARED
-namespace {
-struct FacePluginRegistrar {
-    FacePluginRegistrar()
-    {
-        plugin::RegisterPlugin("face_recognition", []() {
-            return std::unique_ptr<BusinessPlugin>(new FacePlugin());
-        });
-    }
-} g_face_plugin_registrar;
-}  // namespace
-#endif
