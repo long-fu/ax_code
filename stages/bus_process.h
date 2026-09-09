@@ -13,6 +13,7 @@
 #include "task_scheduler.h"
 
 #include "host_services.h"
+#include "bus_process_dispatch.h"
 #include "scene_config.h"
 #include "scene_runtime.h"
 
@@ -70,29 +71,51 @@ public:
             break;
         case kMsgInfprocData:
         {
+            if (msg_data == nullptr)
+            {
+                LOG_ERROR("BusProcess: received null inference message");
+                break;
+            }
             auto in_data = std::static_pointer_cast<InfData>(msg_data);
+            if (in_data == nullptr)
+            {
+                LOG_ERROR("BusProcess: invalid inference message");
+                break;
+            }
 
             bool mapped = false;
+            bool pixels_accessible = false;
             if (EnsureMapped(in_data->image) != 0)
             {
-                LOG_ERROR("BusProcess EnsureMapped failed, skip draw");
-            }
-            else if (in_data->image.data == nullptr ||
-                     in_data->image.data->FrameInfo() == nullptr ||
-                     in_data->image.data->FrameInfo()->stVFrame.u64VirAddr[0] ==
-                         0)
-            {
-                LOG_ERROR("BusProcess mapped frame invalid, skip draw");
-                Unmap(in_data->image);
+                LOG_ERROR(
+                    "BusProcess: frame mapping failed, skip scene runtime");
             }
             else
             {
                 mapped = true;
+                if (in_data->image.data == nullptr ||
+                    in_data->image.data->FrameInfo() == nullptr ||
+                    in_data->image.data->FrameInfo()
+                            ->stVFrame.u64VirAddr[0] == 0)
+                {
+                    LOG_ERROR(
+                        "BusProcess: mapped frame invalid, skip scene runtime");
+                }
+                else
+                {
+                    pixels_accessible = true;
+                }
             }
 
-            const auto result = runtime_.Process(
-                in_data->image, in_data->objects, ++frame_seq_);
-            ReportResult(result);
+            const auto dispatch =
+                MakeBusFrameDispatchPlan(true, pixels_accessible);
+            const uint64_t frame_seq = ++frame_seq_;
+            if (dispatch.run_runtime)
+            {
+                const auto result = runtime_.Process(
+                    in_data->image, in_data->objects, frame_seq);
+                ReportResult(result);
+            }
 
             if (mapped)
             {
@@ -101,8 +124,11 @@ public:
 
             auto out_data = std::make_shared<BusData>();
             out_data->image = in_data->image;
-            ret = pipeline::SendMessage(next_thread_id_, kMsgBusprocData,
-                                        out_data);
+            if (dispatch.forward_count == 1)
+            {
+                ret = pipeline::SendMessage(next_thread_id_, kMsgBusprocData,
+                                            out_data);
+            }
             break;
         }
         case kMsgAppExit:
@@ -121,6 +147,7 @@ private:
         uint64_t total = 0;
         std::chrono::steady_clock::time_point started;
         std::chrono::steady_clock::time_point last_log;
+        int last_code = 0;
     };
 
     void ReportFailure(FailureStreak& failure, const char* stage, int code)
@@ -133,6 +160,17 @@ private:
                       stage, code);
             failure.started = now;
             failure.last_log = now;
+            failure.last_code = code;
+        }
+        else if (failure.last_code != code)
+        {
+            LOG_ERROR(
+                "BusProcess: {} failure code changed ret={} -> ret={}, start new streak",
+                stage, failure.last_code, code);
+            failure.streak = 0;
+            failure.started = now;
+            failure.last_log = now;
+            failure.last_code = code;
         }
         else if (now - failure.last_log >= kFailLogInterval)
         {
@@ -141,7 +179,8 @@ private:
                                      .count();
             LOG_ERROR(
                 "BusProcess: {} continuously failed ret={} for {} seconds, skipped {} frames (total {})",
-                stage, code, seconds, failure.streak, failure.total);
+                stage, failure.last_code, seconds, failure.streak,
+                failure.total);
             failure.last_log = now;
         }
         ++failure.streak;

@@ -103,3 +103,6 @@ target_compile_definitions(scene_runtime_test PRIVATE
     POSTPROCESSOR_FAIL_PATH="$<TARGET_FILE:postprocessor_fail_fake>"
     BUSINESS_PLUGIN_OK_PATH="$<TARGET_FILE:business_plugin_ok_fake>")
 target_link_libraries(scene_runtime_test PRIVATE ax_runtime dl opencv_core)
+
+add_ax_test(bus_process_dispatch_test
+    bus_process_dispatch_test.cpp)

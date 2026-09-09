@@ -196,6 +196,35 @@ void TestStartupRollbackAndRepeatedShutdown(const TempDir& temp, int& failures)
            failures);
 }
 
+void TestSuccessfulReuse(const TempDir& temp, int& failures)
+{
+    const auto lifecycle = temp.path() / "reuse.txt";
+    plugin::SceneConfig config;
+    config.postprocessors = {
+        Processor("set-track", POSTPROCESSOR_SET_TRACK_PATH, lifecycle)};
+    config.scene = Business(lifecycle);
+
+    HostServices host;
+    plugin::SceneRuntime runtime;
+    Expect(runtime.Init(&host, config) == 0, "first runtime init succeeds",
+           failures);
+    runtime.Shutdown();
+    Expect(runtime.Init(&host, config) == 0,
+           "runtime initializes again after shutdown", failures);
+    runtime.Shutdown();
+
+    const std::string lifecycle_once =
+        "processor-init:set-track\n"
+        "init\n"
+        "shutdown\n"
+        "destroy\n"
+        "dlclose\n"
+        "processor-shutdown:set-track\n";
+    Expect(ReadFile(lifecycle) == lifecycle_once + lifecycle_once,
+           "successful reuse loads and unloads each component exactly twice",
+           failures);
+}
+
 } // namespace
 
 int main()
@@ -206,6 +235,7 @@ int main()
     TestPostprocessorFailureSkipsBusiness(temp, failures);
     TestBusinessFailureStage(temp, failures);
     TestStartupRollbackAndRepeatedShutdown(temp, failures);
+    TestSuccessfulReuse(temp, failures);
     if (failures != 0)
     {
         std::cerr << "scene_runtime_test: " << failures << " failure(s)\n";
