@@ -51,6 +51,22 @@ int main()
     Expect(config.qdrant_collection == "visitors",
            "configured qdrant_collection", failures);
 
+    Expect(ParseFacePluginConfig("qdrant_collection: 'quoted visitors'\n",
+                                 config, error),
+           "quoted collection name parses", failures);
+    Expect(config.qdrant_collection == "quoted visitors",
+           "quoted collection name is preserved", failures);
+    Expect(ParseFacePluginConfig("qdrant_collection: '123'\n", config,
+                                 error),
+           "quoted numeric collection name parses", failures);
+    Expect(config.qdrant_collection == "123",
+           "quoted numeric collection name is preserved", failures);
+    Expect(ParseFacePluginConfig("qdrant_collection: \"true\"\n", config,
+                                 error),
+           "quoted boolean collection name parses", failures);
+    Expect(config.qdrant_collection == "true",
+           "quoted boolean collection name is preserved", failures);
+
     ExpectInvalid("frontal_score_thresh: nope\n", "frontal_score_thresh",
                   failures);
     ExpectInvalid("frontal_score_thresh: []\n", "frontal_score_thresh",
@@ -62,6 +78,8 @@ int main()
     ExpectInvalid("frontal_score_thresh: .nan\n", "frontal_score_thresh",
                   failures);
     ExpectInvalid("qdrant_collection: []\n", "qdrant_collection", failures);
+    ExpectInvalid("qdrant_collection: 123\n", "qdrant_collection", failures);
+    ExpectInvalid("qdrant_collection: true\n", "qdrant_collection", failures);
     ExpectInvalid("qdrant_collection: ''\n", "qdrant_collection", failures);
 
     if (failures != 0)
