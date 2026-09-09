@@ -182,6 +182,8 @@ set_target_properties(tracker_postprocessor PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/postprocessors"
     BUILD_RPATH "$ORIGIN/.."
     INSTALL_RPATH "$ORIGIN/.."
+    BUILD_WITH_INSTALL_RPATH TRUE
+    INSTALL_RPATH_USE_LINK_PATH FALSE
     POSITION_INDEPENDENT_CODE ON
 )
 target_compile_definitions(face_recognition PRIVATE FACE_PLUGIN_SHARED ${_AX_OSD_TEXT_DEF})

@@ -134,6 +134,14 @@ void TestStrictValidation(int& failures)
                   "empty label name", "label names", failures);
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [1]\n",
                   "numeric label ID", "label name", failures);
+    ExpectInvalid("algorithm: bytetrack\ntrack_labels: [' 1 ']\n",
+                  "whitespace numeric label", "label name", failures);
+    ExpectInvalid("algorithm: bytetrack\ntrack_labels: [1.0]\n",
+                  "floating-point label", "label name", failures);
+    ExpectInvalid("algorithm: bytetrack\ntrack_labels: [1e2]\n",
+                  "scientific label", "label name", failures);
+    ExpectInvalid("algorithm: bytetrack\ntrack_labels: [0x10]\n",
+                  "hex label", "label name", failures);
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [face]\nframe_rate: 0\n",
                   "frame_rate", "frame_rate", failures);
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [face]\ntrack_buffer: 0\n",
@@ -144,6 +152,56 @@ void TestStrictValidation(int& failures)
                   "high_thresh", "high_thresh", failures);
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [face]\nmatch_thresh: 1.1\n",
                   "match_thresh", "match_thresh", failures);
+
+    const std::vector<std::pair<std::string, std::string>> malformed = {
+        {"algorithm: []\ntrack_labels: [face]\n", "algorithm"},
+        {"algorithm:\ntrack_labels: [face]\n", "algorithm"},
+        {"algorithm: bytetrack\ntrack_labels: [[]]\n", "track_labels item"},
+        {"algorithm: bytetrack\ntrack_labels: [face]\nframe_rate: []\n",
+         "frame_rate"},
+        {"algorithm: bytetrack\ntrack_labels: [face]\ntrack_buffer:\n",
+         "track_buffer"},
+        {"algorithm: bytetrack\ntrack_labels: [face]\ntrack_thresh: []\n",
+         "track_thresh"},
+        {"algorithm: bytetrack\ntrack_labels: [face]\nhigh_thresh:\n",
+         "high_thresh"},
+        {"algorithm: bytetrack\ntrack_labels: [face]\nmatch_thresh: nope\n",
+         "match_thresh"}};
+    for (const auto& item : malformed)
+    {
+        ExpectInvalid(item.first, item.second, item.second, failures);
+    }
+}
+
+void TestDuplicateKeysFail(int& failures)
+{
+    ExpectInvalid(
+        "algorithm: bytetrack\nalgorithm: bytetrack\ntrack_labels: [face]\n",
+        "duplicate algorithm", "duplicate key 'algorithm'", failures);
+    ExpectInvalid(
+        "algorithm: bytetrack\ntrack_labels: [face]\nframe_rate: 25\nframe_rate: 30\n",
+        "duplicate frame_rate", "duplicate key 'frame_rate'", failures);
+    ExpectInvalid(
+        "algorithm: bytetrack\ntrack_labels: [face]\ntrack_labels: [person]\n",
+        "duplicate track_labels", "duplicate key 'track_labels'", failures);
+    ExpectInvalid(
+        "algorithm: bytetrack\ntrack_labels: [face]\nmatch_thresh: 0.7\nmatch_thresh: 0.8\n",
+        "duplicate match_thresh", "duplicate key 'match_thresh'", failures);
+}
+
+void TestDigitNamesAndUnknownFields(int& failures)
+{
+    plugin::PostProcessorChain chain;
+    const std::string params =
+        "algorithm: bytetrack\ntrack_labels: [person2]\nunknown_option: true\n";
+    std::ostringstream startup_stderr;
+    std::streambuf* original_stderr = std::cerr.rdbuf(startup_stderr.rdbuf());
+    const int result = chain.Load({Config(params)});
+    std::cerr.rdbuf(original_stderr);
+    Expect(result == 0, "label names containing digits remain valid", failures);
+    Expect(startup_stderr.str().find("unknown tracker parameter 'unknown_option'") !=
+               std::string::npos,
+           "unknown tracker parameter emits a focused warning", failures);
 }
 
 } // namespace
@@ -154,6 +212,8 @@ int main()
     TestFiltersByNameResetsAndKeepsStableId(failures);
     TestIdsAreUniqueAcrossLabels(failures);
     TestStrictValidation(failures);
+    TestDuplicateKeysFail(failures);
+    TestDigitNamesAndUnknownFields(failures);
     if (failures != 0)
     {
         std::cerr << "tracker_processor_test: " << failures

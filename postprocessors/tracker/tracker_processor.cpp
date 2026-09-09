@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -30,22 +31,40 @@ bool ValidThreshold(float value)
 
 bool IsValidLabelName(const std::string& label)
 {
-    const bool blank = std::all_of(label.begin(), label.end(), [](char value) {
+    const auto first = std::find_if_not(label.begin(), label.end(), [](char value) {
         return std::isspace(static_cast<unsigned char>(value)) != 0;
     });
-    size_t numeric_start = 0;
-    if (!label.empty() && (label.front() == '+' || label.front() == '-'))
+    const auto last = std::find_if_not(label.rbegin(), label.rend(), [](char value) {
+        return std::isspace(static_cast<unsigned char>(value)) != 0;
+    }).base();
+    if (first == last)
     {
-        numeric_start = 1;
+        return false;
     }
-    const bool numeric = numeric_start < label.size() &&
-                         std::all_of(label.begin() + numeric_start,
-                                     label.end(), [](char value) {
-                                         return std::isdigit(
-                                                    static_cast<unsigned char>(
-                                                        value)) != 0;
-                                     });
-    return !label.empty() && !blank && !numeric;
+    const std::string trimmed(first, last);
+    char* parse_end = nullptr;
+    std::strtod(trimmed.c_str(), &parse_end);
+    return parse_end != trimmed.c_str() && *parse_end == '\0' ? false : true;
+}
+
+template <typename T>
+bool ReadOptional(const YAML::Node& params, const char* field, T& value)
+{
+    const YAML::Node node = params[field];
+    if (!node)
+    {
+        return true;
+    }
+    try
+    {
+        value = node.as<T>();
+        return true;
+    }
+    catch (const YAML::Exception& error)
+    {
+        ConfigError(std::string(field) + ": " + error.what());
+        return false;
+    }
 }
 
 float IntersectionOverUnion(const cv::Rect_<float>& detection,
@@ -91,8 +110,47 @@ int TrackerProcessor::Init(const plugin::ComponentConfig& config)
         {
             return ConfigError("params must be a map");
         }
-        if (!params["algorithm"] ||
-            params["algorithm"].as<std::string>() != "bytetrack")
+
+        const std::unordered_set<std::string> known_fields = {
+            "algorithm",   "track_labels", "frame_rate", "track_buffer",
+            "track_thresh", "high_thresh", "match_thresh"};
+        std::unordered_set<std::string> seen_fields;
+        for (const auto& entry : params)
+        {
+            std::string field;
+            try
+            {
+                field = entry.first.as<std::string>();
+            }
+            catch (const YAML::Exception& error)
+            {
+                return ConfigError(std::string("parameter key: ") + error.what());
+            }
+            if (!seen_fields.insert(field).second)
+            {
+                return ConfigError("duplicate key '" + field + "'");
+            }
+            if (known_fields.count(field) == 0)
+            {
+                std::cerr << "TrackerProcessor: warning: unknown tracker parameter '"
+                          << field << "'\n";
+            }
+        }
+
+        std::string algorithm;
+        if (!params["algorithm"])
+        {
+            return ConfigError("algorithm must be 'bytetrack'");
+        }
+        try
+        {
+            algorithm = params["algorithm"].as<std::string>();
+        }
+        catch (const YAML::Exception& error)
+        {
+            return ConfigError(std::string("algorithm: ") + error.what());
+        }
+        if (algorithm != "bytetrack")
         {
             return ConfigError("algorithm must be 'bytetrack'");
         }
@@ -104,7 +162,16 @@ int TrackerProcessor::Init(const plugin::ComponentConfig& config)
 
         for (const auto& label_node : labels)
         {
-            const std::string label = label_node.as<std::string>();
+            std::string label;
+            try
+            {
+                label = label_node.as<std::string>();
+            }
+            catch (const YAML::Exception& error)
+            {
+                return ConfigError(std::string("track_labels item: ") +
+                                   error.what());
+            }
             if (!IsValidLabelName(label))
             {
                 return ConfigError(
@@ -114,25 +181,14 @@ int TrackerProcessor::Init(const plugin::ComponentConfig& config)
         }
 
         BYTETrackerConfig tracker_config;
-        if (params["frame_rate"])
+        if (!ReadOptional(params, "frame_rate", tracker_config.frame_rate) ||
+            !ReadOptional(params, "track_buffer", tracker_config.track_buffer) ||
+            !ReadOptional(params, "track_thresh", tracker_config.track_thresh) ||
+            !ReadOptional(params, "high_thresh", tracker_config.high_thresh) ||
+            !ReadOptional(params, "match_thresh", tracker_config.match_thresh))
         {
-            tracker_config.frame_rate = params["frame_rate"].as<int>();
-        }
-        if (params["track_buffer"])
-        {
-            tracker_config.track_buffer = params["track_buffer"].as<int>();
-        }
-        if (params["track_thresh"])
-        {
-            tracker_config.track_thresh = params["track_thresh"].as<float>();
-        }
-        if (params["high_thresh"])
-        {
-            tracker_config.high_thresh = params["high_thresh"].as<float>();
-        }
-        if (params["match_thresh"])
-        {
-            tracker_config.match_thresh = params["match_thresh"].as<float>();
+            Shutdown();
+            return kInvalidConfig;
         }
 
         if (tracker_config.frame_rate <= 0)
