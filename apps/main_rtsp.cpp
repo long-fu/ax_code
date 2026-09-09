@@ -13,6 +13,7 @@
 #include "process_msg.h"
 #include "logger.h"
 #include "resource.h"
+#include "scene_config.h"
 
 static std::atomic<bool> g_running{true};
 static std::atomic<pipeline::TaskScheduler*> g_scheduler{nullptr};
@@ -76,8 +77,15 @@ void ExitPipeline(pipeline::TaskScheduler &app,
 
 int main(int argc, char const *argv[])
 {
-  (void)argc;
-  (void)argv;
+  const std::string app_config_path =
+      argc > 1 ? argv[1] : plugin::DefaultAppConfigPath();
+  std::string scene_config_path;
+  std::string config_error;
+  if (!plugin::LoadSceneConfigPath(app_config_path, scene_config_path,
+                                   config_error)) {
+    LOG_ERROR("load scene config path failed: {}", config_error);
+    return -1;
+  }
 
   // InitLogger("logs/app.log", spdlog::level::trace);
 
@@ -122,7 +130,7 @@ int main(int argc, char const *argv[])
 
   {
     pipeline::TaskNodeParam param;
-    param.node = new BusProcess();
+    param.node = new BusProcess(scene_config_path);
     param.node_name.assign("BusProcess");
     thread_tbl.push_back(param);
   }

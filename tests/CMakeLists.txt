@@ -37,6 +37,8 @@ add_postprocessor_fake(postprocessor_no_factory_fake
     fakes/no_factory.cpp)
 add_postprocessor_fake(postprocessor_null_factory_fake
     fakes/postprocessor_null_factory.cpp)
+add_postprocessor_fake(postprocessor_set_track_fake
+    fakes/postprocessor_set_track.cpp)
 
 add_postprocessor_fake(business_plugin_ok_fake
     fakes/business_plugin_ok.cpp)
@@ -86,3 +88,18 @@ add_dependencies(tracker_processor_test tracker_postprocessor)
 target_compile_definitions(tracker_processor_test PRIVATE
     TRACKER_POSTPROCESSOR_PATH="$<TARGET_FILE:tracker_postprocessor>")
 target_link_libraries(tracker_processor_test PRIVATE dl opencv_core)
+
+add_ax_test(scene_runtime_test
+    scene_runtime_test.cpp
+    ${CMAKE_SOURCE_DIR}/plugin/scene_runtime.cpp
+    ${CMAKE_SOURCE_DIR}/plugin/postprocessor_chain.cpp
+    ${CMAKE_SOURCE_DIR}/plugin/plugin_loader.cpp)
+add_dependencies(scene_runtime_test
+    postprocessor_set_track_fake
+    postprocessor_fail_fake
+    business_plugin_ok_fake)
+target_compile_definitions(scene_runtime_test PRIVATE
+    POSTPROCESSOR_SET_TRACK_PATH="$<TARGET_FILE:postprocessor_set_track_fake>"
+    POSTPROCESSOR_FAIL_PATH="$<TARGET_FILE:postprocessor_fail_fake>"
+    BUSINESS_PLUGIN_OK_PATH="$<TARGET_FILE:business_plugin_ok_fake>")
+target_link_libraries(scene_runtime_test PRIVATE ax_runtime dl opencv_core)

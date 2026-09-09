@@ -150,12 +150,12 @@ set(PIPE_HAL_SRCS
 add_executable(ax_core
     apps/main_rtsp.cpp
     plugin/postprocessor_chain.cpp
+    plugin/scene_runtime.cpp
     plugin/scene_config.cpp
     plugin/plugin_loader.cpp
     ${PIPE_HAL_SRCS}
     ${STAGES_SRCS}
     ${PIP_SRCS}
-    ${TRACKER_SRCS}
     pipeline/error.h
 )
 target_compile_definitions(ax_core PRIVATE ${_AX_OSD_TEXT_DEF})

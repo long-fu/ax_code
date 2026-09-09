@@ -1,8 +1,10 @@
 #pragma once
 
-#include <cstdlib>
+#include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "image_data.h"
 #include "logger.h"
@@ -11,17 +13,17 @@
 #include "task_scheduler.h"
 
 #include "host_services.h"
-#include "plugin_loader.h"
+#include "scene_config.h"
+#include "scene_runtime.h"
 
 class BusProcess : public pipeline::TaskNode {
 public:
-    BusProcess() = default;
-
-    ~BusProcess()
+    explicit BusProcess(std::string scene_config_path)
+        : scene_config_path_(std::move(scene_config_path))
     {
-        plugins_.Unload();
-        host_.Shutdown();
     }
+
+    ~BusProcess() { Shutdown(); }
 
     int Init() override
     {
@@ -35,25 +37,25 @@ public:
         const int host_ret = host_.Init();
         if (host_ret != 0)
         {
+            Shutdown();
             return host_ret;
         }
 
-        const auto names =
-            plugin::ParsePluginList(std::getenv("AX_BUS_PLUGINS"));
-        std::string dir = plugin::DefaultPluginDir();
-        if (const char* env_dir = std::getenv("AX_PLUGIN_DIR"))
+        plugin::SceneConfig scene_config;
+        std::string config_error;
+        if (!plugin::LoadSceneConfig(scene_config_path_, scene_config,
+                                     config_error))
         {
-            if (env_dir[0] != '\0')
-            {
-                dir = env_dir;
-            }
+            LOG_ERROR("BusProcess: load scene config failed: {}", config_error);
+            Shutdown();
+            return -1;
         }
-        const int load_ret = plugins_.Load(&host_, names, dir);
+        const int load_ret = runtime_.Init(&host_, scene_config);
         if (load_ret != 0)
         {
-            LOG_ERROR("BusProcess: 加载插件失败");
-            plugins_.Unload();
-            host_.Shutdown();
+            LOG_ERROR("BusProcess: scene runtime init failed, ret={}",
+                      load_ret);
+            Shutdown();
             return load_ret;
         }
         return 0;
@@ -88,7 +90,9 @@ public:
                 mapped = true;
             }
 
-            plugins_.OnFrame(in_data->image, in_data->objects);
+            const auto result = runtime_.Process(
+                in_data->image, in_data->objects, ++frame_seq_);
+            ReportResult(result);
 
             if (mapped)
             {
@@ -102,7 +106,7 @@ public:
             break;
         }
         case kMsgAppExit:
-            plugins_.Unload();
+            Shutdown();
             break;
         default:
             break;
@@ -111,7 +115,90 @@ public:
     }
 
 private:
+    struct FailureStreak
+    {
+        uint64_t streak = 0;
+        uint64_t total = 0;
+        std::chrono::steady_clock::time_point started;
+        std::chrono::steady_clock::time_point last_log;
+    };
+
+    void ReportFailure(FailureStreak& failure, const char* stage, int code)
+    {
+        const auto now = std::chrono::steady_clock::now();
+        ++failure.total;
+        if (failure.streak == 0)
+        {
+            LOG_ERROR("BusProcess: {} failed ret={}, start skipping frames",
+                      stage, code);
+            failure.started = now;
+            failure.last_log = now;
+        }
+        else if (now - failure.last_log >= kFailLogInterval)
+        {
+            const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+                                     now - failure.started)
+                                     .count();
+            LOG_ERROR(
+                "BusProcess: {} continuously failed ret={} for {} seconds, skipped {} frames (total {})",
+                stage, code, seconds, failure.streak, failure.total);
+            failure.last_log = now;
+        }
+        ++failure.streak;
+    }
+
+    void ReportRecovered(FailureStreak& failure, const char* stage)
+    {
+        if (failure.streak == 0)
+        {
+            return;
+        }
+        const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(
+                                 std::chrono::steady_clock::now() -
+                                 failure.started)
+                                 .count();
+        LOG_WARN(
+            "BusProcess: {} recovered after {} seconds, skipped {} frames (total {})",
+            stage, seconds, failure.streak, failure.total);
+        failure.streak = 0;
+    }
+
+    void ReportResult(const plugin::SceneProcessResult& result)
+    {
+        if (result.stage == plugin::SceneProcessStage::kPostProcessor)
+        {
+            ReportFailure(postprocessor_failure_, "postprocessor", result.code);
+            return;
+        }
+        ReportRecovered(postprocessor_failure_, "postprocessor");
+
+        if (result.stage == plugin::SceneProcessStage::kBusinessPlugin)
+        {
+            ReportFailure(business_failure_, "business plugin", result.code);
+            return;
+        }
+        ReportRecovered(business_failure_, "business plugin");
+    }
+
+    void Shutdown()
+    {
+        if (shutdown_)
+        {
+            return;
+        }
+        shutdown_ = true;
+        runtime_.Shutdown();
+        host_.Shutdown();
+    }
+
+    static constexpr auto kFailLogInterval = std::chrono::seconds(5);
+
+    std::string scene_config_path_;
     HostServices host_;
-    plugin::PluginManager plugins_;
+    plugin::SceneRuntime runtime_;
     int next_thread_id_ = -1;
+    uint64_t frame_seq_ = 0;
+    FailureStreak postprocessor_failure_;
+    FailureStreak business_failure_;
+    bool shutdown_ = false;
 };

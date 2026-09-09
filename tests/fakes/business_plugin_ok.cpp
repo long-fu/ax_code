@@ -11,6 +11,7 @@ namespace
 {
 
 char g_lifecycle_file[1024] = {};
+bool g_log_frames = false;
 
 std::string ValueFor(const std::string& yaml, const std::string& key)
 {
@@ -70,6 +71,8 @@ public:
             ValueFor(config.params_yaml, "lifecycle_file");
         std::snprintf(g_lifecycle_file, sizeof(g_lifecycle_file), "%s",
                       lifecycle_file.c_str());
+        g_log_frames =
+            ValueFor(config.params_yaml, "log_frames") == "true";
         AppendLifecycle("init");
 
         std::string normalized = config.params_yaml;
@@ -84,6 +87,10 @@ public:
     int OnFrame(const ImageData&,
                 const std::vector<detection::Object>& objects) override
     {
+        if (g_log_frames)
+        {
+            AppendLifecycle("frame");
+        }
         return !objects.empty() && objects.front().track_id == 42 ? 0 : -42;
     }
 
