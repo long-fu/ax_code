@@ -4,7 +4,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -29,6 +28,108 @@ bool ValidThreshold(float value)
     return value >= 0.0f && value <= 1.0f;
 }
 
+bool IsBaseDigit(char value, int base)
+{
+    if (value >= '0' && value <= '9')
+    {
+        return value - '0' < base;
+    }
+    const char lower = static_cast<char>(
+        std::tolower(static_cast<unsigned char>(value)));
+    return base == 16 && lower >= 'a' && lower <= 'f';
+}
+
+bool IsDigitSequence(const std::string& value, size_t start, int base)
+{
+    bool has_digit = false;
+    for (size_t index = start; index < value.size(); ++index)
+    {
+        if (value[index] == '_')
+        {
+            continue;
+        }
+        if (!IsBaseDigit(value[index], base))
+        {
+            return false;
+        }
+        has_digit = true;
+    }
+    return has_digit;
+}
+
+bool IsYamlNumeric(const std::string& value)
+{
+    std::string lower = value;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](char item) {
+        return static_cast<char>(
+            std::tolower(static_cast<unsigned char>(item)));
+    });
+    if (lower == ".inf" || lower == "+.inf" || lower == "-.inf" ||
+        lower == ".nan" || lower == "+.nan" || lower == "-.nan")
+    {
+        return true;
+    }
+
+    size_t index = 0;
+    if (value[index] == '+' || value[index] == '-')
+    {
+        ++index;
+    }
+    if (index >= value.size())
+    {
+        return false;
+    }
+    if (index + 2 <= value.size() && value[index] == '0')
+    {
+        const char prefix = static_cast<char>(
+            std::tolower(static_cast<unsigned char>(value[index + 1])));
+        if (prefix == 'b' || prefix == 'o' || prefix == 'x')
+        {
+            const int base = prefix == 'b' ? 2 : (prefix == 'o' ? 8 : 16);
+            return IsDigitSequence(value, index + 2, base);
+        }
+    }
+
+    bool mantissa_digit = false;
+    while (index < value.size() &&
+           (IsBaseDigit(value[index], 10) || value[index] == '_'))
+    {
+        mantissa_digit = mantissa_digit || value[index] != '_';
+        ++index;
+    }
+    if (index < value.size() && value[index] == '.')
+    {
+        ++index;
+        while (index < value.size() &&
+               (IsBaseDigit(value[index], 10) || value[index] == '_'))
+        {
+            mantissa_digit = mantissa_digit || value[index] != '_';
+            ++index;
+        }
+    }
+    if (!mantissa_digit)
+    {
+        return false;
+    }
+    if (index < value.size() &&
+        (value[index] == 'e' || value[index] == 'E'))
+    {
+        ++index;
+        if (index < value.size() &&
+            (value[index] == '+' || value[index] == '-'))
+        {
+            ++index;
+        }
+        const size_t exponent_start = index;
+        if (!IsDigitSequence(value, exponent_start, 10))
+        {
+            return false;
+        }
+        index = value.size();
+    }
+    return index == value.size();
+}
+
 bool IsValidLabelName(const std::string& label)
 {
     const auto first = std::find_if_not(label.begin(), label.end(), [](char value) {
@@ -42,9 +143,7 @@ bool IsValidLabelName(const std::string& label)
         return false;
     }
     const std::string trimmed(first, last);
-    char* parse_end = nullptr;
-    std::strtod(trimmed.c_str(), &parse_end);
-    return parse_end != trimmed.c_str() && *parse_end == '\0' ? false : true;
+    return !IsYamlNumeric(trimmed);
 }
 
 template <typename T>

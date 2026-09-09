@@ -142,6 +142,17 @@ void TestStrictValidation(int& failures)
                   "scientific label", "label name", failures);
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [0x10]\n",
                   "hex label", "label name", failures);
+    const std::vector<std::string> yaml_numeric_labels = {
+        "0b101", "+0b101", "-0b101", "0o17", "+0o17", "-0o17",
+        "1_000", "0b10_01", "0o1_7", "0x1_0", ".inf", "+.inf",
+        "-.inf", ".nan", ".INF", ".NaN"};
+    for (const auto& numeric_label : yaml_numeric_labels)
+    {
+        ExpectInvalid("algorithm: bytetrack\ntrack_labels: ['" +
+                          numeric_label + "']\n",
+                      "YAML numeric label " + numeric_label, "label name",
+                      failures);
+    }
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [face]\nframe_rate: 0\n",
                   "frame_rate", "frame_rate", failures);
     ExpectInvalid("algorithm: bytetrack\ntrack_labels: [face]\ntrack_buffer: 0\n",
@@ -193,12 +204,14 @@ void TestDigitNamesAndUnknownFields(int& failures)
 {
     plugin::PostProcessorChain chain;
     const std::string params =
-        "algorithm: bytetrack\ntrack_labels: [person2]\nunknown_option: true\n";
+        "algorithm: bytetrack\ntrack_labels: [person2, 人脸]\nunknown_option: true\n";
     std::ostringstream startup_stderr;
     std::streambuf* original_stderr = std::cerr.rdbuf(startup_stderr.rdbuf());
     const int result = chain.Load({Config(params)});
     std::cerr.rdbuf(original_stderr);
-    Expect(result == 0, "label names containing digits remain valid", failures);
+    Expect(result == 0,
+           "label names containing digits and non-ASCII names remain valid",
+           failures);
     Expect(startup_stderr.str().find("unknown tracker parameter 'unknown_option'") !=
                std::string::npos,
            "unknown tracker parameter emits a focused warning", failures);
